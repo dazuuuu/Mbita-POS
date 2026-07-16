@@ -14,7 +14,7 @@ class TenantModel extends Model
     public function create(string $name, string $slug, string $businessType = 'shop'): int
     {
         $data = ['name' => $name, 'slug' => $slug, 'status' => 'active'];
-        if (SchemaHelper::columnExists($this->db, $this->table, 'business_type')) {
+        if (\SchemaHelper::columnExists($this->db, $this->table, 'business_type')) {
             $data['business_type'] = in_array($businessType, ['barbershop_salon', 'shop'], true) ? $businessType : 'shop';
         }
         return $this->insert($data);
@@ -31,7 +31,7 @@ class TenantModel extends Model
         $allowed = ['name', 'logo_path', 'currency', 'phone', 'address', 'location', 'kra_pin', 'receipt_footer', 'credits_enabled', 'business_type', 'modules'];
         $clean = array_intersect_key($data, array_flip($allowed));
         if (isset($clean['modules']) && is_array($clean['modules'])) {
-            $clean['modules'] = json_encode(TenantModules::sanitizePosted($clean['modules']));
+            $clean['modules'] = json_encode(\TenantModules::sanitizePosted($clean['modules']));
         }
         $clean = \SchemaHelper::filterColumns($this->db, $this->table, $clean);
         if (!$clean) {

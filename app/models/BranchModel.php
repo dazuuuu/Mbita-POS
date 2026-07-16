@@ -19,7 +19,7 @@ class BranchModel extends Model
         if (strlen($title) > 120) {
             return ['ok' => false, 'id' => null, 'error' => 'Branch name is too long.'];
         }
-        $types = array_keys(TenantModules::branchTypeLabels());
+        $types = array_keys(\TenantModules::branchTypeLabels());
         if (!in_array($branchType, $types, true)) {
             return ['ok' => false, 'id' => null, 'error' => 'Choose a valid branch type.'];
         }
