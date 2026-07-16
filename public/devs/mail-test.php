@@ -3,7 +3,7 @@
 // DEV-ONLY mail diagnostic. Sends a real test email with full SMTP logging so
 // you can see exactly why mail isn't going out. Key-guarded. DELETE before production.
 //
-//   http://localhost/Modern/public/devs/mail-test.php?key=modern-dev
+//   http://localhost/public/devs/mail-test.php?key=modern-dev
 
 require_once __DIR__ . '/../../app/app.php';
 

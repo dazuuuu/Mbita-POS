@@ -34,6 +34,7 @@ class TenantContext
         $_SESSION['user_id']      = (int) $user['id'];
         $_SESSION['tenant_id']    = isset($user['tenant_id']) ? ($user['tenant_id'] !== null ? (int) $user['tenant_id'] : null) : null;
         $_SESSION['role']         = $user['role_name'] ?? null;
+        $_SESSION['staff_type']   = $user['staff_type'] ?? null;
         $_SESSION['capabilities'] = $caps;
 
         self::boot();

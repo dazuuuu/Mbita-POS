@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'delete') {
         $res = $svc->delete($tenantId, (int) ($_POST['agent_id'] ?? 0));
         $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok'] ? 'Sales agent removed.' : $res['error'];
-        header('Location: /Curlz/public/super/sales-agents/');
+        header('Location: ' . public_path('super/sales-agents/'));
         exit;
     }
 
@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $res = $svc->create($tenantId, $old, $notify);
     if ($res['ok']) {
         $_SESSION['flash']['success'] = 'Sales agent created — invite emailed to ' . $old['email'] . '.';
-        header('Location: /Curlz/public/super/sales-agents/');
+        header('Location: ' . public_path('super/sales-agents/'));
         exit;
     }
     $errors = $res['errors'];

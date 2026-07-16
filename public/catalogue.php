@@ -1,7 +1,7 @@
 <?php
 // public/catalogue.php
 // Public-facing product catalogue. No login required.
-// URL: /Modern/public/catalogue.php?shop=<slug>[&branch=<branch_id>]
+// URL: /public/catalogue.php?shop=<slug>[&branch=<branch_id>]
 
 if (!defined('ROOT_PATH')) {
     define('ROOT_PATH', dirname(__DIR__));
@@ -71,9 +71,9 @@ $shopPhone  = $tenant['phone'] ?? '';
 $shopAddr   = $tenant['address'] ?? '';
 $currency   = $tenant['currency'] ?? 'KES';
 $logoPath   = $tenant['logo_path'] ?? null;
-$logoUrl    = $logoPath ? '/Curlz' . ltrim($logoPath, '/Curlz') : '/Curlz/public/assets/images/logo/logo.png';
+$logoUrl    = $logoPath ? '/Curlz' . ltrim($logoPath, '/Curlz') : public_path('assets/images/logo/logo.png');
 
-$baseUrl    = '/Curlz/public/catalogue.php?shop=' . urlencode($shopSlug);
+$baseUrl    = public_path('catalogue.php?shop=') . urlencode($shopSlug);
 $shareUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
             . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
             . $baseUrl;

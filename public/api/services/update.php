@@ -10,6 +10,7 @@ function sendJsonResponse($success, $message) {
 }
 
 try {
+    require_once dirname(__DIR__, 3) . '/app/helpers/AppUrl.php';
     if (session_status() === PHP_SESSION_NONE) session_start();
     
     if (!isset($_SESSION['user_id']) || !isset($_SESSION['role_id']) || $_SESSION['role_id'] > 2) {
@@ -30,7 +31,7 @@ try {
     // Handle cover image upload
     $cover_image = null;
     if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === 0) {
-        $upload_dir = $_SERVER['DOCUMENT_ROOT'] . '/Modern/public/uploads/services/covers/';
+        $upload_dir = ROOT_PATH . '/public/uploads/services/covers/';
         if (!is_dir($upload_dir)) {
             mkdir($upload_dir, 0777, true);
         }
@@ -40,7 +41,7 @@ try {
         $target_file = $upload_dir . $filename;
         
         if (move_uploaded_file($_FILES['cover_image']['tmp_name'], $target_file)) {
-            $cover_image = '/Modern/public/uploads/services/covers/' . $filename;
+            $cover_image = public_path('uploads/services/covers/') . $filename;
             
             // Delete old cover image
             $stmt = $pdo->prepare("SELECT cover_image FROM services WHERE id = :id");

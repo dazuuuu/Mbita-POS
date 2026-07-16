@@ -20,7 +20,7 @@ $tenantSlug = $__tenant['slug'] ?? '';
 $shopName   = $__tenant['name'] ?? 'Our Shop';
 $catalogueUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
               . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-              . '/Curlz/public/catalogue.php?shop=' . urlencode($tenantSlug);
+              . public_path('catalogue.php?shop=') . urlencode($tenantSlug);
 
 $P = new Models\ProductModel($pdo);
 $products = $P->sellable();
@@ -130,17 +130,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ? count($serviceRes['receipt_numbers']) . ' service receipts'
                         : $serviceRes['receipt_number'];
                     $_SESSION['flash']['success'] = 'Sale recorded — products: ' . $productRes['receipt_number'] . ', services: ' . $svcNote . '.';
-                    header('Location: /Curlz/public/staff/sales/receipt.php?id=' . $productRes['sale_id']);
+                    header('Location: ' . public_path('staff/sales/receipt.php')?id=);
                     exit;
                 }
                 if ($productRes) {
                     $_SESSION['flash']['success'] = 'Sale recorded — ' . $productRes['receipt_number'] . '.';
-                    header('Location: /Curlz/public/staff/sales/receipt.php?id=' . $productRes['sale_id']);
+                    header('Location: ' . public_path('staff/sales/receipt.php')?id=);
                     exit;
                 }
                 if ($serviceRes) {
                     $_SESSION['flash']['success'] = 'Service sale recorded — ' . $serviceRes['receipt_number'] . '.';
-                    header('Location: /Curlz/public/commission/receipt.php?id=' . $serviceRes['id']);
+                    header('Location: ' . public_path('commission/receipt.php')?id=);
                     exit;
                 }
             }

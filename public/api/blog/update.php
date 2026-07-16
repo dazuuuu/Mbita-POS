@@ -10,6 +10,7 @@ function sendJsonResponse($success, $message) {
 }
 
 try {
+    require_once dirname(__DIR__, 3) . '/app/helpers/AppUrl.php';
     if (session_status() === PHP_SESSION_NONE) session_start();
     
     if (!isset($_SESSION['user_id']) || !isset($_SESSION['role_id']) || $_SESSION['role_id'] > 2) {
@@ -31,7 +32,7 @@ try {
     // Handle featured image upload
     $featured_image = null;
     if (isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === 0) {
-        $upload_dir = $_SERVER['DOCUMENT_ROOT'] . '/Modern/public/uploads/blogs/';
+        $upload_dir = ROOT_PATH . '/public/uploads/blogs/';
         if (!is_dir($upload_dir)) {
             mkdir($upload_dir, 0777, true);
         }
@@ -41,7 +42,7 @@ try {
         $target_file = $upload_dir . $filename;
         
         if (move_uploaded_file($_FILES['featured_image']['tmp_name'], $target_file)) {
-            $featured_image = '/Modern/public/uploads/blogs/' . $filename;
+            $featured_image = public_path('uploads/blogs/') . $filename;
         }
     }
     

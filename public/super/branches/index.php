@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $res = $bm->create($old['title'], $old['location']);
     if ($res['ok']) {
         $_SESSION['flash']['success'] = 'Branch "' . $old['title'] . '" created.';
-        header('Location: /Curlz/public/super/branches/');
+        header('Location: ' . public_path('super/branches/'));
         exit;
     }
     $error = $res['error'];
@@ -68,7 +68,7 @@ ob_start();
               </tbody>
             </table>
           </div>
-          <a class="btn btn-sm btn-outline-secondary mt-3" href="/Curlz/public/super/staff/">Manage staff</a>
+          <a class="btn btn-sm btn-outline-secondary mt-3" href="<?php echo public_path('super/staff/'); ?>">Manage staff</a>
         <?php endif; ?>
       </div>
     </div>

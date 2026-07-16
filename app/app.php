@@ -30,6 +30,7 @@ spl_autoload_register(function ($class) {
 
 // Global helpers loaded on every request (not autoloaded by class name alone in all setups).
 require_once ROOT_PATH . '/app/helpers/SchemaHelper.php';
+require_once ROOT_PATH . '/app/helpers/AppUrl.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -37,3 +38,10 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Rehydrate the current tenant/user/capabilities for this request.
 TenantContext::boot();
+
+// Apply pending schema updates (safe, idempotent).
+try {
+    Schema025Service::ensureApplied(Database::pdo());
+} catch (Throwable $e) {
+    // DB may not be configured during CLI/tests.
+}
