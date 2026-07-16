@@ -15,6 +15,12 @@ class AppUrl
         if (self::$paths === null) {
             $file = (defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 2)) . '/app/config/paths.php';
             self::$paths = is_file($file) ? (require $file) : ['base_path' => '', 'public_segment' => 'public'];
+
+            // php -S localhost:8000 -t public — docroot is already /public, no URL prefix needed
+            if (php_sapi_name() === 'cli-server') {
+                self::$paths['base_path'] = '';
+                self::$paths['public_segment'] = '';
+            }
         }
         return self::$paths;
     }
@@ -70,20 +76,23 @@ class AppUrl
     public static function url(string $publicPath = ''): string
     {
         $rel = self::public($publicPath);
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+        // Built-in server: always use the request host (e.g. localhost:8000)
+        if (php_sapi_name() === 'cli-server') {
+            return $scheme . '://' . $host . $rel;
+        }
+
         $appFile = (defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 2)) . '/app/config/app.php';
         if (is_file($appFile)) {
             $app = require $appFile;
             $origin = rtrim((string) ($app['app_url'] ?? ''), '/');
-            if ($origin !== '') {
-                // app_url may already include base_path — use origin + path suffix only when needed
-                if ($origin !== '' && !str_starts_with($rel, 'http')) {
-                    // If app_url is http://host/Mbita and base is /Curlz, prefer app_url + relative from base
-                    return $origin . $rel;
-                }
+            if ($origin !== '' && !str_starts_with($rel, 'http')) {
+                return $origin . $rel;
             }
         }
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
         return $scheme . '://' . $host . $rel;
     }
 

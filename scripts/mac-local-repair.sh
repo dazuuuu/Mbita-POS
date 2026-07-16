@@ -28,27 +28,17 @@ done < <(find . -name '*.php' -not -path './vendor/*' -print0)
 echo "  ($fixed files updated)"
 echo ""
 
-# 2) Ensure paths.php uses /Mbita
-PATHS_FILE="app/config/paths.php"
-if [ -f "$PATHS_FILE" ]; then
-  echo "==> Setting base_path to /Mbita in $PATHS_FILE"
-  sed -i '' "s/'base_path'[[:space:]]*=>[[:space:]]*'[^']*'/'base_path'       => '\/Mbita'/" "$PATHS_FILE"
-else
-  echo "==> Creating $PATHS_FILE"
-  mkdir -p app/config
-  cat > "$PATHS_FILE" <<'PHP'
-<?php
-return [
-    'base_path'       => '/Mbita',
-    'public_segment'  => 'public',
-];
-PHP
+# 2) Ensure app.php app_url matches php built-in server (paths auto-detect on cli-server)
+APP_FILE="app/config/app.php"
+if [ -f "$APP_FILE" ]; then
+  echo "==> Setting app_url to http://localhost:8000 in $APP_FILE"
+  sed -i '' "s|'app_url'[[:space:]]*=>[[:space:]]*'[^']*'|'app_url'      => 'http://localhost:8000'|" "$APP_FILE"
 fi
 echo ""
 
 # 3) PHP syntax check on key auth files
 echo "==> PHP syntax check..."
-for f in public/index.php public/auth/login.php public/auth/forgot-password.php; do
+for f in public/index.php public/auth/login.php public/auth/forgot-password.php app/helpers/AppUrl.php; do
   if [ -f "$f" ]; then
     php -l "$f" || true
   fi
@@ -57,12 +47,15 @@ echo ""
 
 echo "==> Done."
 echo ""
-echo "Next steps:"
-echo "  1. Start MySQL (AMPPS/MAMP/XAMPP)"
-echo "  2. Open: http://localhost/Mbita/public/devs/health-check.php"
-echo "  3. Open login: http://localhost/Mbita/public/auth/login.php"
+echo "Next steps (Mac — php built-in server + MySQL Workbench):"
+echo "  1. Start MySQL server (Workbench is only the client)"
+echo "  2. In project root:"
+echo "       php -S localhost:8000 -t public"
+echo "  3. Open: http://localhost:8000/ping.php"
+echo "  4. Open: http://localhost:8000/devs/health-check.php"
+echo "  5. Login: http://localhost:8000/auth/login.php"
 echo ""
 echo "When GitHub works again, save your work then pull:"
 echo "  git stash push -m 'my laptop changes'"
-echo "  git pull origin cursor/pos-auth-pin-roles-d36f"
+echo "  git pull origin cursor/admins-management-d36f"
 echo "  git stash pop"

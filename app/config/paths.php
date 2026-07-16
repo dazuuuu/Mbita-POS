@@ -6,6 +6,8 @@
 // base_path = folder this project lives under on your web server (leading slash).
 //
 // Examples:
+//   Mac php built-in server (php -S localhost:8000 -t public):
+//     Auto-detected — no edit needed (base_path '' and public_segment '').
 //   Local XAMPP/AMPPS:  '/Curlz'   or  '/Mbita'   or  '/pos'
 //   Domain root:        ''           (empty string — project at http://example.com/)
 //   Subfolder:          '/my-shop'

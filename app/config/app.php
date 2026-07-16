@@ -4,7 +4,7 @@
 
 return [
     'app_name'     => 'Mbita POS',
-    'app_url'      => 'http://localhost/Mbita',   // full site URL — match app/config/paths.php base_path
+    'app_url'      => 'http://localhost:8000',    // Mac: php -S localhost:8000 -t public (auto-detected). Apache: http://localhost/Mbita
     'debug'        => false,                         // set false in production
     'timezone'     => 'UTC',
     'session_name' => 'curlz_session',
