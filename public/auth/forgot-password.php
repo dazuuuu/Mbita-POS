@@ -7,13 +7,13 @@ require_once ROOT_PATH . '/app/services/emails/password_reset_email.php';
 
 // Already logged in → go home
 if (!empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified'])) {
-    header('Location: /curlz/public/auth/login.php');
+    header('Location: ' . public_path('auth/login.php'));
     exit;
 }
 
 // Already have a reset in progress → jump to step 2
 if (!empty($_SESSION['reset_user_id'])) {
-    header('Location: /curlz/public/auth/reset-otp.php');
+    header('Location: ' . public_path('auth/reset-otp.php'));
     exit;
 }
 

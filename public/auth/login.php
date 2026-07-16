@@ -2,7 +2,6 @@
 // public/auth/login.php
 // Admin: email + password. Staff: shop code + 4–5 digit PIN.
 require_once __DIR__ . '/../../app/app.php';
-Schema025Service::ensureApplied(Database::pdo());
 
 function auth_employee_dashboard(?string $role): string
 {
@@ -33,8 +32,14 @@ if (!empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified'])) {
     TenantContext::reset();
 }
 
-$pdo  = Database::pdo();
-$auth = new AuthService($pdo);
+$pdo  = null;
+$dbError = '';
+try {
+    $pdo = Database::pdo();
+} catch (Throwable $e) {
+    $dbError = 'Database connection failed. Check app/config/database.php and that MySQL is running.';
+}
+$auth = $pdo ? new AuthService($pdo) : null;
 $error = '';
 $notice = '';
 $mode = ($_GET['mode'] ?? $_POST['mode'] ?? 'admin') === 'staff' ? 'staff' : 'admin';
@@ -51,6 +56,9 @@ $email    = '';
 $shopSlug = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$pdo || !$auth) {
+        $error = $dbError ?: 'System unavailable. Try again later.';
+    } else {
     $mode = ($_POST['mode'] ?? 'admin') === 'staff' ? 'staff' : 'admin';
     $ip   = $_SERVER['REMOTE_ADDR'] ?? null;
 
@@ -99,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    }
 }
 
 $page_title = 'Log in';
@@ -126,6 +135,7 @@ ob_start();
 <?php endif; ?>
 
 <?php if ($error): ?><div class="auth-alert err"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
+<?php if ($dbError && !$error): ?><div class="auth-alert err"><?php echo htmlspecialchars($dbError); ?></div><?php endif; ?>
 <?php if ($notice): ?><div class="auth-alert ok"><?php echo htmlspecialchars($notice); ?></div><?php endif; ?>
 
 <form method="post" novalidate>
