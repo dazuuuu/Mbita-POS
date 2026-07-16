@@ -1,8 +1,8 @@
 <?php
 // app/services/StaffService.php
-// Owner-driven staff management. Creates a 'staff' user pinned to a branch with
-// an auto-generated temporary password (emailed via the $notify callback), and
-// flags the account to force a password reset on first login.
+// Owner-driven staff management. Creates staff with a PIN (no email login).
+// Admin assigns a role template (cashier, reception, sales, barber, junior admin)
+// and delegates features on the authorization page.
 
 class StaffService
 {
@@ -11,32 +11,37 @@ class StaffService
     public function __construct(PDO $db)
     {
         $this->db = $db;
+        Schema025Service::ensureApplied($db);
     }
 
     /**
-     * @param int   $tenantId  the owner's tenant
-     * @param array $in        email, name (optional), branch_id (optional — NULL = all branches)
-     * @param callable $notify fn(array $info): void  // info: email,name,temp_password,shop
-     * @return array ['ok'=>bool, 'user_id'=>?int, 'temp_password'=>?string, 'errors'=>array]
+     * @param int   $tenantId
+     * @param array $in  name, pin (4-5 digits), staff_type, branch_id (optional)
+     * @return array ['ok'=>bool, 'user_id'=>?int, 'errors'=>array]
      */
-    public function create(int $tenantId, array $in, callable $notify): array
+    public function create(int $tenantId, array $in): array
     {
-        $email = strtolower(trim($in['email'] ?? ''));
-        $name  = trim($in['name'] ?? '');
+        $name     = trim($in['name'] ?? '');
+        $pin      = trim($in['pin'] ?? '');
+        $staffType = $in['staff_type'] ?? 'general';
         $branchId = isset($in['branch_id']) && (int) $in['branch_id'] > 0 ? (int) $in['branch_id'] : null;
         $errors = [];
 
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $errors['email'] = 'Enter a valid email address.';
+        if ($name === '') {
+            $errors['name'] = 'Staff name is required.';
+        }
+        if (!preg_match('/^\d{4,5}$/', $pin)) {
+            $errors['pin'] = 'PIN must be 4 or 5 digits.';
+        }
+        if (!isset(StaffRoles::typeLabels()[$staffType])) {
+            $errors['staff_type'] = 'Choose a valid staff role.';
         }
         if ($branchId !== null && !$this->branchBelongsToTenant($branchId, $tenantId)) {
             $errors['branch_id'] = 'Choose a valid branch.';
         }
-        // Login is by email alone, so emails must be unique across ALL users.
-        if (!$errors && $this->emailExists($email)) {
-            $errors['email'] = 'That email is already in use.';
+        if (!$errors && $this->pinExists($tenantId, $pin)) {
+            $errors['pin'] = 'That PIN is already in use by another staff member.';
         }
-        // Respect the plan's staff limit.
         if (!$errors) {
             $limit = $this->staffLimit($tenantId);
             if ($limit !== null && $this->staffCount($tenantId) >= $limit) {
@@ -44,66 +49,97 @@ class StaffService
             }
         }
         if ($errors) {
-            return ['ok' => false, 'user_id' => null, 'temp_password' => null, 'errors' => $errors];
+            return ['ok' => false, 'user_id' => null, 'errors' => $errors];
         }
 
-        $staffRoleId = $this->roleId('staff');
-        if ($staffRoleId === null) {
-            return ['ok' => false, 'user_id' => null, 'temp_password' => null, 'errors' => ['_' => 'Staff role missing. Run migration 014.']];
+        $roleName = StaffRoles::roleForType($staffType);
+        $roleId = $this->roleId($roleName);
+        if ($roleId === null) {
+            return ['ok' => false, 'user_id' => null, 'errors' => ['_' => 'Staff role missing. Run migration 025.']];
         }
 
-        $temp = self::generateTempPassword();
-        $username = $name !== '' ? $name : strstr($email, '@', true);
+        $internalEmail = $this->internalEmail($tenantId, $name);
+        $pinLookup = self::pinLookup($tenantId, $pin);
 
         $stmt = $this->db->prepare(
-            'INSERT INTO users (tenant_id, branch_id, username, email, password_hash, must_reset_password, role_id, is_active, email_verified)
-             VALUES (:t, :b, :u, :e, :p, 1, :r, 1, 1)'
+            'INSERT INTO users (tenant_id, branch_id, staff_type, username, email, password_hash, login_pin_hash, login_pin_lookup,
+                                must_reset_password, role_id, is_active, email_verified)
+             VALUES (:t, :b, :st, :u, :e, :p, :ph, :pl, 0, :r, 1, 1)'
         );
         $stmt->execute([
-            ':t' => $tenantId, ':b' => $branchId, ':u' => $username, ':e' => $email,
-            ':p' => password_hash($temp, PASSWORD_DEFAULT), ':r' => $staffRoleId,
+            ':t'  => $tenantId,
+            ':b'  => $branchId,
+            ':st' => $staffType,
+            ':u'  => $name,
+            ':e'  => $internalEmail,
+            ':p'  => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            ':ph' => password_hash($pin, PASSWORD_DEFAULT),
+            ':pl' => $pinLookup,
+            ':r'  => $roleId,
         ]);
         $userId = (int) $this->db->lastInsertId();
 
-        // Email the temp password (best-effort; never fail creation on mail error).
-        try {
-            $shop = $this->shopName($tenantId);
-            $notify(['email' => $email, 'name' => $username, 'temp_password' => $temp, 'shop' => $shop]);
-        } catch (\Throwable $e) {
-            error_log('StaffService notify failed: ' . $e->getMessage());
-        }
-
-        return ['ok' => true, 'user_id' => $userId, 'temp_password' => $temp, 'errors' => []];
+        return ['ok' => true, 'user_id' => $userId, 'errors' => []];
     }
 
-    /** Staff for a tenant (optionally one branch), with branch title. */
+    /** All non-owner employees for a tenant. */
     public function listForTenant(int $tenantId, ?int $branchId = null): array
     {
-        $sql = "SELECT u.id, u.username, u.email, u.is_active, u.must_reset_password, u.branch_id, b.title AS branch_title
+        $roles = StaffRoles::employeeRoleNames();
+        $placeholders = implode(',', array_fill(0, count($roles), '?'));
+        $sql = "SELECT u.id, u.username, u.email, u.is_active, u.must_reset_password, u.branch_id,
+                       u.staff_type, u.role_id, r.role_name, b.title AS branch_title
                   FROM users u
                   JOIN roles r ON r.id = u.role_id
              LEFT JOIN branches b ON b.id = u.branch_id
-                 WHERE u.tenant_id = :t AND r.role_name = 'staff'";
-        $params = [':t' => $tenantId];
-        if ($branchId !== null) { $sql .= ' AND u.branch_id = :b'; $params[':b'] = $branchId; }
+                 WHERE u.tenant_id = ? AND r.role_name IN ({$placeholders})";
+        $params = array_merge([$tenantId], $roles);
+        if ($branchId !== null) {
+            $sql .= ' AND u.branch_id = ?';
+            $params[] = $branchId;
+        }
         $sql .= ' ORDER BY u.username ASC';
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
-    public static function generateTempPassword(int $len = 10): string
+    public static function pinLookup(int $tenantId, string $pin): string
     {
-        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghijkmnpqrstuvwxyz'; // no 0/O/1/I/l
-        $out = '';
-        $max = strlen($alphabet) - 1;
-        for ($i = 0; $i < $len; $i++) { $out .= $alphabet[random_int(0, $max)]; }
-        return $out;
+        return hash('sha256', $tenantId . ':' . $pin);
+    }
+
+    public static function validatePinFormat(string $pin): bool
+    {
+        return (bool) preg_match('/^\d{4,5}$/', $pin);
+    }
+
+    private function internalEmail(int $tenantId, string $name): string
+    {
+        $base = preg_replace('/[^a-z0-9]+/', '', strtolower($name)) ?: 'staff';
+        $email = "{$base}.{$tenantId}@staff.internal";
+        $i = 0;
+        while ($this->emailExists($email)) {
+            $email = "{$base}.{$tenantId}." . (++$i) . '@staff.internal';
+        }
+        return $email;
+    }
+
+    private function pinExists(int $tenantId, string $pin): bool
+    {
+        if (!SchemaHelper::columnExists($this->db, 'users', 'login_pin_lookup')) {
+            return false;
+        }
+        $stmt = $this->db->prepare('SELECT 1 FROM users WHERE tenant_id = ? AND login_pin_lookup = ? LIMIT 1');
+        $stmt->execute([$tenantId, self::pinLookup($tenantId, $pin)]);
+        return (bool) $stmt->fetchColumn();
     }
 
     private function branchBelongsToTenant(int $branchId, int $tenantId): bool
     {
-        if ($branchId <= 0) { return false; }
+        if ($branchId <= 0) {
+            return false;
+        }
         $stmt = $this->db->prepare('SELECT 1 FROM branches WHERE id = ? AND tenant_id = ? LIMIT 1');
         $stmt->execute([$branchId, $tenantId]);
         return (bool) $stmt->fetchColumn();
@@ -126,14 +162,16 @@ class StaffService
 
     private function staffCount(int $tenantId): int
     {
+        $roles = StaffRoles::employeeRoleNames();
+        $placeholders = implode(',', array_fill(0, count($roles), '?'));
         $stmt = $this->db->prepare(
-            "SELECT COUNT(*) FROM users u JOIN roles r ON r.id=u.role_id WHERE u.tenant_id=? AND r.role_name='staff'"
+            "SELECT COUNT(*) FROM users u JOIN roles r ON r.id=u.role_id
+              WHERE u.tenant_id=? AND r.role_name IN ({$placeholders})"
         );
-        $stmt->execute([$tenantId]);
+        $stmt->execute(array_merge([$tenantId], $roles));
         return (int) $stmt->fetchColumn();
     }
 
-    /** Active plan's max_staff, or null for unlimited / no active plan. */
     private function staffLimit(int $tenantId): ?int
     {
         try {
@@ -145,69 +183,53 @@ class StaffService
             $v = $stmt->fetchColumn();
             return ($v === false || $v === null) ? null : (int) $v;
         } catch (\Throwable $e) {
-            return null; // no subscription tables → unlimited for single-tenant
+            return null;
         }
     }
 
-    private function shopName(int $tenantId): string
+    /** Role id for a staff template (defaults to general staff role). */
+    public function staffRoleId(?string $staffType = null): ?int
     {
-        $stmt = $this->db->prepare('SELECT name FROM tenants WHERE id = ? LIMIT 1');
-        $stmt->execute([$tenantId]);
-        return (string) ($stmt->fetchColumn() ?: 'your shop');
+        $roleName = $staffType ? StaffRoles::roleForType($staffType) : 'staff';
+        return $this->roleId($roleName);
     }
 
-    // ===== per-staff capability management ==============================
-
-    /** roles.id for the 'staff' role. */
-    public function staffRoleId(): ?int
-    {
-        $id = $this->db->query("SELECT id FROM roles WHERE role_name = 'staff' LIMIT 1")->fetchColumn();
-        return $id !== false ? (int) $id : null;
-    }
-
-    /** The capabilities a role grants by default (source of truth = roles table). */
     public function roleDefaultCaps(string $role = 'staff'): array
     {
-        $stmt = $this->db->prepare("SELECT capabilities FROM roles WHERE role_name = ? LIMIT 1");
+        $stmt = $this->db->prepare('SELECT capabilities FROM roles WHERE role_name = ? LIMIT 1');
         $stmt->execute([$role]);
         $json = $stmt->fetchColumn();
         return $json ? (json_decode($json, true) ?: []) : [];
     }
 
-    /** One staff member that belongs to this tenant (or null). */
     public function findStaff(int $tenantId, int $userId): ?array
     {
+        $roles = StaffRoles::employeeRoleNames();
+        $placeholders = implode(',', array_fill(0, count($roles), '?'));
         $stmt = $this->db->prepare(
-            "SELECT u.id, u.username, u.email, u.is_active, u.branch_id, b.title AS branch_title
+            "SELECT u.id, u.username, u.email, u.is_active, u.branch_id, u.staff_type, u.role_id, r.role_name, b.title AS branch_title
                FROM users u
                JOIN roles r ON r.id = u.role_id
           LEFT JOIN branches b ON b.id = u.branch_id
-              WHERE u.id = ? AND u.tenant_id = ? AND r.role_name = 'staff' LIMIT 1"
+              WHERE u.id = ? AND u.tenant_id = ? AND r.role_name IN ({$placeholders}) LIMIT 1"
         );
-        $stmt->execute([$userId, $tenantId]);
+        $stmt->execute(array_merge([$userId, $tenantId], $roles));
         $row = $stmt->fetch();
         return $row ?: null;
     }
 
-    /** Effective capabilities for a staff member (role defaults + grants − revokes). */
     public function effectiveCaps(int $userId, int $roleId): array
     {
         return Capabilities::effective($this->db, $userId, $roleId);
     }
 
-    /**
-     * Persist desired capabilities for a staff member. Only capabilities in
-     * $manageable are touched (never owner-only powers). Overrides are stored
-     * only where the desired state differs from the role default, so the table
-     * stays minimal and correct.
-     */
     public function setCapabilities(int $tenantId, int $userId, array $desired, array $manageable, array $roleDefaults): void
     {
-        $del = $this->db->prepare("DELETE FROM user_permissions WHERE user_id = ? AND capability = ?");
+        $del = $this->db->prepare('DELETE FROM user_permissions WHERE user_id = ? AND capability = ?');
         $up  = $this->db->prepare(
-            "INSERT INTO user_permissions (tenant_id, user_id, capability, effect)
+            'INSERT INTO user_permissions (tenant_id, user_id, capability, effect)
              VALUES (?,?,?,?)
-             ON DUPLICATE KEY UPDATE effect = VALUES(effect)"
+             ON DUPLICATE KEY UPDATE effect = VALUES(effect)'
         );
         $this->db->beginTransaction();
         try {
@@ -215,19 +237,50 @@ class StaffService
                 $want = in_array($cap, $desired, true);
                 $def  = in_array($cap, $roleDefaults, true);
                 if ($want === $def) {
-                    $del->execute([$userId, $cap]);          // back to default → no override
+                    $del->execute([$userId, $cap]);
                 } else {
                     $up->execute([$tenantId, $userId, $cap, $want ? 'grant' : 'revoke']);
                 }
             }
             $this->db->commit();
         } catch (\Throwable $e) {
-            if ($this->db->inTransaction()) { $this->db->rollBack(); }
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             throw $e;
         }
     }
 
-    /** Permanently remove staff and ALL associated records (sales, commissions, permissions). */
+    /** Update staff PIN (owner action). */
+    public function updatePin(int $tenantId, int $userId, string $pin): array
+    {
+        if (!self::validatePinFormat($pin)) {
+            return ['ok' => false, 'error' => 'PIN must be 4 or 5 digits.'];
+        }
+        $staff = $this->findStaff($tenantId, $userId);
+        if (!$staff) {
+            return ['ok' => false, 'error' => 'Staff member not found.'];
+        }
+        if ($this->pinExists($tenantId, $pin)) {
+            $lookup = self::pinLookup($tenantId, $pin);
+            $chk = $this->db->prepare('SELECT id FROM users WHERE tenant_id = ? AND login_pin_lookup = ? LIMIT 1');
+            $chk->execute([$tenantId, $lookup]);
+            if ((int) $chk->fetchColumn() !== $userId) {
+                return ['ok' => false, 'error' => 'That PIN is already in use.'];
+            }
+        }
+        $stmt = $this->db->prepare(
+            'UPDATE users SET login_pin_hash = ?, login_pin_lookup = ? WHERE id = ? AND tenant_id = ?'
+        );
+        $stmt->execute([
+            password_hash($pin, PASSWORD_DEFAULT),
+            self::pinLookup($tenantId, $pin),
+            $userId,
+            $tenantId,
+        ]);
+        return ['ok' => true, 'error' => null];
+    }
+
     public function purge(int $tenantId, int $userId): array
     {
         $staff = $this->findStaff($tenantId, $userId);
@@ -237,24 +290,20 @@ class StaffService
 
         $this->db->beginTransaction();
         try {
-            // Commission sale expenses
             $this->db->prepare(
                 'DELETE cse FROM commission_sale_expenses cse
                   JOIN commission_sales cs ON cs.id = cse.commission_sale_id
                  WHERE cs.agent_user_id = ? AND cs.tenant_id = ?'
             )->execute([$userId, $tenantId]);
 
-            // Commission sales
             $this->db->prepare(
                 'DELETE FROM commission_sales WHERE agent_user_id = ? AND tenant_id = ?'
             )->execute([$userId, $tenantId]);
 
-            // Commission payouts for this user
             $this->db->prepare(
                 'DELETE FROM commission_payouts WHERE agent_user_id = ? AND tenant_id = ?'
             )->execute([$userId, $tenantId]);
 
-            // POS sale items then sales
             $this->db->prepare(
                 'DELETE si FROM sale_items si
                   JOIN sales s ON s.id = si.sale_id
@@ -265,20 +314,24 @@ class StaffService
             )->execute([$userId, $tenantId]);
 
             $this->db->prepare('DELETE FROM user_permissions WHERE user_id = ?')->execute([$userId]);
+
+            $roles = StaffRoles::employeeRoleNames();
+            $placeholders = implode(',', array_fill(0, count($roles), '?'));
             $this->db->prepare(
                 "DELETE u FROM users u JOIN roles r ON r.id = u.role_id
-                  WHERE u.id = ? AND u.tenant_id = ? AND r.role_name = 'staff'"
-            )->execute([$userId, $tenantId]);
+                  WHERE u.id = ? AND u.tenant_id = ? AND r.role_name IN ({$placeholders})"
+            )->execute(array_merge([$userId, $tenantId], $roles));
 
             $this->db->commit();
             return ['ok' => true, 'error' => null];
         } catch (\Throwable $e) {
-            if ($this->db->inTransaction()) { $this->db->rollBack(); }
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             return ['ok' => false, 'error' => 'Could not remove staff member and their data.'];
         }
     }
 
-    /** @deprecated Use purge() for full removal. Kept for backward compatibility. */
     public function delete(int $tenantId, int $userId): array
     {
         return $this->purge($tenantId, $userId);
@@ -287,12 +340,16 @@ class StaffService
     public function deactivate(int $tenantId, int $userId): bool
     {
         $staff = $this->findStaff($tenantId, $userId);
-        if (!$staff) { return false; }
+        if (!$staff) {
+            return false;
+        }
+        $roles = StaffRoles::employeeRoleNames();
+        $placeholders = implode(',', array_fill(0, count($roles), '?'));
         $stmt = $this->db->prepare(
             "UPDATE users u JOIN roles r ON r.id = u.role_id
-                SET u.is_active = 0 WHERE u.id = ? AND u.tenant_id = ? AND r.role_name = 'staff'"
+                SET u.is_active = 0 WHERE u.id = ? AND u.tenant_id = ? AND r.role_name IN ({$placeholders})"
         );
-        $stmt->execute([$userId, $tenantId]);
+        $stmt->execute(array_merge([$userId, $tenantId], $roles));
         return $stmt->rowCount() > 0;
     }
 }

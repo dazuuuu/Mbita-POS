@@ -11,9 +11,13 @@ class TenantModel extends Model
     protected string $table = 'tenants';
     protected bool $tenantScoped = false;
 
-    public function create(string $name, string $slug): int
+    public function create(string $name, string $slug, string $businessType = 'shop'): int
     {
-        return $this->insert(['name' => $name, 'slug' => $slug, 'status' => 'active']);
+        $data = ['name' => $name, 'slug' => $slug, 'status' => 'active'];
+        if (SchemaHelper::columnExists($this->db, $this->table, 'business_type')) {
+            $data['business_type'] = in_array($businessType, ['barbershop_salon', 'shop'], true) ? $businessType : 'shop';
+        }
+        return $this->insert($data);
     }
 
     public function setOwner(int $tenantId, int $userId): bool
@@ -24,7 +28,7 @@ class TenantModel extends Model
     /** Whitelisted business-settings update. Caller passes their own tenant id. */
     public function updateSettings(int $tenantId, array $data): bool
     {
-        $allowed = ['name', 'logo_path', 'currency', 'phone', 'address', 'location', 'kra_pin', 'receipt_footer', 'credits_enabled'];
+        $allowed = ['name', 'logo_path', 'currency', 'phone', 'address', 'location', 'kra_pin', 'receipt_footer', 'credits_enabled', 'business_type'];
         $clean = array_intersect_key($data, array_flip($allowed));
         $clean = \SchemaHelper::filterColumns($this->db, $this->table, $clean);
         if (!$clean) {

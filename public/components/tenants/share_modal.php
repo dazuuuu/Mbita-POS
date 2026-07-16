@@ -101,7 +101,7 @@
 (function () {
     var catalogueUrl = <?php echo json_encode($catalogueUrl ?? ''); ?>;
     var shopName     = <?php echo json_encode($shopName ?? 'Our Shop'); ?>;
-    var apiEndpoint  = '/Modern/public/api/share-catalogue.php';
+    var apiEndpoint  = public_path('api/share-catalogue.php');
 
     // ---- Copy link ----
     var copyBtn  = document.getElementById('copyLinkBtn');

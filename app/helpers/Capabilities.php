@@ -24,6 +24,13 @@ class Capabilities
     const COMMISSION_RECORD  = 'commission.record';
     const COMMISSION_VIEW    = 'commission.view';
     const COMMISSION_PAY     = 'commission.pay';
+    const PAYMENTS_RECEIVE   = 'payments.receive';
+    const PAYMENTS_UPDATE    = 'payments.update';
+    const APPOINTMENTS_MANAGE = 'appointments.manage';
+    const INVOICES_MANAGE    = 'invoices.manage';
+    const CUSTOMERS_CHECKIN  = 'customers.checkin';
+    const DISCOUNTS_MANAGE   = 'discounts.manage';
+    const CREDITS_MANAGE     = 'credits.manage';
 
     // Platform-scoped capabilities (what you, the SaaS owner, can do).
     const PLATFORM_TENANTS = 'platform.tenants.manage';
@@ -41,6 +48,8 @@ class Capabilities
             self::CATALOGUE_SEND, self::REPORTS_VIEW, self::BRANCHES_MANAGE, self::STAFF_MANAGE,
             self::SETTINGS_MANAGE, self::BILLING_MANAGE, self::SERVICES_MANAGE, self::SALES_AGENT_MANAGE,
             self::COMMISSION_RECORD, self::COMMISSION_VIEW, self::COMMISSION_PAY,
+            self::PAYMENTS_RECEIVE, self::PAYMENTS_UPDATE, self::APPOINTMENTS_MANAGE, self::INVOICES_MANAGE,
+            self::CUSTOMERS_CHECKIN, self::DISCOUNTS_MANAGE, self::CREDITS_MANAGE,
         ];
     }
 

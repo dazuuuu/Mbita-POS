@@ -2,7 +2,7 @@
 // public/components/sales-agent/sidebar.php
 $__tenant   = $__tenant ?? null;
 $shopName   = $__tenant['name'] ?? 'My Shop';
-$logo = '/Curlz/public/assets/images/logo/logo.png';
+$logo = public_path('assets/images/logo/logo.png');
 $username   = $_SESSION['username'] ?? 'User';
 $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOn = function (string $needle) use ($uri): string {
@@ -22,17 +22,17 @@ $isOn = function (string $needle) use ($uri): string {
         </div>
     </div>
     <nav class="t-nav">
-        <a class="t-link <?php echo $isOn('/sales-agent/dashboard'); ?>" href="/Curlz/public/sales-agent/dashboard/">
+        <a class="t-link <?php echo $isOn('/sales-agent/dashboard'); ?>" href="<?php echo public_path('sales-agent/dashboard/'); ?>">
             <i class="fas fa-gauge-high"></i><span>Dashboard</span>
         </a>
-        <a class="t-link <?php echo $isOn('/sales-agent/sales/new'); ?>" href="/Curlz/public/sales-agent/sales/new.php">
+        <a class="t-link <?php echo $isOn('/sales-agent/sales/new'); ?>" href="<?php echo public_path('sales-agent/sales/new.php'); ?>">
             <i class="fas fa-plus-circle"></i><span>Record sale</span>
         </a>
-        <a class="t-link <?php echo $isOn('/sales-agent/sales/index'); ?>" href="/Curlz/public/sales-agent/sales/">
+        <a class="t-link <?php echo $isOn('/sales-agent/sales/index'); ?>" href="<?php echo public_path('sales-agent/sales/'); ?>">
             <i class="fas fa-receipt"></i><span>My sales</span>
         </a>
         <hr>
-        <a class="t-link t-danger" href="/Curlz/public/auth/logout.php">
+        <a class="t-link t-danger" href="<?php echo public_path('auth/logout.php'); ?>">
             <i class="fas fa-arrow-right-from-bracket"></i><span>Logout</span>
         </a>
     </nav>

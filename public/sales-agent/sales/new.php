@@ -30,7 +30,7 @@ $errors = [];
 $preview = null;
 $prefillServiceId = (int) ($_GET['service_id'] ?? 0);
 $prefillProductId = (int) ($_GET['product_id'] ?? 0);
-$backUrl = '/Curlz/public/sales-agent/dashboard/';
+$backUrl = public_path('sales-agent/dashboard/');
 
 $serviceIndex = [];
 foreach ($services as $s) {
@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? $commSvc->recordSale($tenantId, $userId, array_merge($common, $items[0]))
             : $commSvc->recordSaleBatch($tenantId, $userId, $common, $items);
         if ($res['ok']) {
-            header('Location: /Curlz/public/commission/receipt.php?id=' . $res['id']);
+            header('Location: ' . public_path('commission/receipt.php') . '?id=' . (int) $res['id']);
             exit;
         }
         $errors = $res['errors'];

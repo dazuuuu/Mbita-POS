@@ -1,7 +1,7 @@
 <?php
 // public/super/sales/index.php — enhanced owner view of all sales
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth();
+PageGuard::tenant();
 
 $pdo  = Database::pdo();
 $SA   = new Models\SaleModel($pdo);
@@ -166,7 +166,7 @@ ob_start();
               <td class="small"><?php echo htmlspecialchars($s['customer_name'] ?: '—'); ?></td>
               <td><?php echo $s['payment_method']==='cash' ? '<span class="badge bg-light text-dark">Cash</span>' : '<span class="badge bg-success text-white">M-Pesa</span>'; ?></td>
               <td class="text-end fw-semibold">KES <?php echo number_format((float)$s['total'],0); ?></td>
-              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="/Curlz/public/staff/sales/receipt.php?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
+              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('staff/sales/receipt.php'); ?>?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
             </tr>
             <?php endforeach; ?>
           </tbody>
