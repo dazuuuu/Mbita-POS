@@ -24,7 +24,7 @@ if ($editRow && (int) $editRow['category_id'] !== $categoryId) { $editRow = null
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    $base = public_path('super/subcategories/?category_id=') . $categoryId;
+    $base = public_path('super/subcategories/') . '?category_id=' . $categoryId;
     if ($action === 'create') {
         $old = trim($_POST['name'] ?? '');
         $res = $S->create($categoryId, $old);
@@ -69,7 +69,7 @@ ob_start();
                    value="<?php echo htmlspecialchars($editRow['name'] ?? $old); ?>" required autofocus>
           </div>
           <button class="btn btn-primary"><?php echo $editRow ? 'Save' : 'Add subcategory'; ?></button>
-          <?php if ($editRow): ?><a class="btn btn-link" href="<?php echo public_path('super/subcategories/?category_id=<?php echo $categoryId; ?>'); ?>">Cancel</a><?php endif; ?>
+          <?php if ($editRow): ?><a class="btn btn-link" href="<?php echo public_path('super/subcategories/'); ?>?category_id=<?php echo $categoryId; ?>">Cancel</a><?php endif; ?>
         </form>
       </div>
     </div>

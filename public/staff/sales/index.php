@@ -2,7 +2,7 @@
 // public/staff/sales/index.php — logged-in staff's own sales
 // Defaults to TODAY only. Pass ?period=all to see full history.
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth(Capabilities::SALES_VIEW);
+PageGuard::capability(Capabilities::SALES_VIEW);
 
 $pdo = Database::pdo();
 $SA  = new Models\SaleModel($pdo);
@@ -11,12 +11,27 @@ $viewAll = ($_GET['period'] ?? '') === 'all';
 $today   = date('Y-m-d');
 
 // Today's sales (always computed for the stat card)
-$todaySales = $SA->forStaff(TenantContext::userId(), 500, $today);
-$todaySum   = Models\SaleModel::summarize($todaySales);
+$todaySales = $SA->unifiedForStaff(TenantContext::userId(), 500, $today);
+$todaySum   = selfSummarize($todaySales);
 
 // Displayed list
-$sales      = $viewAll ? $SA->forStaff(TenantContext::userId()) : $todaySales;
-$sum        = $viewAll ? Models\SaleModel::summarize($sales) : $todaySum;
+$sales      = $viewAll ? $SA->unifiedForStaff(TenantContext::userId()) : $todaySales;
+$sum        = $viewAll ? selfSummarize($sales) : $todaySum;
+
+function selfSummarize(array $rows): array
+{
+    $sum = ['count' => 0, 'revenue' => 0.0, 'cash' => 0.0, 'mpesa' => 0.0];
+    foreach ($rows as $r) {
+        $sum['count']++;
+        $sum['revenue'] += (float) $r['total'];
+        $method = $r['payment_method'] ?? 'cash';
+        if ($method === 'cash' || $method === 'mpesa') {
+            $sum[$method] = ($sum[$method] ?? 0) + (float) $r['total'];
+        }
+    }
+    $sum['revenue'] = round($sum['revenue'], 2);
+    return $sum;
+}
 
 // Tenant info for catalogue share link
 $__tenant     = (new Models\TenantModel($pdo))->find(TenantContext::tenantId());
@@ -118,10 +133,19 @@ ob_start();
                 <?php endif; ?>
               </td>
               <td class="small text-nowrap"><?php echo date('g:i a', strtotime($s['created_at'])); ?></td>
-              <td class="text-center"><span class="badge bg-light text-dark"><?php echo (int)$s['item_count']; ?></span></td>
-              <td><?php echo $s['payment_method']==='cash' ? '<span class="badge bg-light text-dark">Cash</span>' : '<span class="badge bg-success text-white">M-Pesa</span>'; ?></td>
+              <td class="text-center">
+                <span class="badge bg-light text-dark">
+                  <?php echo ($s['sale_type'] ?? 'pos') === 'commission' ? htmlspecialchars($s['item_label'] ?? 'Service') : (int) $s['item_count']; ?>
+                </span>
+              </td>
+              <td><?php
+                $pay = $s['payment_method'] ?? 'cash';
+                echo $pay === 'cash' ? '<span class="badge bg-light text-dark">Cash</span>'
+                    : ($pay === 'mpesa' ? '<span class="badge bg-success text-white">M-Pesa</span>'
+                    : '<span class="badge bg-warning text-dark">Credit</span>');
+              ?></td>
               <td class="text-end fw-semibold">KES <?php echo number_format((float)$s['total'],0); ?></td>
-              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('staff/sales/receipt.php'); ?>?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
+              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo htmlspecialchars($s['receipt_url'] ?? (public_path('staff/sales/receipt.php') . '?id=' . (int) $s['id'])); ?>">Receipt</a></td>
             </tr>
             <?php endforeach; ?>
           </tbody>

@@ -12,7 +12,8 @@ class SalesReport
     {
         $date   = preg_replace('/[^0-9-]/', '', $date) ?: date('Y-m-d');
         $model  = new \Models\SaleModel($db);
-        $sales  = $model->forTenantId($tenantId, $date);            // completed only
+        $sales  = $model->forTenantId($tenantId, $date);
+        $sales  = self::mergeCommissionSales($db, $tenantId, $date, $sales);
         $sum    = \Models\SaleModel::summarize($sales);
         $staff  = \Models\SaleModel::staffBreakdown($sales);
         $branch = \Models\SaleModel::branchBreakdown($sales);
@@ -27,6 +28,36 @@ class SalesReport
             'branch'    => $branch,
             'products'  => self::productBreakdown($db, $tenantId, $date),
         ];
+    }
+
+    /** Add commission/service sales so daily reports include salon revenue. */
+    private static function mergeCommissionSales(\PDO $db, int $tenantId, string $date, array $posSales): array
+    {
+        if (!\SchemaHelper::tableExists($db, 'commission_sales')) {
+            return $posSales;
+        }
+        try {
+            $stmt = $db->prepare(
+                "SELECT cs.id, cs.receipt_number, cs.created_at, cs.charged_amount AS total,
+                        cs.payment_method, cs.customer_name, u.username AS staff_name, b.title AS branch_name
+                   FROM commission_sales cs
+              LEFT JOIN users u ON u.id = cs.agent_user_id
+              LEFT JOIN branches b ON b.id = cs.branch_id
+                  WHERE cs.tenant_id = ? AND DATE(cs.created_at) = ?
+               ORDER BY cs.created_at ASC"
+            );
+            $stmt->execute([$tenantId, $date]);
+            $rows = $stmt->fetchAll() ?: [];
+            foreach ($rows as &$r) {
+                $r['status'] = 'completed';
+            }
+            unset($r);
+            $merged = array_merge($posSales, $rows);
+            usort($merged, fn($a, $b) => strcmp($a['created_at'] ?? '', $b['created_at'] ?? ''));
+            return $merged;
+        } catch (\Throwable $e) {
+            return $posSales;
+        }
     }
 
     private static function shop(\PDO $db, int $tenantId): array

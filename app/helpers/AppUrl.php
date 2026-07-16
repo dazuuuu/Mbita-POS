@@ -30,6 +30,11 @@ class AppUrl
     /** Web path to a file under /public (or docroot if public_segment is empty). */
     public static function public(string $path = ''): string
     {
+        $query = '';
+        if (($qpos = strpos($path, '?')) !== false) {
+            $query = substr($path, $qpos);
+            $path = substr($path, 0, $qpos);
+        }
         $path = ltrim($path, '/');
         $segments = [];
         if ($bp = self::basePath()) {
@@ -46,7 +51,7 @@ class AppUrl
         if ($path === '' || str_ends_with($path, '/')) {
             $out = rtrim($out, '/') . '/';
         }
-        return $out;
+        return $out . $query;
     }
 
     /** Path to a static asset inside /public/assets/ */

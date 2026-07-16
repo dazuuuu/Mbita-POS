@@ -127,6 +127,9 @@ abstract class Model
     public function update(int $id, array $data): bool
     {
         unset($data['id'], $data[$this->tenantColumn]); // never let these be overwritten
+        if (!$data) {
+            return false;
+        }
 
         $sets = [];
         $params = [':id' => $id];

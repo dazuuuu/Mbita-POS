@@ -27,7 +27,7 @@ if (!$allowed) {
 }
 
 $tenant = (new Models\TenantModel($pdo))->find($tenantId);
-$expenses = $commSvc->expenses($id);
+$expenses = $commSvc->expenses($tenantId, $id);
 
 $branch = '';
 if (!empty($sale['branch_id'])) {
