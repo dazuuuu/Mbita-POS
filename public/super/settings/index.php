@@ -43,6 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'receipt_footer' => trim($_POST['receipt_footer'] ?? ''),
             'credits_enabled'=> !empty($_POST['credits_enabled']) ? 1 : 0,
         ];
+        if (!empty($_POST['business_type']) && in_array($_POST['business_type'], ['shop', 'barbershop_salon'], true)) {
+            $data['business_type'] = $_POST['business_type'];
+        }
         if (!empty($_FILES['logo']['tmp_name']) && is_uploaded_file($_FILES['logo']['tmp_name'])) {
             $logo = save_tenant_logo($_FILES['logo'], $tenantId);
             if ($logo['ok']) { $data['logo_path'] = $logo['path']; }
@@ -128,6 +131,15 @@ ob_start();
             <label class="form-label fw-semibold">Business name</label>
             <input name="name" class="form-control" required value="<?php echo htmlspecialchars($__tenant['name'] ?? ''); ?>">
           </div>
+          <?php if (SchemaHelper::columnExists($pdo, 'tenants', 'business_type')): ?>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Business type</label>
+            <select name="business_type" class="form-select">
+              <option value="shop" <?php echo ($__tenant['business_type'] ?? 'shop') === 'shop' ? 'selected' : ''; ?>>Retail shop (products, inventory, discounts, credits)</option>
+              <option value="barbershop_salon" <?php echo ($__tenant['business_type'] ?? '') === 'barbershop_salon' ? 'selected' : ''; ?>>Barbershop &amp; salon (services &amp; commission)</option>
+            </select>
+          </div>
+          <?php endif; ?>
           <div class="row g-2">
             <div class="col-md-6 mb-3">
               <label class="form-label fw-semibold">KRA PIN</label>
@@ -246,18 +258,22 @@ ob_start();
   <p class="text-muted small mb-3">
     <strong>Permanent delete</strong> removes the staff account and <em>all</em> their POS sales, commission sales, and payouts.
     Type their exact name to confirm. <a href="/Curlz/public/super/staff/">Add staff here</a>.
+    Staff log in with shop code + PIN — no email.
   </p>
   <?php if (!$staff): ?>
     <p class="text-muted">No staff members.</p>
   <?php else: ?>
   <div class="table-responsive">
     <table class="table align-middle">
-      <thead><tr class="text-muted small text-uppercase"><th>Name</th><th>Email</th><th>Status</th><th>Permanent delete</th></tr></thead>
+      <thead><tr class="text-muted small text-uppercase"><th>Name</th><th>Role</th><th>Status</th><th>Permanent delete</th></tr></thead>
       <tbody>
-        <?php foreach ($staff as $s): ?>
+        <?php foreach ($staff as $s):
+          $typeKey = $s['staff_type'] ?? 'general';
+          $roleLabel = StaffRoles::typeLabels()[$typeKey] ?? ucfirst($s['role_name'] ?? 'Staff');
+        ?>
         <tr>
           <td class="fw-semibold"><?php echo htmlspecialchars($s['username']); ?></td>
-          <td class="text-muted"><?php echo htmlspecialchars($s['email']); ?></td>
+          <td><?php echo htmlspecialchars($roleLabel); ?></td>
           <td><?php echo (int)$s['is_active'] ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Off</span>'; ?></td>
           <td>
             <form method="post" class="d-flex gap-2 align-items-center" onsubmit="return confirm('This permanently deletes ALL sales data for this person. Continue?');">

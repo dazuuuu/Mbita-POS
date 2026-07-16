@@ -1,8 +1,6 @@
 <?php
 // app/helpers/PageGuard.php
 // Per-request gate for protected pages.
-// SINGLE-TENANT BUILD: subscription gating is disabled (no plans to pay for).
-// Authentication (password + OTP) and role/capability checks still apply.
 
 class PageGuard
 {
@@ -10,14 +8,14 @@ class PageGuard
     const STAFF_RESET_URL = '/Curlz/public/staff/reset-password.php';
     const AGENT_RESET_URL = '/Curlz/public/sales-agent/reset-password.php';
 
-    /** Any fully-authenticated user (owner or staff). No role/subscription gate. */
+    /** Any fully-authenticated user (owner or staff). */
     public static function auth(): void
     {
         self::requireFullAuth();
         self::enforcePasswordReset();
     }
 
-    /** Require a fully-authenticated tenant OWNER. */
+    /** Require a fully-authenticated tenant OWNER (email login). */
     public static function tenant(): void
     {
         self::requireFullAuth();
@@ -26,14 +24,34 @@ class PageGuard
         }
     }
 
-    /** Require a fully-authenticated STAFF member. */
+    /** Require any employee role (PIN login: cashier, reception, sales, barber, etc.). */
     public static function staff(): void
     {
         self::requireFullAuth();
-        if (TenantContext::role() !== 'staff') {
+        if (!StaffRoles::isEmployeeRole(TenantContext::role())) {
             self::deny();
         }
         self::enforcePasswordReset();
+    }
+
+    /** Alias for staff — any non-owner employee. */
+    public static function employee(): void
+    {
+        self::staff();
+    }
+
+    /** Junior admin may access limited owner pages (inventory, reports). */
+    public static function juniorAdminOrOwner(): void
+    {
+        self::requireFullAuth();
+        $role = TenantContext::role();
+        if ($role === 'tenant_owner') {
+            return;
+        }
+        if ($role === 'junior_admin') {
+            return;
+        }
+        self::deny();
     }
 
     /** Require a fully-authenticated SALES AGENT. */
@@ -57,7 +75,7 @@ class PageGuard
             CommissionService::ensureSchema(Database::pdo());
             return;
         }
-        if ($role === 'staff' && TenantContext::can(Capabilities::COMMISSION_RECORD)) {
+        if (StaffRoles::isEmployeeRole($role) && TenantContext::can(Capabilities::COMMISSION_RECORD)) {
             self::enforcePasswordReset();
             CommissionService::ensureSchema(Database::pdo());
             return;
@@ -65,7 +83,7 @@ class PageGuard
         self::deny();
     }
 
-    /** Require a fully-authenticated user (owner or staff) who holds a capability. */
+    /** Require a fully-authenticated user who holds a capability. */
     public static function capability(string $cap): void
     {
         self::requireFullAuth();
@@ -77,7 +95,7 @@ class PageGuard
 
     private static function enforcePasswordReset(): void
     {
-        if (TenantContext::role() === 'staff' && !empty($_SESSION['must_reset'])) {
+        if (StaffRoles::isEmployeeRole(TenantContext::role()) && !empty($_SESSION['must_reset'])) {
             header('Location: ' . self::STAFF_RESET_URL);
             exit;
         }
@@ -100,7 +118,6 @@ class PageGuard
         }
     }
 
-    /** Kept as a no-op so any remaining callers are harmless in the single-tenant build. */
     private static function requireActiveSubscription(): void
     {
         return;

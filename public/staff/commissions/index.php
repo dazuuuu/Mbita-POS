@@ -2,7 +2,7 @@
 // public/staff/commissions/index.php
 require_once __DIR__ . '/../../../app/app.php';
 PageGuard::commissionAgent();
-if (TenantContext::role() !== 'staff') {
+if (!StaffRoles::isEmployeeRole(TenantContext::role())) {
     header('Location: /Curlz/public/sales-agent/sales/');
     exit;
 }

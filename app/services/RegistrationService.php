@@ -58,7 +58,9 @@ class RegistrationService
         $this->db->beginTransaction();
         try {
             $slug = $this->tenants->uniqueSlug($in['business_name']);
-            $tenantId = $this->tenants->create($in['business_name'], $slug);
+            $businessType = in_array($in['business_type'] ?? 'shop', ['shop', 'barbershop_salon'], true)
+                ? $in['business_type'] : 'shop';
+            $tenantId = $this->tenants->create($in['business_name'], $slug, $businessType);
 
             $username = $this->uniqueUsername($in['email']);
             $stmt = $this->db->prepare(

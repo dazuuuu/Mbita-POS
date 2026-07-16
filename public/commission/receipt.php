@@ -20,7 +20,7 @@ $role = TenantContext::role();
 $uid = (int) TenantContext::userId();
 $allowed = $role === 'tenant_owner'
     || (int) $sale['agent_user_id'] === $uid
-    || ($role === 'staff' && TenantContext::can(Capabilities::COMMISSION_VIEW));
+    || (StaffRoles::isEmployeeRole($role) && TenantContext::can(Capabilities::COMMISSION_VIEW));
 if (!$allowed) {
     header('Location: /Curlz/public/auth/login.php?denied=1');
     exit;
@@ -76,7 +76,7 @@ $waLink = $waNum ? 'https://wa.me/' . $waNum . '?text=' . $waText : 'https://wa.
 
 $backUrl = $role === 'sales_agent'
     ? '/Curlz/public/sales-agent/sales/'
-    : ($role === 'staff' ? '/Curlz/public/staff/commissions/' : '/Curlz/public/super/commissions/');
+    : (StaffRoles::isEmployeeRole($role) ? '/Curlz/public/staff/commissions/' : '/Curlz/public/super/commissions/');
 $newUrl = $role === 'sales_agent'
     ? '/Curlz/public/sales-agent/sales/new.php'
     : '/Curlz/public/staff/commissions/new.php';

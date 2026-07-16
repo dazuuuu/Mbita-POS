@@ -5,6 +5,13 @@ PageGuard::tenant();
 
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();
+$__tenant = (new Models\TenantModel($pdo))->find($tenantId);
+if (($__tenant['business_type'] ?? 'shop') !== 'barbershop_salon') {
+    $_SESSION['flash']['error'] = 'Services are only available for barbershop & salon businesses.';
+    header('Location: /Curlz/public/super/dashboard/');
+    exit;
+}
+
 CommissionService::ensureSchema($pdo);
 $svc = new OfferedServiceService($pdo);
 $base = '/Curlz/public/super/services/';

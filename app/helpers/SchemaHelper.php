@@ -60,6 +60,13 @@ class SchemaHelper
                 || self::columnExists($db, 'commission_sales', 'receipt_number'));
     }
 
+    public static function migration025Ready(PDO $db): bool
+    {
+        return self::columnExists($db, 'tenants', 'business_type')
+            && self::columnExists($db, 'users', 'login_pin_hash')
+            && self::columnExists($db, 'users', 'login_pin_lookup');
+    }
+
     /** Keep only keys that exist as real columns on the table. */
     public static function filterColumns(PDO $db, string $table, array $data): array
     {

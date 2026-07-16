@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ownerEmail    = trim($_POST['owner_email']    ?? '');
     $ownerPassword = $_POST['owner_password']      ?? '';
     $ownerPhone    = trim($_POST['owner_phone']    ?? '');
+    $businessType  = $_POST['business_type']       ?? 'shop';
 
     // ── Validate ──────────────────────────────────────────────────────────────
     if ($name === '') {
@@ -70,6 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Password must be at least 8 characters.';
     }
 
+    if (!in_array($businessType, ['shop', 'barbershop_salon'], true)) {
+        $errors[] = 'Choose a valid business type.';
+    }
+
     if (empty($errors)) {
         $pdo = Database::pdo();
 
@@ -84,34 +89,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->rollBack();
             } else {
 
+                Schema025Service::ensureApplied($pdo);
+
                 // 2. Insert tenant row
-                $pdo->prepare('
-                    INSERT INTO tenants (name, slug, status)
-                    VALUES (:name, :slug, :status)
-                ')->execute([
-                    ':name'   => $name,
-                    ':slug'   => $slug,
-                    ':status' => $status,
-                ]);
+                $tenantCols = 'name, slug, status';
+                $tenantVals = ':name, :slug, :status';
+                $tenantParams = [':name' => $name, ':slug' => $slug, ':status' => $status];
+                if (SchemaHelper::columnExists($pdo, 'tenants', 'business_type')) {
+                    $tenantCols .= ', business_type';
+                    $tenantVals .= ', :business_type';
+                    $tenantParams[':business_type'] = $businessType;
+                }
+                $pdo->prepare("INSERT INTO tenants ({$tenantCols}) VALUES ({$tenantVals})")->execute($tenantParams);
                 $tenantId = (int) $pdo->lastInsertId();
 
-                // 3. Insert owner user (adjust column names to match your users table)
-                $hash = password_hash($ownerPassword, PASSWORD_BCRYPT);
-                $pdo->prepare('
-                    INSERT INTO users
-                        (tenant_id, name, email, password, phone,
-                         is_active, email_verified, role_name)
-                    VALUES
-                        (:tenant_id, :name, :email, :password, :phone,
-                         1, 1, \'tenant_owner\')
-                ')->execute([
-                    ':tenant_id' => $tenantId,
-                    ':name'      => $ownerName,
-                    ':email'     => $ownerEmail,
-                    ':password'  => $hash,
-                    ':phone'     => $ownerPhone,
+                // 3. Insert owner user
+                $roleId = (int) $pdo->query("SELECT id FROM roles WHERE role_name = 'tenant_owner' LIMIT 1")->fetchColumn();
+                if (!$roleId) {
+                    throw new RuntimeException('tenant_owner role missing — run migration 014.');
+                }
+                $hash = password_hash($ownerPassword, PASSWORD_DEFAULT);
+                $pdo->prepare(
+                    'INSERT INTO users (tenant_id, username, email, password_hash, role_id, is_active, email_verified)
+                     VALUES (:tenant_id, :username, :email, :password_hash, :role_id, 1, 1)'
+                )->execute([
+                    ':tenant_id'     => $tenantId,
+                    ':username'      => $ownerName,
+                    ':email'         => $ownerEmail,
+                    ':password_hash' => $hash,
+                    ':role_id'       => $roleId,
                 ]);
                 $ownerId = (int) $pdo->lastInsertId();
+
+                if ($ownerPhone !== '') {
+                    $pdo->prepare(
+                        'INSERT INTO user_profiles (user_id, phone) VALUES (?, ?)
+                         ON DUPLICATE KEY UPDATE phone = VALUES(phone)'
+                    )->execute([$ownerId, $ownerPhone]);
+                }
 
                 // 4. Back-fill owner_user_id
                 $pdo->prepare('UPDATE tenants SET owner_user_id = ? WHERE id = ?')
@@ -400,10 +415,16 @@ $h = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES);
              value="<?= $h($_POST['name'] ?? '') ?>"
              placeholder="e.g. Curlz General Store">
 
-      <label for="slug">Slug <small style="font-weight:400">(URL-safe, unique)</small></label>
+      <label for="slug">Slug <small style="font-weight:400">(URL-safe, unique — staff use this as shop code)</small></label>
       <input id="slug" name="slug" type="text" required pattern="[a-z0-9\-]+"
              value="<?= $h($_POST['slug'] ?? '') ?>"
              placeholder="e.g. curlz-general-store">
+
+      <label for="business_type">Business type</label>
+      <select id="business_type" name="business_type">
+        <option value="shop" <?= (($_POST['business_type'] ?? 'shop') === 'shop') ? 'selected' : '' ?>>Retail shop — products, inventory, discounts, credits</option>
+        <option value="barbershop_salon" <?= (($_POST['business_type'] ?? '') === 'barbershop_salon') ? 'selected' : '' ?>>Barbershop &amp; salon — services &amp; commission</option>
+      </select>
 
       <label for="status">Status</label>
       <select id="status" name="status">

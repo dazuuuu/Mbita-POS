@@ -1,14 +1,14 @@
 <?php
 // public/index.php — Curlz POS · login portal (installable PWA)
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+require_once __DIR__ . '/../../app/app.php';
 
 $LOGIN    = '/Curlz/public/auth/login.php';
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']);
 $role     = $_SESSION['role'] ?? '';
-if ($role === 'staff') {
-    $dashUrl = '/Curlz/public/staff/dashboard/';
-} elseif ($role === 'sales_agent') {
+if ($role === 'sales_agent') {
     $dashUrl = '/Curlz/public/sales-agent/dashboard/';
+} elseif (StaffRoles::isEmployeeRole($role)) {
+    $dashUrl = '/Curlz/public/staff/dashboard/';
 } else {
     $dashUrl = '/Curlz/public/super/dashboard/';
 }
@@ -190,14 +190,14 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
             </a>
           <?php else: ?>
             <div class="lede">Sign in to continue</div>
-            <a class="portal owner" href="<?php echo $h($LOGIN); ?>?as=owner">
+            <a class="portal owner" href="<?php echo $h($LOGIN); ?>?mode=admin">
               <span class="ic"><i class="fa-solid fa-user-shield"></i></span>
-              <span class="tx"><b>Owner / Manager</b><span>Sales, stock, staff &amp; reports</span></span>
+              <span class="tx"><b>Admin / Owner</b><span>Email login — manage shop, staff &amp; settings</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
-            <a class="portal staff" href="<?php echo $h($LOGIN); ?>?as=staff">
-              <span class="ic"><i class="fa-solid fa-cash-register"></i></span>
-              <span class="tx"><b>Staff / Cashier</b><span>Make sales &amp; print receipts</span></span>
+            <a class="portal staff" href="<?php echo $h($LOGIN); ?>?mode=staff">
+              <span class="ic"><i class="fa-solid fa-key"></i></span>
+              <span class="tx"><b>Staff</b><span>Shop code + PIN — cashier, reception, sales &amp; more</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
           <?php endif; ?>

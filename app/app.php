@@ -37,3 +37,10 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Rehydrate the current tenant/user/capabilities for this request.
 TenantContext::boot();
+
+// Apply pending schema updates (safe, idempotent).
+try {
+    Schema025Service::ensureApplied(Database::pdo());
+} catch (Throwable $e) {
+    // DB may not be configured during CLI/tests.
+}
