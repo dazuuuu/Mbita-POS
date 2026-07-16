@@ -8,7 +8,8 @@
 <link rel="apple-touch-icon" href="<?php echo htmlspecialchars(asset_path('icons/apple-touch-icon.png')); ?>">
 <link rel="icon" type="image/png" sizes="32x32" href="<?php echo htmlspecialchars(asset_path('icons/favicon-32.png')); ?>">
 <script>
-if ('serviceWorker' in navigator) {
+// Service worker disabled until paths are stable — stale SW caused endless loading in some browsers.
+if (false && 'serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register(<?php echo json_encode(public_path('sw.php')); ?>, { scope: <?php echo json_encode(AppUrl::publicScope()); ?> })
       .catch(function (e) { console.warn('SW registration failed', e); });

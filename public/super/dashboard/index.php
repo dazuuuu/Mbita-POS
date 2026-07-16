@@ -3,18 +3,42 @@
 require_once __DIR__ . '/../../../app/app.php';
 PageGuard::tenant();
 
-$pdo = Database::pdo();
-$tenantId = (int) TenantContext::tenantId();
-$__tenant = (new Models\TenantModel($pdo))->find($tenantId);
-$stats = (new DashboardStatsService($pdo, $tenantId))->build();
+$pdo = null;
+$stats = null;
+$__tenant = null;
+$shop = 'your shop';
+$currency = 'KES';
+$dbError = '';
+
+try {
+    $pdo = Database::pdo();
+    Schema025Service::ensureApplied($pdo);
+    $tenantId = (int) TenantContext::tenantId();
+    if ($tenantId <= 0) {
+        throw new RuntimeException('No shop linked to this account.');
+    }
+    $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
+    $stats = (new DashboardStatsService($pdo, $tenantId))->build();
+    $shop = $__tenant['name'] ?? 'your shop';
+    $currency = $stats['currency'];
+} catch (Throwable $e) {
+    $dbError = $e->getMessage();
+    $stats = [
+        'cards' => [], 'rings' => [],
+        'line' => ['labels' => [], 'pos' => [], 'commission' => []],
+        'bar' => ['labels' => [], 'values' => []],
+        'currency' => 'KES',
+    ];
+}
 
 unset($_SESSION['first_login']);
 $page_title = 'Dashboard';
-$shop = $__tenant['name'] ?? 'your shop';
-$currency = $stats['currency'];
 
 ob_start();
 ?>
+<?php if (!empty($dbError)): ?>
+<div class="alert alert-danger">Could not load dashboard data: <?php echo htmlspecialchars($dbError); ?>. Check that MySQL is running and <code>app/config/database.php</code> is correct.</div>
+<?php endif; ?>
 <!-- Row 1: Summary stat cards -->
 <div class="cd-stat-row">
   <?php foreach ($stats['cards'] as $card): ?>

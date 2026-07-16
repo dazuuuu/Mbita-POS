@@ -11,36 +11,23 @@ function auth_employee_dashboard(?string $role): string
     if (StaffRoles::isEmployeeRole($role)) {
         return public_path('staff/dashboard/');
     }
-    return public_path('super/dashboard/');
+    return public_path('staff/dashboard/');
 }
 
-if (!empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']) && ($_GET['denied'] ?? '') !== '1') {
-    $sessionRole = $_SESSION['role'] ?? null;
-    if ($sessionRole === 'tenant_owner') {
-        header('Location: ' . public_path('super/dashboard/'));
-        exit;
-    }
-    if (StaffRoles::isEmployeeRole($sessionRole) || $sessionRole === 'sales_agent') {
-        header('Location: ' . auth_employee_dashboard($sessionRole));
-        exit;
-    }
-    // Unsupported role (e.g. legacy admin) — clear session to stop login ↔ dashboard loops.
-    unset(
-        $_SESSION['logged_in'], $_SESSION['otp_verified'], $_SESSION['user_id'],
-        $_SESSION['tenant_id'], $_SESSION['role'], $_SESSION['staff_type'], $_SESSION['capabilities'],
-        $_SESSION['username'], $_SESSION['must_reset']
-    );
-    TenantContext::reset();
-}
+// Intentionally NO auto-redirect when already logged in — that caused login ↔ dashboard loops.
+// After login, POST handler redirects once. To switch accounts use auth/logout.php.
 
 $pdo  = null;
 $dbError = '';
+$auth = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 try {
     $pdo = Database::pdo();
+    $auth = new AuthService($pdo);
 } catch (Throwable $e) {
-    $dbError = 'Database connection failed. Check app/config/database.php and that MySQL is running.';
+    $dbError = 'Database connection failed. Start MySQL and check app/config/database.php.';
 }
-$auth = $pdo ? new AuthService($pdo) : null;
+}
 $error = '';
 $notice = '';
 $mode = ($_GET['mode'] ?? $_POST['mode'] ?? 'admin') === 'staff' ? 'staff' : 'admin';
@@ -49,6 +36,13 @@ if (($_GET['reset'] ?? '') === '1') {
     $notice = 'Your password has been set. Please sign in with your new password.';
 } elseif (($_GET['denied'] ?? '') === '1') {
     $error = 'You don\'t have access to that page. Please sign in with the right account.';
+    // Stale session from a previous role causes redirect loops — clear it.
+    unset(
+        $_SESSION['logged_in'], $_SESSION['otp_verified'], $_SESSION['user_id'],
+        $_SESSION['tenant_id'], $_SESSION['role'], $_SESSION['staff_type'], $_SESSION['capabilities'],
+        $_SESSION['username'], $_SESSION['must_reset']
+    );
+    TenantContext::reset();
 } elseif (($_GET['locked'] ?? '') === '1') {
     $error = 'Your account needs attention before you can sign in.';
 }
@@ -173,6 +167,11 @@ ob_start();
 <?php if ($mode === 'admin'): ?>
 <div class="auth-foot">
   <a href="<?php echo public_path('auth/forgot-password.php'); ?>">Forgot password?</a>
+  · <a href="<?php echo public_path('auth/logout.php'); ?>">Log out</a>
+</div>
+<?php else: ?>
+<div class="auth-foot">
+  <a href="<?php echo public_path('auth/logout.php'); ?>">Log out</a>
 </div>
 <?php endif; ?>
 <?php

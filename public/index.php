@@ -171,7 +171,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
         <div class="inner">
           <div class="brand">
             <div class="logo-box">
-              <img src=public_path("assets/images/logo/logo.png") alt="Curlz POS"
+              <img src="<?php echo htmlspecialchars(asset_path('images/logo/logo.png')); ?>" alt="Curlz POS"
                    onerror="this.style.display='none';this.parentNode.innerHTML+='<i class=\'fa-solid fa-layer-group logo-fallback\'></i>'">
             </div>
             <h1>Curlz POS</h1>
