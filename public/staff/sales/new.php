@@ -130,17 +130,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ? count($serviceRes['receipt_numbers']) . ' service receipts'
                         : $serviceRes['receipt_number'];
                     $_SESSION['flash']['success'] = 'Sale recorded — products: ' . $productRes['receipt_number'] . ', services: ' . $svcNote . '.';
-                    header('Location: ' . public_path('staff/sales/receipt.php')?id=);
+                    header('Location: ' . public_path('staff/sales/receipt.php') . '?id=' . (int) $productRes['sale_id']);
                     exit;
                 }
                 if ($productRes) {
                     $_SESSION['flash']['success'] = 'Sale recorded — ' . $productRes['receipt_number'] . '.';
-                    header('Location: ' . public_path('staff/sales/receipt.php')?id=);
+                    header('Location: ' . public_path('staff/sales/receipt.php') . '?id=' . (int) $productRes['sale_id']);
                     exit;
                 }
                 if ($serviceRes) {
                     $_SESSION['flash']['success'] = 'Service sale recorded — ' . $serviceRes['receipt_number'] . '.';
-                    header('Location: ' . public_path('commission/receipt.php')?id=);
+                    header('Location: ' . public_path('commission/receipt.php') . '?id=' . (int) $serviceRes['id']);
                     exit;
                 }
             }

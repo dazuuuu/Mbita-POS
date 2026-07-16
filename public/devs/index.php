@@ -64,9 +64,9 @@ session_start();
                     <div class="alert alert-info">
                         <strong>ℹ️ Production Note:</strong> 
                         <ul class="mb-0 mt-2">
-                            <li>Users register via <code>register.php</code> - Automatically assigned <strong>USER</strong> role</li>
-                            <li>Admins register via <code>register_admin.php</code> - Requires admin code, automatically assigned <strong>ADMIN</strong> role</li>
-                            <li>No role selection by users - Roles are hardcoded in the registration process</li>
+                            <li>Shop owners register via <code>devs/register-tenant.php</code> — assigned <strong>tenant_owner</strong> role</li>
+                            <li>Platform admins register via <code>devs/register-admin.php</code> — assigned <strong>platform_admin</strong> role</li>
+                            <li>Staff are created by the shop owner with a PIN — no email login for staff</li>
                         </ul>
                     </div>
                     
@@ -80,7 +80,7 @@ session_start();
                                 $url = '../auth/register.php';
                                 break;
                             case 'register-admin':
-                                $url = '../auth/register_admin.php';
+                                $url = 'register-admin.php?key=curlz-dev';
                                 break;
                             case 'login':
                                 $url = '../auth/login.php';
@@ -111,8 +111,8 @@ session_start();
                                         <small class="text-muted">→ Account will be created with ROLE: USER automatically</small></p>
                                         
                                         <h6 class="mt-3">2. Test Admin Registration:</h6>
-                                        <p>Click "Admin Registration" - Requires admin code: <code>ADMIN2024</code><br>
-                                        <small class="text-muted">→ Account will be created with ROLE: ADMIN automatically</small></p>
+                                        <p>Click "Admin Registration" — creates a <strong>platform_admin</strong> account<br>
+                                        <small class="text-muted">→ Requires admin code <code>ADMIN2024</code> once an admin already exists</small></p>
                                         
                                         <h6 class="mt-3">3. Test Login:</h6>
                                         <p>Test both user and admin accounts<br>

@@ -29,13 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $staffId) {
             $pinRes = $svc->updatePin($tenantId, $staffId, trim($_POST['new_pin']));
             if (!$pinRes['ok']) {
                 $_SESSION['flash']['error'] = $pinRes['error'];
-                header('Location: ' . public_path('super/staff/authorization.php')?staff=);
+                header('Location: ' . public_path('super/staff/authorization.php') . '?staff=' . $staffId);
                 exit;
             }
         }
 
         $_SESSION['flash']['success'] = 'Authorization updated for ' . ($staff['username'] ?? 'staff') . '.';
-        header('Location: ' . public_path('super/staff/authorization.php')?staff=);
+        header('Location: ' . public_path('super/staff/authorization.php') . '?staff=' . $staffId);
         exit;
     }
     $flash = 'That staff member was not found.';

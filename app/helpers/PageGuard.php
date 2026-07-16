@@ -26,6 +26,15 @@ class PageGuard
         self::enforcePasswordReset();
     }
 
+    /** Require a fully-authenticated platform admin (system-wide). */
+    public static function platform(): void
+    {
+        self::requireFullAuth();
+        if (TenantContext::role() !== 'platform_admin') {
+            self::deny();
+        }
+    }
+
     /** Require a fully-authenticated tenant OWNER (email login). */
     public static function tenant(): void
     {

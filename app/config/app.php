@@ -19,4 +19,7 @@ return [
     // Secret token for the web-callable daily report endpoint.
     // Change this to a long random string before going live.
     'cron_token'   => 'change-this-to-a-long-random-secret',
+
+    // One-time bootstrap code for public/devs/register-admin.php (change before production).
+    'admin_registration_code' => 'ADMIN2024',
 ];

@@ -24,6 +24,10 @@ if (!empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified'])) {
         header('Location: ' . public_path('super/dashboard/'));
         exit;
     }
+    if ($sessionRole === 'platform_admin') {
+        header('Location: ' . public_path('admins/dashboard/'));
+        exit;
+    }
     unset(
         $_SESSION['logged_in'], $_SESSION['otp_verified'], $_SESSION['user_id'],
         $_SESSION['tenant_id'], $_SESSION['role'], $_SESSION['staff_type'], $_SESSION['capabilities'],
@@ -102,7 +106,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['otp_verified'] = true;
                 $_SESSION['first_login']  = true;
                 $_SESSION['must_reset']   = !empty($user['must_reset_password']);
-                header('Location: ' . public_path('super/dashboard/'));
+                $dest = ($user['role_name'] ?? '') === 'platform_admin'
+                    ? public_path('admins/dashboard/')
+                    : public_path('super/dashboard/');
+                header('Location: ' . $dest);
                 exit;
             }
         }

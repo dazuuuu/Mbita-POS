@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($res['ok']) {
             $_SESSION['flash']['success'] = 'Staff account created. They can log in with shop code '
                 . htmlspecialchars($__tenant['slug'] ?? '') . ' and their PIN.';
-            header('Location: ' . public_path('super/staff/authorization.php')?staff=) $res['user_id']);
+            header('Location: ' . public_path('super/staff/authorization.php') . '?staff=' . (int) $res['user_id']);
             exit;
         }
         $errors = $res['errors'];
