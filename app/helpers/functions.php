@@ -20,8 +20,8 @@ function redirect($url) {
 
 function getRoleBasedProfileUrl() {
     if (isAdmin()) {
-        return '/Curlz/public/profile/admin/index.php';
+        return public_path('profile/admin/index.php');
     }
-    return '/Curlz/public/profile/client/index.php';
+    return public_path('profile/client/index.php');
 }
 ?>

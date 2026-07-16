@@ -7,12 +7,12 @@ Schema025Service::ensureApplied(Database::pdo());
 function auth_employee_dashboard(?string $role): string
 {
     if ($role === 'sales_agent') {
-        return '/Curlz/public/sales-agent/dashboard/';
+        return public_path('sales-agent/dashboard/');
     }
     if (StaffRoles::isEmployeeRole($role)) {
-        return '/Curlz/public/staff/dashboard/';
+        return public_path('staff/dashboard/');
     }
-    return '/Curlz/public/super/dashboard/';
+    return public_path('super/dashboard/');
 }
 
 if (!empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified'])) {
@@ -22,7 +22,7 @@ if (!empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified'])) {
         exit;
     }
     if ($sessionRole === 'tenant_owner') {
-        header('Location: /Curlz/public/super/dashboard/');
+        header('Location: ' . public_path('super/dashboard/'));
         exit;
     }
     unset(
@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['otp_verified'] = true;
                 $_SESSION['first_login']  = true;
                 $_SESSION['must_reset']   = !empty($user['must_reset_password']);
-                header('Location: /Curlz/public/super/dashboard/');
+                header('Location: ' . public_path('super/dashboard/'));
                 exit;
             }
         }
@@ -157,7 +157,7 @@ ob_start();
 
 <?php if ($mode === 'admin'): ?>
 <div class="auth-foot">
-  <a href="/Curlz/public/auth/forgot-password.php">Forgot password?</a>
+  <a href="<?php echo public_path(\'auth/forgot-password.php\'); ?>">Forgot password?</a>
 </div>
 <?php endif; ?>
 <?php

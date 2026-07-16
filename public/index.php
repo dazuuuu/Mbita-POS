@@ -1,16 +1,16 @@
 <?php
 // public/index.php — Curlz POS · login portal (installable PWA)
-require_once __DIR__ . '/../../app/app.php';
+require_once __DIR__ . '/../app/app.php';
 
-$LOGIN    = '/Curlz/public/auth/login.php';
+$LOGIN    = public_path('auth/login.php');
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']);
 $role     = $_SESSION['role'] ?? '';
 if ($role === 'sales_agent') {
-    $dashUrl = '/Curlz/public/sales-agent/dashboard/';
+    $dashUrl = public_path('sales-agent/dashboard/');
 } elseif (StaffRoles::isEmployeeRole($role)) {
-    $dashUrl = '/Curlz/public/staff/dashboard/';
+    $dashUrl = public_path('staff/dashboard/');
 } else {
-    $dashUrl = '/Curlz/public/super/dashboard/';
+    $dashUrl = public_path('super/dashboard/');
 }
 $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 ?>
@@ -169,7 +169,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
         <div class="inner">
           <div class="brand">
             <div class="logo-box">
-              <img src="/Curlz/public/assets/images/logo/logo.png" alt="Curlz POS"
+              <img src=public_path("assets/images/logo/logo.png") alt="Curlz POS"
                    onerror="this.style.display='none';this.parentNode.innerHTML+='<i class=\'fa-solid fa-layer-group logo-fallback\'></i>'">
             </div>
             <h1>Curlz POS</h1>
@@ -183,7 +183,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
               <span class="tx"><b>Open the POS</b><span>Continue to your dashboard</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
-            <a class="portal staff" href="/Curlz/public/auth/logout.php">
+            <a class="portal staff" href="<?php echo public_path(\'auth/logout.php\'); ?>">
               <span class="ic"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
               <span class="tx"><b>Switch account</b><span>Log out and sign in as someone else</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>

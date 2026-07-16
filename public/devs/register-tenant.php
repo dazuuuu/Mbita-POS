@@ -5,7 +5,8 @@
 // of the app uses (app/config/mail.php). Key-guarded. DELETE or restrict via
 // web-server IP allowlist before going to production.
 //
-//   http://localhost/Curlz/public/devs/register-tenant.php?key=curlz-dev
+//   http://localhost{your-base-path}/public/devs/register-tenant.php?key=curlz-dev
+//   Set base_path in app/config/paths.php
 
 declare(strict_types=1);
 require_once __DIR__ . '/../../app/app.php';
@@ -191,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $safePhone = htmlspecialchars($ownerPhone ?: '—');
                         $loginUrl  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
                                    . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-                                   . '/Curlz/public/auth/login.php';
+                                   . public_path('auth/login.php');
 
                         $mail->Body = <<<HTML
 <!DOCTYPE html>

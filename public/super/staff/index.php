@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
             ? 'Staff member removed.'
             : $res['error'];
-        header('Location: /Curlz/public/super/staff/');
+        header('Location: ' . public_path('super/staff/'));
         exit;
     }
 
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($res['ok']) {
             $_SESSION['flash']['success'] = 'Staff account created. They can log in with shop code '
                 . htmlspecialchars($__tenant['slug'] ?? '') . ' and their PIN.';
-            header('Location: /Curlz/public/super/staff/authorization.php?staff=' . (int) $res['user_id']);
+            header('Location: ' . public_path('super/staff/authorization.php')?staff=) $res['user_id']);
             exit;
         }
         $errors = $res['errors'];
@@ -116,7 +116,7 @@ ob_start();
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="h5 mb-0">Your team <span class="badge bg-light text-dark"><?php echo count($staff); ?></span></h2>
-          <a class="btn btn-sm btn-outline-secondary" href="/Curlz/public/super/staff/authorization.php">Authorization</a>
+          <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path(\'super/staff/authorization.php\'); ?>">Authorization</a>
         </div>
         <?php if (!$staff): ?>
           <div class="text-muted">No staff yet. Add your first team member on the left.</div>
@@ -141,7 +141,7 @@ ob_start();
                     <?php endif; ?>
                   </td>
                   <td class="text-end text-nowrap">
-                    <a class="btn btn-sm btn-outline-primary" href="/Curlz/public/super/staff/authorization.php?staff=<?php echo (int)$s['id']; ?>">Permissions</a>
+                    <a class="btn btn-sm btn-outline-primary" href="<?php echo public_path('super/staff/authorization.php'); ?>?staff=<?php echo (int)$s['id']; ?>">Permissions</a>
                     <form method="post" class="d-inline" onsubmit="return confirm('Permanently delete this staff member and ALL their sales?');">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="staff_id" value="<?php echo (int) $s['id']; ?>">

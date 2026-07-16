@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'pay')
     } else {
         $_SESSION['flash']['error'] = $res['error'];
     }
-    header('Location: /Curlz/public/super/commissions/');
+    header('Location: ' . public_path('super/commissions/'));
     exit;
 }
 
@@ -55,7 +55,7 @@ ob_start();
                     <input type="hidden" name="agent_id" value="<?php echo (int)$s['id']; ?>">
                     <button class="btn btn-sm btn-success">Pay &amp; confirm</button>
                   </form>
-                  <a class="btn btn-sm btn-outline-secondary" href="/Curlz/public/super/commissions/detail.php?agent=<?php echo (int)$s['id']; ?>">Details</a>
+                  <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/commissions/detail.php'); ?>?agent=<?php echo (int)$s['id']; ?>">Details</a>
                 </td>
               </tr>
               <?php endforeach; ?>

@@ -42,7 +42,7 @@ ob_start();
 <div class="row g-3">
   <?php if ($caps['sales']): ?>
   <div class="col-12 col-md-6 col-lg-4">
-    <a href="/Curlz/public/staff/sales/new.php" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
+    <a href="<?php echo public_path(\'staff/sales/new.php\'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Quick action</div>
         <div class="h5 mb-0 mt-1"><i class="fas fa-cash-register text-primary me-2"></i>Make a sale</div>
@@ -53,7 +53,7 @@ ob_start();
 
   <?php if ($caps['commission']): ?>
   <div class="col-12 col-md-6 col-lg-4">
-    <a href="/Curlz/public/staff/commissions/new.php" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
+    <a href="<?php echo public_path(\'staff/commissions/new.php\'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Quick action</div>
         <div class="h5 mb-0 mt-1"><i class="fas fa-coins text-warning me-2"></i>Record commission</div>
@@ -96,7 +96,7 @@ ob_start();
 
   <?php if ($caps['reports']): ?>
   <div class="col-12 col-md-6 col-lg-4">
-    <a href="/Curlz/public/super/reports/" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
+    <a href="<?php echo public_path(\'super/reports/\'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Reports</div>
         <div class="h5 mb-0 mt-1"><i class="fas fa-chart-bar text-info me-2"></i>View reports</div>

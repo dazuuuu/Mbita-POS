@@ -57,13 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tenantModel->updateSettings($tenantId, $data);
             if (empty($_SESSION['flash']['error'])) {
                 if (!$tenantModel->hasExtendedSettings()) {
-                    $_SESSION['flash']['error'] = 'Basic settings saved. Run the database update for KRA PIN, credits & receipts: /Curlz/public/devs/fix-schema-024.php';
+                    $_SESSION['flash']['error'] = 'Basic settings saved. Run the database update for KRA PIN, credits & receipts: ' . public_path('devs/fix-schema-024.php');
                 } else {
                     $_SESSION['flash']['success'] = 'Shop settings saved.';
                 }
             }
         }
-        header('Location: /Curlz/public/super/settings/?tab=shop'); exit;
+        header('Location: ' . public_path('super/settings/?tab=shop')); exit;
     }
 
     if ($action === 'customer_save') {
@@ -71,13 +71,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cid = (int) ($_POST['customer_id'] ?? 0);
         $res = $cid ? $custSvc->update($tenantId, $cid, $in) : $custSvc->create($tenantId, $in);
         $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok'] ? 'Customer saved.' : ($res['errors']['name'] ?? $res['errors']['_'] ?? 'Could not save.');
-        header('Location: /Curlz/public/super/settings/?tab=customers'); exit;
+        header('Location: ' . public_path('super/settings/?tab=customers')); exit;
     }
 
     if ($action === 'customer_delete') {
         $custSvc->delete($tenantId, (int) ($_POST['customer_id'] ?? 0));
         $_SESSION['flash']['success'] = 'Customer removed.';
-        header('Location: /Curlz/public/super/settings/?tab=customers'); exit;
+        header('Location: ' . public_path('super/settings/?tab=customers')); exit;
     }
 
     if ($action === 'purge_staff') {
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ? 'Staff member and all their sales data permanently removed.'
                 : $res['error'];
         }
-        header('Location: /Curlz/public/super/settings/?tab=staff'); exit;
+        header('Location: ' . public_path('super/settings/?tab=staff')); exit;
     }
 }
 
@@ -109,7 +109,7 @@ ob_start();
 <?php if (!$schemaReady): ?>
 <div class="alert alert-warning">
   <strong>Database update needed.</strong> KRA PIN, receipts, customers and credits require migration 024.
-  Open <a href="/Curlz/public/devs/fix-schema-024.php" class="alert-link">fix-schema-024.php</a> once, then refresh this page.
+  Open <a href="<?php echo public_path(\'devs/fix-schema-024.php\'); ?>" class="alert-link">fix-schema-024.php</a> once, then refresh this page.
 </div>
 <?php endif; ?>
 <ul class="nav nav-tabs mb-4">
@@ -257,7 +257,7 @@ ob_start();
   <h2 class="h5 mb-1">Staff management</h2>
   <p class="text-muted small mb-3">
     <strong>Permanent delete</strong> removes the staff account and <em>all</em> their POS sales, commission sales, and payouts.
-    Type their exact name to confirm. <a href="/Curlz/public/super/staff/">Add staff here</a>.
+    Type their exact name to confirm. <a href="<?php echo public_path(\'super/staff/\'); ?>">Add staff here</a>.
     Staff log in with shop code + PIN — no email.
   </p>
   <?php if (!$staff): ?>

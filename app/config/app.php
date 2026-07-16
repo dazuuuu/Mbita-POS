@@ -4,7 +4,7 @@
 
 return [
     'app_name'     => 'Mbita POS',
-    'app_url'      => 'http://localhost/Mbita',   // change to your domain in production
+    'app_url'      => 'http://localhost/Curlz',   // full site URL — match app/config/paths.php base_path
     'debug'        => false,                         // set false in production
     'timezone'     => 'UTC',
     'session_name' => 'curlz_session',

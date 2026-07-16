@@ -8,7 +8,7 @@ $C = new Models\CategoryModel($pdo);
 $S = new Models\SubcategoryModel($pdo);
 $P = new Models\ProductModel($pdo);
 
-$base = '/Curlz/public/super/products/';
+$base = public_path('super/products/');
 
 $categories = $C->all([], 'name ASC');
 $allSubs    = $S->all([], 'name ASC');
@@ -44,7 +44,7 @@ function product_handle_image(array $file): array
     if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) {
         return ['ok' => false, 'error' => 'Could not save the image. Check folder permissions.'];
     }
-    return ['ok' => true, 'path' => '/Curlz/public/assets/uploads/products/' . $name];
+    return ['ok' => true, 'path' => public_path('assets/uploads/products/') . $name];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

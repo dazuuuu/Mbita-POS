@@ -8,13 +8,13 @@ $tenantId = (int) TenantContext::tenantId();
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
 if (($__tenant['business_type'] ?? 'shop') !== 'barbershop_salon') {
     $_SESSION['flash']['error'] = 'Services are only available for barbershop & salon businesses.';
-    header('Location: /Curlz/public/super/dashboard/');
+    header('Location: ' . public_path('super/dashboard/'));
     exit;
 }
 
 CommissionService::ensureSchema($pdo);
 $svc = new OfferedServiceService($pdo);
-$base = '/Curlz/public/super/services/';
+$base = public_path('super/services/');
 
 $editId = (int) ($_GET['edit'] ?? $_POST['id'] ?? 0);
 $editRow = $editId ? $svc->find($tenantId, $editId) : null;

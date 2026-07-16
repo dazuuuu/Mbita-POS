@@ -4,9 +4,20 @@
 
 class PageGuard
 {
-    const LOGIN_URL = '/Curlz/public/auth/login.php';
-    const STAFF_RESET_URL = '/Curlz/public/staff/reset-password.php';
-    const AGENT_RESET_URL = '/Curlz/public/sales-agent/reset-password.php';
+    public static function loginUrl(): string
+    {
+        return public_path('auth/login.php');
+    }
+
+    public static function staffResetUrl(): string
+    {
+        return public_path('staff/reset-password.php');
+    }
+
+    public static function agentResetUrl(): string
+    {
+        return public_path('sales-agent/reset-password.php');
+    }
 
     /** Any fully-authenticated user (owner or staff). */
     public static function auth(): void
@@ -96,7 +107,7 @@ class PageGuard
     private static function enforcePasswordReset(): void
     {
         if (StaffRoles::isEmployeeRole(TenantContext::role()) && !empty($_SESSION['must_reset'])) {
-            header('Location: ' . self::STAFF_RESET_URL);
+            header('Location: ' . self::staffResetUrl());
             exit;
         }
     }
@@ -104,7 +115,7 @@ class PageGuard
     private static function enforceAgentPasswordReset(): void
     {
         if (TenantContext::role() === 'sales_agent' && !empty($_SESSION['must_reset'])) {
-            header('Location: ' . self::AGENT_RESET_URL);
+            header('Location: ' . self::agentResetUrl());
             exit;
         }
     }
@@ -113,7 +124,7 @@ class PageGuard
     {
         $authed = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']) && TenantContext::check();
         if (!$authed) {
-            header('Location: ' . self::LOGIN_URL);
+            header('Location: ' . self::loginUrl());
             exit;
         }
     }
@@ -125,7 +136,7 @@ class PageGuard
 
     private static function deny(): void
     {
-        header('Location: ' . self::LOGIN_URL . '?denied=1');
+        header('Location: ' . self::loginUrl() . '?denied=1');
         exit;
     }
 }

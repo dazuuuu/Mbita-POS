@@ -24,7 +24,7 @@ $tenantSlug   = $__tenant['slug'] ?? '';
 $shopName     = $__tenant['name'] ?? 'Our Shop';
 $catalogueUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
               . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-              . '/Curlz/public/catalogue.php?shop=' . urlencode($tenantSlug);
+              . public_path('catalogue.php?shop=') . urlencode($tenantSlug);
 
 $page_title = 'My sales';
 ob_start();
@@ -50,7 +50,7 @@ ob_start();
     </div>
   </div>
   <div class="col-12 col-md-6 d-flex align-items-center gap-2 flex-wrap">
-    <a href="/Curlz/public/staff/sales/new.php" class="btn btn-primary">
+    <a href="<?php echo public_path(\'staff/sales/new.php\'); ?>" class="btn btn-primary">
       <i class="fas fa-cash-register me-1"></i>Make a sale
     </a>
     <button type="button" class="btn btn-outline-secondary"
@@ -121,7 +121,7 @@ ob_start();
               <td class="text-center"><span class="badge bg-light text-dark"><?php echo (int)$s['item_count']; ?></span></td>
               <td><?php echo $s['payment_method']==='cash' ? '<span class="badge bg-light text-dark">Cash</span>' : '<span class="badge bg-success text-white">M-Pesa</span>'; ?></td>
               <td class="text-end fw-semibold">KES <?php echo number_format((float)$s['total'],0); ?></td>
-              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="/Curlz/public/staff/sales/receipt.php?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
+              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('staff/sales/receipt.php'); ?>?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
             </tr>
             <?php endforeach; ?>
           </tbody>

@@ -3,7 +3,7 @@
 require_once __DIR__ . '/../../../app/app.php';
 PageGuard::commissionAgent();
 if (!StaffRoles::isEmployeeRole(TenantContext::role())) {
-    header('Location: /Curlz/public/sales-agent/sales/new.php');
+    header('Location: ' . public_path('sales-agent/sales/new.php'));
     exit;
 }
 
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? $commSvc->recordSale($tenantId, $userId, array_merge($common, $items[0]))
             : $commSvc->recordSaleBatch($tenantId, $userId, $common, $items);
         if ($res['ok']) {
-            header('Location: /Curlz/public/commission/receipt.php?id=' . $res['id']);
+            header('Location: ' . public_path('commission/receipt.php')?id=);
             exit;
         }
         $errors = $res['errors'];

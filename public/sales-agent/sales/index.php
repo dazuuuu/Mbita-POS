@@ -29,7 +29,7 @@ ob_start();
     </div></div>
   </div>
   <div class="col-md-4 d-flex align-items-center">
-    <a class="btn btn-primary" href="/Curlz/public/sales-agent/sales/new.php">+ Record sale</a>
+    <a class="btn btn-primary" href="<?php echo public_path(\'sales-agent/sales/new.php\'); ?>">+ Record sale</a>
   </div>
 </div>
 <div class="card border-0 shadow-sm" style="border-radius:12px;">
@@ -49,7 +49,7 @@ ob_start();
                 <td><?php echo htmlspecialchars($s['item_name']); ?> <span class="badge bg-light text-dark"><?php echo $s['item_type']; ?></span></td>
                 <td>KES <?php echo number_format((float)$s['charged_amount'], 2); ?></td>
                 <td class="text-success fw-semibold">KES <?php echo number_format((float)$s['total_commission'], 2); ?></td>
-                <td><a class="btn btn-sm btn-outline-secondary" href="/Curlz/public/commission/receipt.php?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
+                <td><a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('commission/receipt.php'); ?>?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
           </tr>
           <?php endforeach; ?>
         </tbody>

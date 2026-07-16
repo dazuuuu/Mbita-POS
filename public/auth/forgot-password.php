@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['reset_tenant_id'] = $user['tenant_id'] !== null ? (int) $user['tenant_id'] : null;
                 $_SESSION['reset_shop']      = $shopName;
 
-                header('Location: /Curlz/public/auth/reset-otp.php');
+                header('Location: ' . public_path('auth/reset-otp.php'));
                 exit;
             } elseif ($issue['reason'] === 'cooldown') {
                 // Already have a live code — just redirect
@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['reset_email']     = $user['email'];
                 $_SESSION['reset_tenant_id'] = $user['tenant_id'] !== null ? (int) $user['tenant_id'] : null;
                 $_SESSION['reset_shop']      = $shopName;
-                header('Location: /Curlz/public/auth/reset-otp.php');
+                header('Location: ' . public_path('auth/reset-otp.php'));
                 exit;
             } else {
                 $error = 'Could not send a reset code right now. Please try again shortly.';
@@ -93,7 +93,7 @@ ob_start();
   If that email address is registered, a reset code is on its way. Check your inbox (and spam folder).
 </div>
 <div class="auth-foot" style="margin-top:10px;">
-  <a href="/Curlz/public/auth/login.php">Back to login</a>
+  <a href="<?php echo public_path(\'auth/login.php\'); ?>">Back to login</a>
 </div>
 <?php else: ?>
 <form method="post" novalidate>
@@ -103,7 +103,7 @@ ob_start();
     </div>
     <button class="btn-auth">Send reset code</button>
 </form>
-<div class="auth-foot"><a href="/Curlz/public/auth/login.php">Back to login</a></div>
+<div class="auth-foot"><a href="<?php echo public_path(\'auth/login.php\'); ?>">Back to login</a></div>
 <?php endif; ?>
 <?php
 $content = ob_get_clean();

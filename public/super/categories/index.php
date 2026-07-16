@@ -18,7 +18,7 @@ $subEditId  = (int) ($_GET['sub_edit'] ?? 0);
 $subEditRow = $subEditId > 0 ? $S->find($subEditId) : null;
 if ($subEditRow && (int) $subEditRow['category_id'] !== $editId) { $subEditRow = null; }
 
-$base    = '/Curlz/public/super/categories/';
+$base    = public_path('super/categories/');
 $editUrl = $base . '?edit=';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -29,13 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $staffId) {
             $pinRes = $svc->updatePin($tenantId, $staffId, trim($_POST['new_pin']));
             if (!$pinRes['ok']) {
                 $_SESSION['flash']['error'] = $pinRes['error'];
-                header('Location: /Curlz/public/super/staff/authorization.php?staff=' . $staffId);
+                header('Location: ' . public_path('super/staff/authorization.php')?staff=);
                 exit;
             }
         }
 
         $_SESSION['flash']['success'] = 'Authorization updated for ' . ($staff['username'] ?? 'staff') . '.';
-        header('Location: /Curlz/public/super/staff/authorization.php?staff=' . $staffId);
+        header('Location: ' . public_path('super/staff/authorization.php')?staff=);
         exit;
     }
     $flash = 'That staff member was not found.';
@@ -66,12 +66,12 @@ ob_start();
 <?php if (!$staff): ?>
   <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <h1 class="h5 mb-0 fw-bold">Staff authorization</h1>
-    <a class="btn btn-sm btn-outline-secondary" href="/Curlz/public/super/staff/"><i class="fas fa-arrow-left me-1"></i>Back to staff</a>
+    <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path(\'super/staff/\'); ?>"><i class="fas fa-arrow-left me-1"></i>Back to staff</a>
   </div>
   <p class="text-muted">Choose a staff member to delegate what they can do. Each role starts with sensible defaults — toggle any feature on or off.</p>
   <?php if (!$allStaff): ?>
     <div class="card border-0 shadow-sm" style="border-radius:14px;"><div class="card-body p-5 text-center text-muted">
-      No staff yet. <a href="/Curlz/public/super/staff/">Add a staff member</a> first.
+      No staff yet. <a href="<?php echo public_path(\'super/staff/\'); ?>">Add a staff member</a> first.
     </div></div>
   <?php else: ?>
   <div class="row g-3">
@@ -113,7 +113,7 @@ ob_start();
         · PIN login only
       </div>
     </div>
-    <a class="btn btn-sm btn-outline-secondary" href="/Curlz/public/super/staff/authorization.php"><i class="fas fa-arrow-left me-1"></i>All staff</a>
+    <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path(\'super/staff/authorization.php\'); ?>"><i class="fas fa-arrow-left me-1"></i>All staff</a>
   </div>
 
   <div class="alert alert-info py-2 small"><i class="fas fa-circle-info me-1"></i> Changes take effect the next time this staff member logs in with their PIN.</div>
@@ -160,7 +160,7 @@ ob_start();
 
     <div class="d-flex gap-2">
       <button class="btn btn-primary" type="submit"><i class="fas fa-floppy-disk me-1"></i>Save authorization</button>
-      <a class="btn btn-outline-secondary" href="/Curlz/public/super/staff/authorization.php">Cancel</a>
+      <a class="btn btn-outline-secondary" href="<?php echo public_path(\'super/staff/authorization.php\'); ?>">Cancel</a>
     </div>
   </form>
 

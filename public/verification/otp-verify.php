@@ -7,7 +7,7 @@ require_once ROOT_PATH . '/app/services/emails/otp_email.php';
 
 $pendingId = $_SESSION['pending_user_id'] ?? null;
 if (!$pendingId) {
-    header('Location: /Curlz/public/auth/login.php');
+    header('Location: ' . public_path('auth/login.php'));
     exit;
 }
 
@@ -57,13 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // First-time staff must change their temporary password before anything else.
         $_SESSION['must_reset'] = !empty($user['must_reset_password']);
         if ($_SESSION['must_reset'] && ($user['role_name'] ?? '') === 'staff') {
-            header('Location: /Curlz/public/staff/reset-password.php');
+            header('Location: ' . public_path('staff/reset-password.php'));
             exit;
         }
 
         $dest = ($user['role_name'] === 'staff')
-            ? '/Curlz/public/staff/dashboard/'
-            : '/Curlz/public/super/dashboard/';
+            ? public_path('staff/dashboard/')
+            : public_path('super/dashboard/');
         header('Location: ' . $dest);
         exit;
     }
@@ -88,8 +88,8 @@ ob_start();
     <button class="btn-auth">Verify &amp; continue</button>
 </form>
 <div class="auth-foot">
-    Didn't get it? <a href="/Curlz/public/verification/otp-verify.php?resend=1">Resend code</a><br>
-    <a href="/Curlz/public/auth/login.php">Back to login</a>
+    Didn't get it? <a href="<?php echo public_path(\'verification/otp-verify.php?resend=1\'); ?>">Resend code</a><br>
+    <a href="<?php echo public_path(\'auth/login.php\'); ?>">Back to login</a>
 </div>
 <?php
 $content = ob_get_clean();

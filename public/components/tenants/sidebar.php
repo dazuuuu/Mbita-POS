@@ -7,7 +7,7 @@ $username   = $_SESSION['username'] ?? 'User';
 $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOwner    = TenantContext::role() === 'tenant_owner';
 $isJunior   = TenantContext::role() === 'junior_admin';
-$dashUrl    = $isOwner || $isJunior ? '/Curlz/public/super/dashboard/' : '/Curlz/public/staff/dashboard/';
+$dashUrl    = $isOwner || $isJunior ? public_path('super/dashboard/') : public_path('staff/dashboard/');
 
 $isOn = function (string $needle) use ($uri): string {
     return strpos($uri, $needle) !== false ? 'active' : '';
@@ -18,40 +18,40 @@ $nav = [
 ];
 
 if ($isOwner || TenantContext::can(Capabilities::SALES_VIEW)) {
-    $nav[] = ['href' => '/Curlz/public/super/sales/', 'icon' => 'fa-receipt', 'label' => 'Sales', 'active' => $isOn('/super/sales')];
+    $nav[] = ['href' => public_path('super/sales/'), 'icon' => 'fa-receipt', 'label' => 'Sales', 'active' => $isOn('/super/sales')];
 }
 
 if ($businessType === 'shop' && ($isOwner || TenantContext::can(Capabilities::INVENTORY_EDIT))) {
-    $nav[] = ['href' => '/Curlz/public/super/products/', 'icon' => 'fa-box', 'label' => 'Products', 'active' => $isOn('/super/products')];
-    $nav[] = ['href' => '/Curlz/public/super/categories/', 'icon' => 'fa-tags', 'label' => 'Categories', 'active' => $isOn('/super/categories') || $isOn('/super/subcategories')];
+    $nav[] = ['href' => public_path('super/products/'), 'icon' => 'fa-box', 'label' => 'Products', 'active' => $isOn('/super/products')];
+    $nav[] = ['href' => public_path('super/categories/'), 'icon' => 'fa-tags', 'label' => 'Categories', 'active' => $isOn('/super/categories') || $isOn('/super/subcategories')];
 }
 
 if ($businessType === 'barbershop_salon' && $isOwner) {
-    $nav[] = ['href' => '/Curlz/public/super/services/', 'icon' => 'fa-scissors', 'label' => 'Services', 'active' => $isOn('/super/services')];
-    $nav[] = ['href' => '/Curlz/public/super/commissions/', 'icon' => 'fa-coins', 'label' => 'Commissions', 'active' => $isOn('/super/commissions')];
+    $nav[] = ['href' => public_path('super/services/'), 'icon' => 'fa-scissors', 'label' => 'Services', 'active' => $isOn('/super/services')];
+    $nav[] = ['href' => public_path('super/commissions/'), 'icon' => 'fa-coins', 'label' => 'Commissions', 'active' => $isOn('/super/commissions')];
 }
 
 if ($businessType === 'shop' && $isOwner) {
-    $nav[] = ['href' => '/Curlz/public/super/commissions/', 'icon' => 'fa-coins', 'label' => 'Commissions', 'active' => $isOn('/super/commissions')];
+    $nav[] = ['href' => public_path('super/commissions/'), 'icon' => 'fa-coins', 'label' => 'Commissions', 'active' => $isOn('/super/commissions')];
 }
 
 if ($isOwner) {
-    $nav[] = ['href' => '/Curlz/public/super/staff/', 'icon' => 'fa-user-gear', 'label' => 'Staff', 'active' => $isOn('/super/staff')];
+    $nav[] = ['href' => public_path('super/staff/'), 'icon' => 'fa-user-gear', 'label' => 'Staff', 'active' => $isOn('/super/staff')];
     if ($businessType === 'shop') {
-        $nav[] = ['href' => '/Curlz/public/super/sales-agents/', 'icon' => 'fa-user-tie', 'label' => 'Sales Agents', 'active' => $isOn('/super/sales-agents')];
+        $nav[] = ['href' => public_path('super/sales-agents/'), 'icon' => 'fa-user-tie', 'label' => 'Sales Agents', 'active' => $isOn('/super/sales-agents')];
     }
 }
 
 if (TenantContext::can(Capabilities::REPORTS_VIEW)) {
-    $nav[] = ['href' => '/Curlz/public/super/reports/', 'icon' => 'fa-chart-bar', 'label' => 'Reports', 'active' => $isOn('/super/reports')];
+    $nav[] = ['href' => public_path('super/reports/'), 'icon' => 'fa-chart-bar', 'label' => 'Reports', 'active' => $isOn('/super/reports')];
 }
 
 if ($isOwner && TenantContext::can(Capabilities::BRANCHES_MANAGE)) {
-    $nav[] = ['href' => '/Curlz/public/super/branches/', 'icon' => 'fa-code-branch', 'label' => 'Branches', 'active' => $isOn('/super/branches')];
+    $nav[] = ['href' => public_path('super/branches/'), 'icon' => 'fa-code-branch', 'label' => 'Branches', 'active' => $isOn('/super/branches')];
 }
 
 if ($isOwner) {
-    $nav[] = ['href' => '/Curlz/public/super/settings/', 'icon' => 'fa-gear', 'label' => 'Settings', 'active' => $isOn('/super/settings')];
+    $nav[] = ['href' => public_path('super/settings/'), 'icon' => 'fa-gear', 'label' => 'Settings', 'active' => $isOn('/super/settings')];
 }
 ?>
 <div class="cd-overlay" id="cdOverlay"></div>
@@ -76,7 +76,7 @@ if ($isOwner) {
       </li>
       <?php endforeach; ?>
       <li>
-        <a href="/Curlz/public/auth/logout.php" style="color:#e74c3c;margin-top:8px;">
+        <a href="<?php echo public_path(\'auth/logout.php\'); ?>" style="color:#e74c3c;margin-top:8px;">
           <i class="fas fa-arrow-right-from-bracket"></i>
           <span>Logout</span>
         </a>

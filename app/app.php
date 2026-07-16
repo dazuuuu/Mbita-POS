@@ -30,6 +30,7 @@ spl_autoload_register(function ($class) {
 
 // Global helpers loaded on every request (not autoloaded by class name alone in all setups).
 require_once ROOT_PATH . '/app/helpers/SchemaHelper.php';
+require_once ROOT_PATH . '/app/helpers/AppUrl.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

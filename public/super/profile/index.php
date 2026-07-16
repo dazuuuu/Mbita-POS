@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['flash']['success'] = 'Business profile updated.';
         }
     }
-    header('Location: /Curlz/public/super/profile/');
+    header('Location: ' . public_path('super/profile/'));
     exit;
 }
 

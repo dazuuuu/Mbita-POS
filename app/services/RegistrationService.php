@@ -215,6 +215,6 @@ class RegistrationService
     private function activationLink(string $token): string
     {
         // Adjust base path to match your deployment.
-        return '/Modern/public/auth/activate.php?token=' . urlencode($token);
+        return public_path('auth/activate.php?token=' . urlencode($token));
     }
 }
