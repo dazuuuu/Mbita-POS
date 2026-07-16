@@ -10,7 +10,7 @@ class BranchModel extends Model
      * Create a branch for the current tenant. Title is unique within the tenant.
      * @return array ['ok'=>bool, 'id'=>?int, 'error'=>?string]
      */
-    public function create(string $title, ?string $location): array
+    public function create(string $title, ?string $location, string $branchType = 'shop'): array
     {
         $title = trim($title);
         if ($title === '') {
@@ -19,15 +19,24 @@ class BranchModel extends Model
         if (strlen($title) > 120) {
             return ['ok' => false, 'id' => null, 'error' => 'Branch name is too long.'];
         }
+        $types = array_keys(TenantModules::branchTypeLabels());
+        if (!in_array($branchType, $types, true)) {
+            return ['ok' => false, 'id' => null, 'error' => 'Choose a valid branch type.'];
+        }
         if ($this->titleTaken($title)) {
             return ['ok' => false, 'id' => null, 'error' => 'You already have a branch with that name.'];
         }
         try {
-            $id = $this->insert([
+            $row = [
                 'title'     => $title,
                 'location'  => ($location !== null && trim($location) !== '') ? trim($location) : null,
                 'is_active' => 1,
-            ]);
+            ];
+            if (\SchemaHelper::columnExists($this->db, $this->table, 'branch_type')) {
+                $row['branch_type'] = $branchType;
+            }
+            $row = \SchemaHelper::filterColumns($this->db, $this->table, $row);
+            $id = $this->insert($row);
             return ['ok' => true, 'id' => $id, 'error' => null];
         } catch (\PDOException $e) {
             if ($e->getCode() === '23000') { // unique violation race

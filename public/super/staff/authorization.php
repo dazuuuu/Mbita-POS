@@ -3,15 +3,16 @@
 require_once __DIR__ . '/../../../app/app.php';
 PageGuard::tenant();
 Schema025Service::ensureApplied(Database::pdo());
+Schema026Service::ensureApplied(Database::pdo());
 
 $pdo = Database::pdo();
 $svc = new StaffService($pdo);
 $tenantId = TenantContext::tenantId();
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
-$businessType = $__tenant['business_type'] ?? 'shop';
+$modules = TenantModules::fromTenant($__tenant);
 
-$groups = StaffRoles::permissionGroups($businessType);
-$manageable = StaffRoles::manageableCapabilities($businessType);
+$groups = StaffRoles::permissionGroups($modules);
+$manageable = StaffRoles::manageableCapabilities($modules);
 
 $flash = '';
 $staffId = (int) ($_GET['staff'] ?? $_POST['staff_id'] ?? 0);
@@ -52,7 +53,7 @@ $effective = $staff && $roleId ? $svc->effectiveCaps((int) $staff['id'], (int) $
 $allStaff = $svc->listForTenant($tenantId);
 $typeLabels = StaffRoles::typeLabels();
 
-$page_title = 'Staff authorization';
+$page_title = 'User Access';
 ob_start();
 ?>
 <?php if (!empty($_SESSION['flash']['success'])): ?>
@@ -65,7 +66,7 @@ ob_start();
 
 <?php if (!$staff): ?>
   <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-    <h1 class="h5 mb-0 fw-bold">Staff authorization</h1>
+    <h1 class="h5 mb-0 fw-bold">User Access</h1>
     <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/staff/'); ?>"><i class="fas fa-arrow-left me-1"></i>Back to staff</a>
   </div>
   <p class="text-muted">Choose a staff member to delegate what they can do. Each role starts with sensible defaults — toggle any feature on or off.</p>

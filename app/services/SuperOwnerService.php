@@ -60,6 +60,7 @@ class SuperOwnerService
         }
 
         Schema025Service::ensureApplied($this->db);
+        Schema026Service::ensureApplied($this->db);
 
         $roleId = (int) $this->db->query("SELECT id FROM roles WHERE role_name = 'tenant_owner' LIMIT 1")->fetchColumn();
         if (!$roleId) {
@@ -90,6 +91,11 @@ class SuperOwnerService
                 $tenantCols .= ', business_type';
                 $tenantVals .= ', :business_type';
                 $tenantParams[':business_type'] = $businessType;
+            }
+            if (SchemaHelper::columnExists($this->db, 'tenants', 'modules')) {
+                $tenantCols .= ', modules';
+                $tenantVals .= ', :modules';
+                $tenantParams[':modules'] = json_encode(TenantModules::defaults($businessType));
             }
             $this->db->prepare("INSERT INTO tenants ({$tenantCols}) VALUES ({$tenantVals})")->execute($tenantParams);
             $tenantId = (int) $this->db->lastInsertId();

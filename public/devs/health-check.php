@@ -15,7 +15,9 @@ $files = [
     'app/config/paths.php',
     'app/helpers/AppUrl.php',
     'app/helpers/StaffRoles.php',
+    'app/services/Schema020Service.php',
     'app/services/Schema025Service.php',
+    'app/services/Schema026Service.php',
     'public/auth/login.php',
 ];
 echo "Required files:\n";
@@ -36,6 +38,13 @@ try {
     echo "[OK] Connected to " . $pdo->query('SELECT DATABASE()')->fetchColumn() . "\n";
     Schema025Service::ensureApplied($pdo);
     echo "[OK] Schema 025 check ran\n";
+    $s020 = Schema020Service::ensureApplied($pdo);
+    echo ($s020['ok'] ? '[OK]' : '[WARN]') . " Schema 020 (inventory/products.tenant_id)\n";
+    foreach ($s020['log'] as $line) {
+        echo "  - {$line}\n";
+    }
+    $s026 = Schema026Service::ensureApplied($pdo);
+    echo ($s026['ok'] ? '[OK]' : '[WARN]') . " Schema 026 (modules + branch types)\n";
 } catch (Throwable $e) {
     echo "[FAIL] " . $e->getMessage() . "\n";
 }

@@ -54,8 +54,9 @@ class StaffRoles
     }
 
     /** Capability groups shown on the authorization page. */
-    public static function permissionGroups(?string $businessType = null): array
+    public static function permissionGroups(?array $modules = null): array
     {
+        $mods = $modules ?? TenantModules::defaults();
         $groups = [
             'Payments & till' => [
                 [Capabilities::PAYMENTS_RECEIVE, 'Receive payments', 'Take cash, M-Pesa, and card payments'],
@@ -86,21 +87,44 @@ class StaffRoles
             ],
         ];
 
-        if ($businessType === 'barbershop_salon') {
+        if (empty($mods[TenantModules::PRODUCTS])) {
             unset($groups['Products & inventory']);
+        }
+        if (empty($mods[TenantModules::SERVICES])
+            && empty($mods[TenantModules::PRODUCT_COMMISSIONS])
+            && empty($mods[TenantModules::SERVICE_COMMISSIONS])) {
+            unset($groups['Services & commission']);
         }
 
         return $groups;
     }
 
-    public static function manageableCapabilities(?string $businessType = null): array
+    public static function manageableCapabilities(?array $modules = null): array
     {
         $out = [];
-        foreach (self::permissionGroups($businessType) as $rows) {
+        foreach (self::permissionGroups($modules) as $rows) {
             foreach ($rows as $row) {
                 $out[] = $row[0];
             }
         }
         return $out;
+    }
+
+    /** Which staff types are available for this tenant's enabled modules. */
+    public static function availableStaffTypes(?array $modules = null): array
+    {
+        $mods = $modules ?? TenantModules::defaults();
+        $types = ['general', 'sales'];
+        if (!empty($mods[TenantModules::CASHIER])) {
+            $types[] = 'cashier';
+        }
+        if (!empty($mods[TenantModules::SERVICES])) {
+            $types[] = 'reception';
+            $types[] = 'barber';
+        }
+        if (!empty($mods[TenantModules::STAFF_PROMOTION])) {
+            $types[] = 'junior_admin';
+        }
+        return $types;
     }
 }

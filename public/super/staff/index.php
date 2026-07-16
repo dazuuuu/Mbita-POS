@@ -3,12 +3,14 @@
 require_once __DIR__ . '/../../../app/app.php';
 PageGuard::tenant();
 Schema025Service::ensureApplied(Database::pdo());
+Schema026Service::ensureApplied(Database::pdo());
 
 $pdo = Database::pdo();
 $tenantId = TenantContext::tenantId();
 $svc = new StaffService($pdo);
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
-$businessType = $__tenant['business_type'] ?? 'shop';
+$modules = TenantModules::fromTenant($__tenant);
+$availableTypes = StaffRoles::availableStaffTypes($modules);
 
 $errors = [];
 $old = ['name' => '', 'pin' => '', 'staff_type' => 'general'];
@@ -76,10 +78,7 @@ ob_start();
             <label class="form-label">Role</label>
             <select name="staff_type" class="form-select" required>
               <?php foreach ($typeLabels as $val => $label):
-                if ($businessType === 'shop' && $val === 'barber') {
-                    continue;
-                }
-                if ($businessType === 'barbershop_salon' && $val === 'general') {
+                if (!in_array($val, $availableTypes, true)) {
                     continue;
                 }
               ?>
@@ -101,8 +100,7 @@ ob_start();
         <strong>Role guide</strong>
         <ul class="mb-0 ps-3 mt-2">
           <?php foreach (StaffRoles::typeDescriptions() as $type => $desc):
-            if ($businessType === 'shop' && $type === 'barber') continue;
-            if ($businessType === 'barbershop_salon' && $type === 'general') continue;
+            if (!in_array($type, $availableTypes, true)) continue;
           ?>
           <li class="mb-1"><strong><?php echo htmlspecialchars(StaffRoles::typeLabels()[$type]); ?>:</strong> <?php echo htmlspecialchars($desc); ?></li>
           <?php endforeach; ?>
@@ -116,7 +114,7 @@ ob_start();
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="h5 mb-0">Your team <span class="badge bg-light text-dark"><?php echo count($staff); ?></span></h2>
-          <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/staff/authorization.php'); ?>">Authorization</a>
+          <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/staff/authorization.php'); ?>">User Access</a>
         </div>
         <?php if (!$staff): ?>
           <div class="text-muted">No staff yet. Add your first team member on the left.</div>

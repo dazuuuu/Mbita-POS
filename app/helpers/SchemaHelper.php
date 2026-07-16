@@ -67,6 +67,19 @@ class SchemaHelper
             && self::columnExists($db, 'users', 'login_pin_lookup');
     }
 
+    public static function migration026Ready(PDO $db): bool
+    {
+        return self::columnExists($db, 'tenants', 'modules')
+            && (!self::tableExists($db, 'branches') || self::columnExists($db, 'branches', 'branch_type'));
+    }
+
+    public static function inventoryReady(PDO $db): bool
+    {
+        return self::tableExists($db, 'products')
+            && self::columnExists($db, 'products', 'tenant_id')
+            && self::columnExists($db, 'products', 'selling_price');
+    }
+
     /** Keep only keys that exist as real columns on the table. */
     public static function filterColumns(PDO $db, string $table, array $data): array
     {

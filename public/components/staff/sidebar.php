@@ -2,7 +2,7 @@
 // public/components/staff/sidebar.php — capability-gated employee nav
 $__tenant   = $__tenant ?? null;
 $shopName   = $__tenant['name'] ?? 'My Shop';
-$businessType = $__tenant['business_type'] ?? 'shop';
+$modules    = TenantModules::fromTenant($__tenant);
 $logo = public_path('assets/images/logo/logo.png');
 $username   = $_SESSION['username'] ?? 'User';
 $staffType  = $_SESSION['staff_type'] ?? null;
@@ -73,7 +73,7 @@ $isOn = function (string $needle) use ($uri): string {
         </a>
         <?php endif; ?>
 
-        <?php if ($businessType === 'shop' && TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
+        <?php if (!empty($modules[TenantModules::PRODUCTS]) && TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
         <a class="t-link <?php echo $isOn('/staff/products'); ?>" href="<?php echo public_path('staff/products/'); ?>">
             <i class="fas fa-box"></i><span>Products</span>
         </a>

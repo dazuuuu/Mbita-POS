@@ -4,6 +4,10 @@ require_once __DIR__ . '/../../../app/app.php';
 PageGuard::capability(Capabilities::INVENTORY_EDIT);
 
 $pdo = Database::pdo();
+Schema020Service::ensureApplied($pdo);
+if (!SchemaHelper::inventoryReady($pdo)) {
+    $_SESSION['flash']['error'] = 'Products database needs an update. Open fix-schema-020.php once.';
+}
 $C = new Models\CategoryModel($pdo);
 $S = new Models\SubcategoryModel($pdo);
 $P = new Models\ProductModel($pdo);
@@ -120,7 +124,7 @@ $colorsVal = !empty($old) ? implode(', ', (array) ($old['colors'] ?? [])) : $csv
 $sizesVal  = !empty($old) ? implode(', ', (array) ($old['sizes'] ?? []))  : $csv($editRow['sizes'] ?? null);
 $curImage  = $editRow['image_path'] ?? ($old['image_path'] ?? null);
 
-$products = $P->listWithMeta();
+$products = SchemaHelper::inventoryReady($pdo) ? $P->listWithMeta() : [];
 $page_title = 'Products';
 
 // subcategories grouped by category for the dependent dropdown

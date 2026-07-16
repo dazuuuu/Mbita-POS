@@ -4,14 +4,18 @@ require_once __DIR__ . '/../../../app/app.php';
 PageGuard::tenant();
 
 $pdo = Database::pdo();
+Schema026Service::ensureApplied($pdo);
+Schema020Service::ensureApplied($pdo);
 $bm  = new Models\BranchModel($pdo);
 $error = '';
-$old = ['title' => '', 'location' => ''];
+$old = ['title' => '', 'location' => '', 'branch_type' => 'shop'];
+$branchTypes = TenantModules::branchTypeLabels();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create') {
-    $old['title']    = trim($_POST['title'] ?? '');
-    $old['location'] = trim($_POST['location'] ?? '');
-    $res = $bm->create($old['title'], $old['location']);
+    $old['title']       = trim($_POST['title'] ?? '');
+    $old['location']    = trim($_POST['location'] ?? '');
+    $old['branch_type'] = $_POST['branch_type'] ?? 'shop';
+    $res = $bm->create($old['title'], $old['location'], $old['branch_type']);
     if ($res['ok']) {
         $_SESSION['flash']['success'] = 'Branch "' . $old['title'] . '" created.';
         header('Location: ' . public_path('super/branches/'));
@@ -29,13 +33,24 @@ ob_start();
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
         <h2 class="h5 mb-1">Add a branch</h2>
-        <p class="text-muted small mb-3">Each branch is a physical shop location. You can assign staff to a branch once it exists.</p>
+        <p class="text-muted small mb-3">Each branch is a location. Choose what it does — retail shop, barbershop, salon, or both.</p>
         <?php if ($error): ?><div class="alert alert-danger py-2"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
         <form method="post" novalidate>
           <input type="hidden" name="action" value="create">
           <div class="mb-3">
             <label class="form-label">Branch name</label>
             <input name="title" class="form-control" placeholder="e.g. Westlands" value="<?php echo htmlspecialchars($old['title']); ?>" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Branch type</label>
+            <select name="branch_type" class="form-select" required>
+              <?php foreach ($branchTypes as $val => $label): ?>
+              <option value="<?php echo htmlspecialchars($val); ?>" <?php echo ($old['branch_type'] ?? 'shop') === $val ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($label); ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+            <small class="text-muted">Barbershop/salon branches focus on services; shop branches focus on products. Enable both modules in Settings to use everything.</small>
           </div>
           <div class="mb-3">
             <label class="form-label">Location <span class="text-muted">(optional)</span></label>
@@ -56,11 +71,14 @@ ob_start();
         <?php else: ?>
           <div class="table-responsive">
             <table class="table align-middle mb-0">
-              <thead><tr class="text-muted small text-uppercase"><th>Branch</th><th>Location</th><th class="text-center">Staff</th></tr></thead>
+              <thead><tr class="text-muted small text-uppercase"><th>Branch</th><th>Type</th><th>Location</th><th class="text-center">Staff</th></tr></thead>
               <tbody>
-                <?php foreach ($branches as $b): ?>
+                <?php foreach ($branches as $b):
+                  $bt = $b['branch_type'] ?? 'shop';
+                ?>
                 <tr>
                   <td class="fw-semibold"><?php echo htmlspecialchars($b['title']); ?></td>
+                  <td><span class="badge bg-light text-dark"><?php echo htmlspecialchars($branchTypes[$bt] ?? $bt); ?></span></td>
                   <td class="text-muted"><?php echo htmlspecialchars($b['location'] ?? '—'); ?></td>
                   <td class="text-center"><span class="badge bg-secondary"><?php echo (int)$b['staff_count']; ?></span></td>
                 </tr>

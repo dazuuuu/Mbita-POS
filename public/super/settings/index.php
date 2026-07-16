@@ -6,6 +6,7 @@ PageGuard::tenant();
 $pdo = Database::pdo();
 // Auto-apply migration 024 columns if missing (fixes credits_enabled etc. on AMPPS).
 Schema024Service::ensureApplied($pdo);
+Schema026Service::ensureApplied($pdo);
 
 $tenantId = (int) TenantContext::tenantId();
 $tenantModel = new Models\TenantModel($pdo);
@@ -66,6 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . public_path('super/settings/?tab=shop')); exit;
     }
 
+    if ($action === 'modules') {
+        $mods = TenantModules::sanitizePosted($_POST['modules'] ?? []);
+        $tenantModel->updateSettings($tenantId, ['modules' => $mods]);
+        $_SESSION['flash']['success'] = 'Feature modules saved. Sidebar and staff options updated.';
+        header('Location: ' . public_path('super/settings/?tab=modules')); exit;
+    }
+
     if ($action === 'customer_save') {
         $in = ['name' => $_POST['name'] ?? '', 'phone' => $_POST['phone'] ?? '', 'email' => $_POST['email'] ?? '', 'notes' => $_POST['notes'] ?? ''];
         $cid = (int) ($_POST['customer_id'] ?? 0);
@@ -99,6 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $__tenant = $tenantModel->find($tenantId);
 $staff = $staffSvc->listForTenant($tenantId);
 $schemaReady = SchemaHelper::migration024Ready($pdo);
+$modulesReady = SchemaHelper::migration026Ready($pdo);
+$tenantModules = TenantModules::fromTenant($__tenant);
 $customers = $schemaReady ? $custSvc->listForTenant($tenantId) : [];
 $editCustomer = (int) ($_GET['edit_customer'] ?? 0);
 $editCustomerRow = $editCustomer ? $custSvc->find($tenantId, $editCustomer) : null;
@@ -114,11 +124,53 @@ ob_start();
 <?php endif; ?>
 <ul class="nav nav-tabs mb-4">
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'shop' ? 'active' : ''; ?>" href="?tab=shop">Shop &amp; receipts</a></li>
+  <li class="nav-item"><a class="nav-link <?php echo $tab === 'modules' ? 'active' : ''; ?>" href="?tab=modules">Modules</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'customers' ? 'active' : ''; ?>" href="?tab=customers">Customers</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'staff' ? 'active' : ''; ?>" href="?tab=staff">Staff</a></li>
 </ul>
 
-<?php if ($tab === 'shop'): ?>
+<?php if ($tab === 'modules'): ?>
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm" style="border-radius:12px;">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-1">Feature modules</h2>
+        <p class="text-muted small mb-4">Turn features on or off — nothing is forced. A barbershop can sell products; a shop can offer services. You choose what fits your business.</p>
+        <?php if (!$modulesReady): ?>
+        <div class="alert alert-warning">Run <a href="<?php echo public_path('devs/fix-schema-026.php'); ?>">fix-schema-026.php</a> once to enable module toggles.</div>
+        <?php endif; ?>
+        <form method="post">
+          <input type="hidden" name="action" value="modules">
+          <?php foreach (TenantModules::labels() as $key => $label): ?>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="mod_<?php echo $key; ?>"
+              name="modules[<?php echo htmlspecialchars($key); ?>]" value="1"
+              <?php echo !empty($tenantModules[$key]) ? 'checked' : ''; ?>
+              <?php echo $modulesReady ? '' : 'disabled'; ?>>
+            <label class="form-check-label" for="mod_<?php echo $key; ?>">
+              <span class="fw-semibold"><?php echo htmlspecialchars($label); ?></span>
+              <span class="d-block small text-muted"><?php echo htmlspecialchars(TenantModules::descriptions()[$key]); ?></span>
+            </label>
+          </div>
+          <?php endforeach; ?>
+          <button class="btn btn-primary" <?php echo $modulesReady ? '' : 'disabled'; ?>>Save modules</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm p-4 small text-muted" style="border-radius:12px;">
+      <strong>How it works</strong>
+      <ul class="mb-0 ps-3 mt-2">
+        <li class="mb-2"><strong>Branches</strong> — set each location as shop, barbershop, salon, or both.</li>
+        <li class="mb-2"><strong>Modules</strong> — control what appears in your sidebar and what staff roles are available.</li>
+        <li class="mb-2"><strong>User Access</strong> — fine-tune permissions per staff member after enabling modules.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<?php elseif ($tab === 'shop'): ?>
 <div class="row g-4">
   <div class="col-lg-8">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
@@ -133,11 +185,12 @@ ob_start();
           </div>
           <?php if (SchemaHelper::columnExists($pdo, 'tenants', 'business_type')): ?>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Business type</label>
+            <label class="form-label fw-semibold">Legacy business type</label>
             <select name="business_type" class="form-select">
-              <option value="shop" <?php echo ($__tenant['business_type'] ?? 'shop') === 'shop' ? 'selected' : ''; ?>>Retail shop (products, inventory, discounts, credits)</option>
-              <option value="barbershop_salon" <?php echo ($__tenant['business_type'] ?? '') === 'barbershop_salon' ? 'selected' : ''; ?>>Barbershop &amp; salon (services &amp; commission)</option>
+              <option value="shop" <?php echo ($__tenant['business_type'] ?? 'shop') === 'shop' ? 'selected' : ''; ?>>Retail shop</option>
+              <option value="barbershop_salon" <?php echo ($__tenant['business_type'] ?? '') === 'barbershop_salon' ? 'selected' : ''; ?>>Barbershop &amp; salon</option>
             </select>
+            <small class="text-muted">Prefer <a href="?tab=modules">Modules</a> for full control. This field only sets defaults for new tenants.</small>
           </div>
           <?php endif; ?>
           <div class="row g-2">
