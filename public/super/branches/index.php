@@ -1,7 +1,7 @@
 <?php
 // public/super/branches/index.php
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth();
+PageGuard::tenant();
 
 $pdo = Database::pdo();
 $bm  = new Models\BranchModel($pdo);

@@ -1,7 +1,7 @@
 <?php
 // public/super/subcategories/index.php
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth();
+PageGuard::tenant();
 
 $pdo = Database::pdo();
 $C = new Models\CategoryModel($pdo);

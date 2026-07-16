@@ -1,7 +1,7 @@
 <?php
 // public/super/sales/index.php — enhanced owner view of all sales
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth();
+PageGuard::tenant();
 
 $pdo  = Database::pdo();
 $SA   = new Models\SaleModel($pdo);

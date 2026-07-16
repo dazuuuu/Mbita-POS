@@ -5,12 +5,14 @@ require_once __DIR__ . '/../app/app.php';
 $LOGIN    = public_path('auth/login.php');
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']);
 $role     = $_SESSION['role'] ?? '';
-if ($role === 'sales_agent') {
+if ($role === 'tenant_owner') {
+    $dashUrl = public_path('super/dashboard/');
+} elseif ($role === 'sales_agent') {
     $dashUrl = public_path('sales-agent/dashboard/');
 } elseif (StaffRoles::isEmployeeRole($role)) {
     $dashUrl = public_path('staff/dashboard/');
 } else {
-    $dashUrl = public_path('super/dashboard/');
+    $dashUrl = public_path('auth/login.php');
 }
 $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 ?>

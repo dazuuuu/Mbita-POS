@@ -1,7 +1,7 @@
 <?php
 // public/super/dashboard/index.php — TRACK-style dynamic dashboard
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth();
+PageGuard::tenant();
 
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();

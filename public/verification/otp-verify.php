@@ -61,9 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $dest = ($user['role_name'] === 'staff')
-            ? public_path('staff/dashboard/')
-            : public_path('super/dashboard/');
+        $dest = ($user['role_name'] ?? '') === 'tenant_owner'
+            ? public_path('super/dashboard/')
+            : public_path('staff/dashboard/');
         header('Location: ' . $dest);
         exit;
     }

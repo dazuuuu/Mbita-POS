@@ -14,20 +14,17 @@ function auth_employee_dashboard(?string $role): string
     return public_path('super/dashboard/');
 }
 
-if (!empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified'])) {
+if (!empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']) && ($_GET['denied'] ?? '') !== '1') {
     $sessionRole = $_SESSION['role'] ?? null;
-    if (StaffRoles::isEmployeeRole($sessionRole) || $sessionRole === 'sales_agent') {
-        header('Location: ' . auth_employee_dashboard($sessionRole));
-        exit;
-    }
     if ($sessionRole === 'tenant_owner') {
         header('Location: ' . public_path('super/dashboard/'));
         exit;
     }
-    if ($sessionRole === 'platform_admin') {
-        header('Location: ' . public_path('admins/dashboard/'));
+    if (StaffRoles::isEmployeeRole($sessionRole) || $sessionRole === 'sales_agent') {
+        header('Location: ' . auth_employee_dashboard($sessionRole));
         exit;
     }
+    // Unsupported role (e.g. legacy admin) — clear session to stop login ↔ dashboard loops.
     unset(
         $_SESSION['logged_in'], $_SESSION['otp_verified'], $_SESSION['user_id'],
         $_SESSION['tenant_id'], $_SESSION['role'], $_SESSION['staff_type'], $_SESSION['capabilities'],
@@ -99,18 +96,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$verdict['ok']) {
                 $error = AccountGuard::message($verdict['reason']);
             } else {
-                session_regenerate_id(true);
-                TenantContext::establish($pdo, $user);
-                $_SESSION['username']     = $user['username'];
-                $_SESSION['logged_in']    = true;
-                $_SESSION['otp_verified'] = true;
-                $_SESSION['first_login']  = true;
-                $_SESSION['must_reset']   = !empty($user['must_reset_password']);
-                $dest = ($user['role_name'] ?? '') === 'platform_admin'
-                    ? public_path('admins/dashboard/')
-                    : public_path('super/dashboard/');
-                header('Location: ' . $dest);
-                exit;
+                if (($user['role_name'] ?? '') !== 'tenant_owner') {
+                    $error = 'Only store owners (Super) can use email login here. Staff must use the PIN tab.';
+                } else {
+                    session_regenerate_id(true);
+                    TenantContext::establish($pdo, $user);
+                    $_SESSION['username']     = $user['username'];
+                    $_SESSION['logged_in']    = true;
+                    $_SESSION['otp_verified'] = true;
+                    $_SESSION['first_login']  = true;
+                    $_SESSION['must_reset']   = !empty($user['must_reset_password']);
+                    header('Location: ' . public_path('super/dashboard/'));
+                    exit;
+                }
             }
         }
     }

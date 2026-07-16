@@ -79,7 +79,7 @@ class AuthService
         if (str_ends_with(strtolower($user['email'] ?? ''), '@staff.internal')) {
             return false;
         }
-        return $role === 'tenant_owner' || $role === 'platform_admin';
+        return $role === 'tenant_owner';
     }
 
     public function subscriptionFor(?int $tenantId): ?array
