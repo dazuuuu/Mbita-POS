@@ -8,7 +8,7 @@ def fix(content):
     orig = content
     content = re.sub(
         r'href=public_path\("([^"]*)"\)',
-        r'href="<?php echo public_path(\'\1\'); ?>"',
+        lambda m: 'href="<?php echo public_path(\'' + m.group(1) + '\'); ?>"',
         content
     )
     content = re.sub(

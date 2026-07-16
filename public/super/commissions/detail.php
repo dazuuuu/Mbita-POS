@@ -26,7 +26,7 @@ $page_title = 'Commission details';
 ob_start();
 ?>
 <div class="mb-3">
-  <a href="<?php echo public_path(\'super/commissions/\'); ?>" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back</a>
+  <a href="<?php echo public_path('super/commissions/'); ?>" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>Back</a>
 </div>
 <div class="card border-0 shadow-sm mb-4" style="border-radius:12px;">
   <div class="card-body p-4">

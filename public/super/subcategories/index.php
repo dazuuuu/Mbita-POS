@@ -50,7 +50,7 @@ $page_title = 'Subcategories';
 ob_start();
 ?>
 <div class="mb-3">
-  <a href="<?php echo public_path(\'super/categories/\'); ?>" class="text-decoration-none text-muted">&larr; Categories</a>
+  <a href="<?php echo public_path('super/categories/'); ?>" class="text-decoration-none text-muted">&larr; Categories</a>
   <h2 class="h4 mt-1 mb-0"><?php echo htmlspecialchars($category['name']); ?> <span class="text-muted fs-6">subcategories</span></h2>
 </div>
 <div class="row g-4">
@@ -69,7 +69,7 @@ ob_start();
                    value="<?php echo htmlspecialchars($editRow['name'] ?? $old); ?>" required autofocus>
           </div>
           <button class="btn btn-primary"><?php echo $editRow ? 'Save' : 'Add subcategory'; ?></button>
-          <?php if ($editRow): ?><a class="btn btn-link" href="<?php echo public_path(\'super/subcategories/?category_id=<?php echo $categoryId; ?>\'); ?>">Cancel</a><?php endif; ?>
+          <?php if ($editRow): ?><a class="btn btn-link" href="<?php echo public_path('super/subcategories/?category_id=<?php echo $categoryId; ?>'); ?>">Cancel</a><?php endif; ?>
         </form>
       </div>
     </div>

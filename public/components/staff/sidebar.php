@@ -27,73 +27,73 @@ $isOn = function (string $needle) use ($uri): string {
     </div>
 
     <nav class="t-nav">
-        <a class="t-link <?php echo $isOn('/dashboard'); ?>" href="<?php echo public_path(\'staff/dashboard/\'); ?>">
+        <a class="t-link <?php echo $isOn('/dashboard'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
             <i class="fas fa-gauge-high"></i><span>Dashboard</span>
         </a>
 
         <?php if (TenantContext::can(Capabilities::PAYMENTS_RECEIVE) || TenantContext::can(Capabilities::PAYMENTS_UPDATE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/payments'); ?>" href="<?php echo public_path(\'staff/dashboard/\'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/payments'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
             <i class="fas fa-money-bill-wave"></i><span>Payments</span>
         </a>
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::APPOINTMENTS_MANAGE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/appointments'); ?>" href="<?php echo public_path(\'staff/dashboard/\'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/appointments'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
             <i class="fas fa-calendar-check"></i><span>Appointments</span>
         </a>
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::INVOICES_MANAGE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/invoices'); ?>" href="<?php echo public_path(\'staff/dashboard/\'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/invoices'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
             <i class="fas fa-file-invoice"></i><span>Invoices</span>
         </a>
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::CUSTOMERS_CHECKIN) || TenantContext::can(Capabilities::CUSTOMERS_MANAGE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/customers'); ?>" href="<?php echo public_path(\'staff/dashboard/\'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/customers'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
             <i class="fas fa-user-check"></i><span>Customers</span>
         </a>
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::SALES_RECORD)): ?>
-        <a class="t-link <?php echo $isOn('/sales/new'); ?>" href="<?php echo public_path(\'staff/sales/new.php\'); ?>">
+        <a class="t-link <?php echo $isOn('/sales/new'); ?>" href="<?php echo public_path('staff/sales/new.php'); ?>">
             <i class="fas fa-cash-register"></i><span>Make a sale</span>
         </a>
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::SALES_VIEW)): ?>
-        <a class="t-link <?php echo $isOn('/staff/sales/'); ?>" href="<?php echo public_path(\'staff/sales/\'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/sales/'); ?>" href="<?php echo public_path('staff/sales/'); ?>">
             <i class="fas fa-receipt"></i><span>My sales</span>
         </a>
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::COMMISSION_RECORD) || TenantContext::can(Capabilities::COMMISSION_VIEW)): ?>
-        <a class="t-link <?php echo $isOn('/staff/commissions'); ?>" href="<?php echo public_path(\'staff/commissions/\'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/commissions'); ?>" href="<?php echo public_path('staff/commissions/'); ?>">
             <i class="fas fa-coins"></i><span>Commission</span>
         </a>
         <?php endif; ?>
 
         <?php if ($businessType === 'shop' && TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
-        <a class="t-link <?php echo $isOn('/staff/products'); ?>" href="<?php echo public_path(\'staff/products/\'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/products'); ?>" href="<?php echo public_path('staff/products/'); ?>">
             <i class="fas fa-box"></i><span>Products</span>
         </a>
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::INVENTORY_VIEW)): ?>
-        <a class="t-link <?php echo $isOn('/staff/catalogue'); ?>" href="<?php echo public_path(\'staff/catalogue/\'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/catalogue'); ?>" href="<?php echo public_path('staff/catalogue/'); ?>">
             <i class="fas fa-share-nodes"></i><span>Share catalogue</span>
         </a>
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::REPORTS_VIEW)): ?>
-        <a class="t-link <?php echo $isOn('/super/reports'); ?>" href="<?php echo public_path(\'super/reports/\'); ?>">
+        <a class="t-link <?php echo $isOn('/super/reports'); ?>" href="<?php echo public_path('super/reports/'); ?>">
             <i class="fas fa-chart-bar"></i><span>Reports</span>
         </a>
         <?php endif; ?>
 
         <hr>
 
-        <a class="t-link t-danger" href="<?php echo public_path(\'auth/logout.php\'); ?>">
+        <a class="t-link t-danger" href="<?php echo public_path('auth/logout.php'); ?>">
             <i class="fas fa-arrow-right-from-bracket"></i><span>Logout</span>
         </a>
     </nav>

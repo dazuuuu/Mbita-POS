@@ -183,7 +183,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
               <span class="tx"><b>Open the POS</b><span>Continue to your dashboard</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
-            <a class="portal staff" href="<?php echo public_path(\'auth/logout.php\'); ?>">
+            <a class="portal staff" href="<?php echo public_path('auth/logout.php'); ?>">
               <span class="ic"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
               <span class="tx"><b>Switch account</b><span>Log out and sign in as someone else</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>

@@ -97,8 +97,8 @@ ob_start();
     <button class="btn-auth">Set new password</button>
 </form>
 <div class="auth-foot">
-    Didn't get it? <a href="<?php echo public_path(\'auth/reset-otp.php?resend=1\'); ?>">Resend code</a><br>
-    <a href="<?php echo public_path(\'auth/forgot-password.php\'); ?>">Try a different email</a>
+    Didn't get it? <a href="<?php echo public_path('auth/reset-otp.php?resend=1'); ?>">Resend code</a><br>
+    <a href="<?php echo public_path('auth/forgot-password.php'); ?>">Try a different email</a>
 </div>
 <?php
 $content = ob_get_clean();

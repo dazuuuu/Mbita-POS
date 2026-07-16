@@ -68,7 +68,7 @@ ob_start();
               </tbody>
             </table>
           </div>
-          <a class="btn btn-sm btn-outline-secondary mt-3" href="<?php echo public_path(\'super/staff/\'); ?>">Manage staff</a>
+          <a class="btn btn-sm btn-outline-secondary mt-3" href="<?php echo public_path('super/staff/'); ?>">Manage staff</a>
         <?php endif; ?>
       </div>
     </div>

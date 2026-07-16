@@ -50,7 +50,7 @@ ob_start();
     </div>
   </div>
   <div class="col-12 col-md-6 d-flex align-items-center gap-2 flex-wrap">
-    <a href="<?php echo public_path(\'staff/sales/new.php\'); ?>" class="btn btn-primary">
+    <a href="<?php echo public_path('staff/sales/new.php'); ?>" class="btn btn-primary">
       <i class="fas fa-cash-register me-1"></i>Make a sale
     </a>
     <button type="button" class="btn btn-outline-secondary"

@@ -104,8 +104,8 @@ $defaultEmail = htmlspecialchars($sale['customer_email'] ?? '');
       </div>
     </form>
     <div class="d-flex gap-2 mt-3">
-      <a href="<?php echo public_path(\'staff/sales/new.php\'); ?>" class="btn btn-link flex-fill">New sale</a>
-      <a href="<?php echo public_path(\'staff/sales/\'); ?>" class="btn btn-link flex-fill">My sales</a>
+      <a href="<?php echo public_path('staff/sales/new.php'); ?>" class="btn btn-link flex-fill">New sale</a>
+      <a href="<?php echo public_path('staff/sales/'); ?>" class="btn btn-link flex-fill">My sales</a>
     </div>
   </div>
 </body>

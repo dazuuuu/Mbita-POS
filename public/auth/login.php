@@ -157,7 +157,7 @@ ob_start();
 
 <?php if ($mode === 'admin'): ?>
 <div class="auth-foot">
-  <a href="<?php echo public_path(\'auth/forgot-password.php\'); ?>">Forgot password?</a>
+  <a href="<?php echo public_path('auth/forgot-password.php'); ?>">Forgot password?</a>
 </div>
 <?php endif; ?>
 <?php

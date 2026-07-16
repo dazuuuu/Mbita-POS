@@ -351,17 +351,17 @@ if ($error) {
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-4 mb-2">
-                        <a href="<?php echo public_path(\'admin/services/create.php\'); ?>" class="btn btn-outline-secondary w-100">
+                        <a href="<?php echo public_path('admin/services/create.php'); ?>" class="btn btn-outline-secondary w-100">
                             <i class="fas fa-plus me-1"></i> New Service
                         </a>
                     </div>
                     <div class="col-md-4 mb-2">
-                        <a href="<?php echo public_path(\'admin/projects/create.php\'); ?>" class="btn btn-outline-secondary w-100">
+                        <a href="<?php echo public_path('admin/projects/create.php'); ?>" class="btn btn-outline-secondary w-100">
                             <i class="fas fa-plus me-1"></i> New Project
                         </a>
                     </div>
                     <div class="col-md-4 mb-2">
-                        <a href="<?php echo public_path(\'admin/blogs/create.php\'); ?>" class="btn btn-outline-secondary w-100">
+                        <a href="<?php echo public_path('admin/blogs/create.php'); ?>" class="btn btn-outline-secondary w-100">
                             <i class="fas fa-plus me-1"></i> New Blog Post
                         </a>
                     </div>

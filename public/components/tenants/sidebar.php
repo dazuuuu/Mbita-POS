@@ -76,7 +76,7 @@ if ($isOwner) {
       </li>
       <?php endforeach; ?>
       <li>
-        <a href="<?php echo public_path(\'auth/logout.php\'); ?>" style="color:#e74c3c;margin-top:8px;">
+        <a href="<?php echo public_path('auth/logout.php'); ?>" style="color:#e74c3c;margin-top:8px;">
           <i class="fas fa-arrow-right-from-bracket"></i>
           <span>Logout</span>
         </a>

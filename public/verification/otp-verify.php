@@ -88,8 +88,8 @@ ob_start();
     <button class="btn-auth">Verify &amp; continue</button>
 </form>
 <div class="auth-foot">
-    Didn't get it? <a href="<?php echo public_path(\'verification/otp-verify.php?resend=1\'); ?>">Resend code</a><br>
-    <a href="<?php echo public_path(\'auth/login.php\'); ?>">Back to login</a>
+    Didn't get it? <a href="<?php echo public_path('verification/otp-verify.php?resend=1'); ?>">Resend code</a><br>
+    <a href="<?php echo public_path('auth/login.php'); ?>">Back to login</a>
 </div>
 <?php
 $content = ob_get_clean();

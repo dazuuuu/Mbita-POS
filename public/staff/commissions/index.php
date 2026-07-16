@@ -33,7 +33,7 @@ ob_start();
     </div></div>
   </div>
   <div class="col-md-4 d-flex align-items-center">
-    <a class="btn btn-primary" href="<?php echo public_path(\'staff/commissions/new.php\'); ?>">+ Record sale</a>
+    <a class="btn btn-primary" href="<?php echo public_path('staff/commissions/new.php'); ?>">+ Record sale</a>
   </div>
 </div>
 <div class="card border-0 shadow-sm" style="border-radius:12px;">

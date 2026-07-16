@@ -109,7 +109,7 @@ ob_start();
 <?php if (!$schemaReady): ?>
 <div class="alert alert-warning">
   <strong>Database update needed.</strong> KRA PIN, receipts, customers and credits require migration 024.
-  Open <a href="<?php echo public_path(\'devs/fix-schema-024.php\'); ?>" class="alert-link">fix-schema-024.php</a> once, then refresh this page.
+  Open <a href="<?php echo public_path('devs/fix-schema-024.php'); ?>" class="alert-link">fix-schema-024.php</a> once, then refresh this page.
 </div>
 <?php endif; ?>
 <ul class="nav nav-tabs mb-4">
@@ -257,7 +257,7 @@ ob_start();
   <h2 class="h5 mb-1">Staff management</h2>
   <p class="text-muted small mb-3">
     <strong>Permanent delete</strong> removes the staff account and <em>all</em> their POS sales, commission sales, and payouts.
-    Type their exact name to confirm. <a href="<?php echo public_path(\'super/staff/\'); ?>">Add staff here</a>.
+    Type their exact name to confirm. <a href="<?php echo public_path('super/staff/'); ?>">Add staff here</a>.
     Staff log in with shop code + PIN — no email.
   </p>
   <?php if (!$staff): ?>

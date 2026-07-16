@@ -93,7 +93,7 @@ ob_start();
   If that email address is registered, a reset code is on its way. Check your inbox (and spam folder).
 </div>
 <div class="auth-foot" style="margin-top:10px;">
-  <a href="<?php echo public_path(\'auth/login.php\'); ?>">Back to login</a>
+  <a href="<?php echo public_path('auth/login.php'); ?>">Back to login</a>
 </div>
 <?php else: ?>
 <form method="post" novalidate>
@@ -103,7 +103,7 @@ ob_start();
     </div>
     <button class="btn-auth">Send reset code</button>
 </form>
-<div class="auth-foot"><a href="<?php echo public_path(\'auth/login.php\'); ?>">Back to login</a></div>
+<div class="auth-foot"><a href="<?php echo public_path('auth/login.php'); ?>">Back to login</a></div>
 <?php endif; ?>
 <?php
 $content = ob_get_clean();

@@ -116,7 +116,7 @@ ob_start();
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="h5 mb-0">Your team <span class="badge bg-light text-dark"><?php echo count($staff); ?></span></h2>
-          <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path(\'super/staff/authorization.php\'); ?>">Authorization</a>
+          <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/staff/authorization.php'); ?>">Authorization</a>
         </div>
         <?php if (!$staff): ?>
           <div class="text-muted">No staff yet. Add your first team member on the left.</div>
