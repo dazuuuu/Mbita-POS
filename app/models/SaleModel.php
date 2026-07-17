@@ -434,6 +434,88 @@ class SaleModel extends Model
         }
     }
 
+    /**
+     * Owner backfill: record a past POS sale without changing stock.
+     * @param array $in staff_id, item_name, amount, sale_date (Y-m-d or Y-m-d H:i), payment_method, branch_id?, customer_name?
+     */
+    public function recordManual(array $in): array
+    {
+        $tid = \TenantContext::tenantId();
+        if ($tid === null) {
+            return ['ok' => false, 'errors' => ['_' => 'No shop in context.']];
+        }
+
+        $staffId = (int) ($in['staff_id'] ?? 0);
+        $itemName = trim($in['item_name'] ?? '');
+        $amount = round((float) ($in['amount'] ?? 0), 2);
+        $saleAt = trim($in['sale_date'] ?? '');
+        $method = in_array($in['payment_method'] ?? '', ['cash', 'mpesa'], true) ? $in['payment_method'] : null;
+
+        $errors = [];
+        if ($staffId <= 0) {
+            $errors['staff_id'] = 'Choose who made this sale.';
+        }
+        if ($itemName === '') {
+            $errors['item_name'] = 'Enter what was sold.';
+        }
+        if ($amount <= 0) {
+            $errors['amount'] = 'Enter a valid amount.';
+        }
+        if (!$method) {
+            $errors['payment_method'] = 'Choose how it was paid.';
+        }
+        $ts = strtotime($saleAt);
+        if ($saleAt === '' || $ts === false) {
+            $errors['sale_date'] = 'Enter a valid date and time.';
+        }
+        if ($errors) {
+            return ['ok' => false, 'errors' => $errors];
+        }
+
+        $staffOk = $this->db->prepare(
+            'SELECT id FROM users WHERE id = ? AND tenant_id = ? AND is_active = 1 LIMIT 1'
+        );
+        $staffOk->execute([$staffId, $tid]);
+        if (!$staffOk->fetch()) {
+            return ['ok' => false, 'errors' => ['staff_id' => 'Staff member not found.']];
+        }
+
+        $branchId = isset($in['branch_id']) && (int) $in['branch_id'] > 0 ? (int) $in['branch_id'] : null;
+        $createdAt = date('Y-m-d H:i:s', $ts);
+
+        try {
+            $ins = $this->db->prepare(
+                "INSERT INTO sales (tenant_id, branch_id, staff_id, receipt_number, payment_method, total, amount_given, change_given, customer_name, status, created_at)
+                 VALUES (?,?,?,?,?,?,?,?,?, 'completed', ?)"
+            );
+            $ins->execute([
+                $tid,
+                $branchId,
+                $staffId,
+                'PENDING',
+                $method,
+                $amount,
+                $amount,
+                0.0,
+                ($in['customer_name'] ?? '') !== '' ? trim($in['customer_name']) : null,
+                $createdAt,
+            ]);
+            $saleId = (int) $this->db->lastInsertId();
+            $receipt = 'RCP-' . str_pad((string) $saleId, 6, '0', STR_PAD_LEFT);
+            $this->db->prepare('UPDATE sales SET receipt_number = ? WHERE id = ? AND tenant_id = ?')
+                ->execute([$receipt, $saleId, $tid]);
+
+            $this->db->prepare(
+                'INSERT INTO sale_items (tenant_id, sale_id, product_id, product_name, unit, unit_price, quantity, line_total)
+                 VALUES (?,?,NULL,?,?,?,?,?)'
+            )->execute([$tid, $saleId, $itemName, 'piece', $amount, 1, $amount]);
+
+            return ['ok' => true, 'sale_id' => $saleId, 'receipt_number' => $receipt, 'errors' => []];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'errors' => ['_' => 'Could not save this sale. Please try again.']];
+        }
+    }
+
     /** Totals for a set of sales rows (revenue, count, by method). Includes commission rows. */
     public static function summarize(array $rows): array
     {

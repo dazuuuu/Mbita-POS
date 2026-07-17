@@ -472,6 +472,163 @@ class CommissionService
     }
 
     /**
+     * Owner backfill: past service/product commission sale without catalog or stock changes.
+     * @param array $in staff_id, item_type, item_name, amount, sale_date, payment_method, branch_id?, customer_name?
+     */
+    public function recordManual(int $tenantId, array $in): array
+    {
+        if (!self::ensureSchema($this->db)) {
+            return ['ok' => false, 'errors' => ['_' => 'Commission tables are not set up. Run fix-all-schema.php once.']];
+        }
+
+        $agentId = (int) ($in['staff_id'] ?? 0);
+        $itemType = in_array($in['item_type'] ?? '', ['service', 'product'], true) ? $in['item_type'] : '';
+        $itemName = trim($in['item_name'] ?? '');
+        $amount = round((float) ($in['amount'] ?? 0), 2);
+        $saleAt = trim($in['sale_date'] ?? '');
+        $method = in_array($in['payment_method'] ?? '', ['cash', 'mpesa'], true) ? $in['payment_method'] : null;
+
+        $errors = [];
+        if ($agentId <= 0) {
+            $errors['staff_id'] = 'Choose who made this sale.';
+        }
+        if ($itemType === '') {
+            $errors['item_type'] = 'Choose service or product.';
+        }
+        if ($itemName === '') {
+            $errors['item_name'] = 'Enter what was sold.';
+        }
+        if ($amount <= 0) {
+            $errors['amount'] = 'Enter a valid amount.';
+        }
+        if (!$method) {
+            $errors['payment_method'] = 'Choose how it was paid.';
+        }
+        $ts = strtotime($saleAt);
+        if ($saleAt === '' || $ts === false) {
+            $errors['sale_date'] = 'Enter a valid date and time.';
+        }
+        if ($errors) {
+            return ['ok' => false, 'errors' => $errors];
+        }
+
+        $staffOk = $this->db->prepare(
+            'SELECT id FROM users WHERE id = ? AND tenant_id = ? AND is_active = 1 LIMIT 1'
+        );
+        $staffOk->execute([$agentId, $tenantId]);
+        if (!$staffOk->fetch()) {
+            return ['ok' => false, 'errors' => ['staff_id' => 'Staff member not found.']];
+        }
+
+        $branchId = isset($in['branch_id']) && (int) $in['branch_id'] > 0 ? (int) $in['branch_id'] : null;
+        $customerName = trim($in['customer_name'] ?? '');
+        $createdAt = date('Y-m-d H:i:s', $ts);
+        $ownerId = (int) (\TenantContext::userId() ?? 0);
+
+        try {
+            $stmt = $this->db->prepare(
+                'INSERT INTO commission_sales
+                 (tenant_id, receipt_number, agent_user_id, branch_id, customer_name,
+                  item_type, service_id, product_id, item_name, quantity, standard_price, charged_amount,
+                  payment_method, is_credit, expense_total, base_commission, overage_commission, total_commission, notes, created_at)
+                 VALUES (?,?,?,?,?,?,NULL,NULL,?,?,?,?,?,0,0,0,0,?,?)'
+            );
+            $stmt->execute([
+                $tenantId,
+                'PENDING',
+                $agentId,
+                $branchId,
+                $customerName !== '' ? $customerName : null,
+                $itemType,
+                $itemName,
+                1,
+                $amount,
+                $amount,
+                $method,
+                0,
+                'Manual entry by owner',
+                $createdAt,
+            ]);
+            $saleId = (int) $this->db->lastInsertId();
+            $receipt = 'CRS-' . str_pad((string) $saleId, 6, '0', STR_PAD_LEFT);
+            $this->db->prepare('UPDATE commission_sales SET receipt_number = ? WHERE id = ? AND tenant_id = ?')
+                ->execute([$receipt, $saleId, $tenantId]);
+
+            if ($this->hasPaymentWorkflow()) {
+                $this->db->prepare(
+                    "UPDATE commission_sales SET payment_status = 'paid', paid_at = ?, recorded_by_user_id = ?
+                     WHERE id = ? AND tenant_id = ?"
+                )->execute([$createdAt, $ownerId ?: $agentId, $saleId, $tenantId]);
+            }
+
+            return [
+                'ok' => true,
+                'id' => $saleId,
+                'receipt_number' => $receipt,
+                'errors' => [],
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'errors' => ['_' => 'Could not save this sale. Please try again.']];
+        }
+    }
+
+    /** Remove a commission/service sale (owner). Restores product stock when applicable. */
+    public function deleteSale(int $tenantId, int $saleId): array
+    {
+        if (!self::ensureSchema($this->db)) {
+            return ['ok' => false, 'error' => 'Commission tables are not set up.'];
+        }
+
+        $sale = $this->find($tenantId, $saleId);
+        if (!$sale) {
+            return ['ok' => false, 'error' => 'Sale not found.'];
+        }
+        if (!empty($sale['payout_id'])) {
+            return ['ok' => false, 'error' => 'This sale is part of a commission payout and cannot be deleted.'];
+        }
+        if (!empty($sale['is_credit'])) {
+            return ['ok' => false, 'error' => 'Credit sales cannot be deleted here. Adjust from customer credit instead.'];
+        }
+
+        $ownsTx = !$this->db->inTransaction();
+        if ($ownsTx) {
+            $this->db->beginTransaction();
+        }
+        try {
+            if (($sale['item_type'] ?? '') === 'product' && (int) ($sale['product_id'] ?? 0) > 0) {
+                $qty = max(0.01, (float) ($sale['quantity'] ?? 1));
+                $this->db->prepare(
+                    'UPDATE products SET quantity = quantity + ? WHERE id = ? AND tenant_id = ?'
+                )->execute([$qty, (int) $sale['product_id'], $tenantId]);
+            }
+
+            if (SchemaHelper::tableExists($this->db, 'commission_sale_expenses')) {
+                $this->db->prepare('DELETE FROM commission_sale_expenses WHERE commission_sale_id = ?')
+                    ->execute([$saleId]);
+            }
+
+            $del = $this->db->prepare('DELETE FROM commission_sales WHERE id = ? AND tenant_id = ?');
+            $del->execute([$saleId, $tenantId]);
+            if ($del->rowCount() !== 1) {
+                if ($ownsTx && $this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                return ['ok' => false, 'error' => 'Could not delete this sale.'];
+            }
+
+            if ($ownsTx) {
+                $this->db->commit();
+            }
+            return ['ok' => true, 'error' => null];
+        } catch (Throwable $e) {
+            if ($ownsTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return ['ok' => false, 'error' => 'Could not delete this sale. Please try again.'];
+        }
+    }
+
+    /**
      * Record multiple services/products in one visit (shared customer & payment).
      * Each line becomes its own commission sale row and receipt.
      */

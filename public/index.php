@@ -47,7 +47,15 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
   }
 
   .wrap{ width:400px; max-width:100%; }
-  .inner{ padding:8px 0; }
+  .portal-panel{
+    border:1px solid #ddd; border-radius:12px; padding:28px 24px 22px;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.04);
+  }
+  .portal-panel .brand{
+    padding-bottom:20px; margin-bottom:20px;
+    border-bottom:1px solid var(--line);
+  }
+  .inner{ padding:0; }
 
   .brand{ text-align:center; margin-bottom:28px; }
   .logo-box{ margin:0 auto 12px; max-width:120px; }
@@ -58,14 +66,18 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
   .lede{
     font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);
     text-align:center; margin-bottom:14px;
+    padding-bottom:12px; border-bottom:1px solid var(--line);
   }
   .portal{
     display:flex; align-items:center; gap:14px; text-decoration:none; color:var(--text);
-    padding:14px 0; margin-bottom:4px; border-bottom:1px solid var(--line);
-    transition:color .2s;
+    padding:14px 12px; margin-bottom:10px;
+    border:1px solid var(--line); border-radius:10px;
+    transition:color .2s, border-color .2s;
   }
-  .portal:last-of-type{ border-bottom:none; margin-bottom:0; }
-  .portal:hover, .portal:focus-visible{ color:var(--gold); outline:none; }
+  .portal:last-of-type{ margin-bottom:0; }
+  .portal:hover, .portal:focus-visible{
+    outline:none; border-color:#d4c4a8; color:var(--gold);
+  }
   .portal .ic{
     width:36px; height:36px; display:flex; align-items:center; justify-content:center;
     font-size:1rem; flex-shrink:0; color:var(--gold);
@@ -80,10 +92,15 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
   .install-btn{
     display:none; width:100%; margin-top:18px; align-items:center; justify-content:center;
     gap:8px; background:#fff; color:var(--gold);
-    border:1px solid var(--gold); border-radius:8px; padding:12px;
+    border:1px solid var(--line); border-radius:8px; padding:12px;
     font-size:.9rem; font-weight:600; cursor:pointer;
   }
-  .install-btn:hover{ background:var(--gold-soft); }
+  .install-btn:hover{ background:var(--gold-soft); border-color:#d4c4a8; }
+
+  .panel-foot{
+    margin-top:18px; padding-top:14px; border-top:1px solid var(--line);
+    text-align:center;
+  }
 
   .hint{ text-align:center; color:var(--muted); font-size:.76rem; margin-top:14px; line-height:1.5; }
   .foot{ text-align:center; color:#bbb; font-size:.72rem; margin-top:16px; }
@@ -93,7 +110,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 </head>
 <body>
   <div class="wrap">
-        <div class="inner">
+        <div class="inner portal-panel">
           <div class="brand">
             <?php if ($brandHasLogo && $brandLogo): ?>
             <div class="logo-box">
@@ -133,13 +150,15 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
           <button class="install-btn" id="installBtn" type="button">
             <i class="fa-solid fa-circle-down"></i> Install app
           </button>
+          <div class="panel-foot">
+            <p class="foot mb-0"><?php echo htmlspecialchars($brandName); ?> &middot; works on phone &amp; desktop</p>
+          </div>
         </div>
   </div>
 
   <p class="hint" id="iosHint" style="display:none;">
     To install: tap <b>Share</b> <i class="fa-solid fa-arrow-up-from-bracket"></i> then <b>Add to Home Screen</b>.
   </p>
-  <p class="foot"><?php echo htmlspecialchars($brandName); ?> &middot; works on phone &amp; desktop</p>
 
 <script>
 (function(){

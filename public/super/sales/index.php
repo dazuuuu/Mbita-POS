@@ -5,10 +5,21 @@ PageGuard::tenant();
 
 $pdo  = Database::pdo();
 GeneralMigrationService::ensureApplied($pdo);
+CommissionService::ensureSchema($pdo);
 $SA   = new Models\SaleModel($pdo);
+$commSvc = new CommissionService($pdo);
 $tenantId = (int) TenantContext::tenantId();
 $__locations = (new Models\BranchModel($pdo))->listWithCounts();
 $branchFilter = (int) ($_GET['branch'] ?? 0);
+
+$redirectSales = function (string $period, int $branchId): void {
+    $url = public_path('super/sales/') . '?period=' . urlencode($period);
+    if ($branchId > 0) {
+        $url .= '&branch=' . $branchId;
+    }
+    header('Location: ' . $url);
+    exit;
+};
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'void_sale') {
     $res = $SA->voidSale((int) ($_POST['sale_id'] ?? 0));
@@ -16,14 +27,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'void_
         ? 'Sale voided and stock restored.'
         : ($res['error'] ?? 'Could not void sale.');
     $redirectPeriod = in_array($_POST['period'] ?? '', ['today', 'week', 'month', 'all'], true) ? $_POST['period'] : 'today';
-    $redirectBranch = (int) ($_POST['branch'] ?? 0);
-    $url = public_path('super/sales/') . '?period=' . urlencode($redirectPeriod);
-    if ($redirectBranch > 0) {
-        $url .= '&branch=' . $redirectBranch;
-    }
-    header('Location: ' . $url);
-    exit;
+    $redirectSales($redirectPeriod, (int) ($_POST['branch'] ?? 0));
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_commission_sale') {
+    $res = $commSvc->deleteSale($tenantId, (int) ($_POST['sale_id'] ?? 0));
+    $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+        ? 'Sale removed.'
+        : ($res['error'] ?? 'Could not delete sale.');
+    $redirectPeriod = in_array($_POST['period'] ?? '', ['today', 'week', 'month', 'all'], true) ? $_POST['period'] : 'today';
+    $redirectSales($redirectPeriod, (int) ($_POST['branch'] ?? 0));
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_manual_sale') {
+    $recordType = ($_POST['record_type'] ?? '') === 'pos' ? 'pos' : 'commission';
+    $payload = [
+        'staff_id'        => (int) ($_POST['staff_id'] ?? 0),
+        'item_name'       => trim($_POST['item_name'] ?? ''),
+        'amount'          => (float) ($_POST['amount'] ?? 0),
+        'sale_date'       => trim($_POST['sale_date'] ?? ''),
+        'payment_method'  => $_POST['payment_method'] ?? 'cash',
+        'branch_id'       => (int) ($_POST['branch_id'] ?? 0),
+        'customer_name'   => trim($_POST['customer_name'] ?? ''),
+        'item_type'       => ($_POST['item_type'] ?? '') === 'product' ? 'product' : 'service',
+    ];
+    $res = $recordType === 'pos'
+        ? $SA->recordManual($payload)
+        : $commSvc->recordManual($tenantId, $payload);
+    if ($res['ok']) {
+        $num = $res['receipt_number'] ?? '';
+        $_SESSION['flash']['success'] = 'Past sale added' . ($num ? " ({$num})." : '.');
+    } else {
+        $err = $res['errors']['_'] ?? $res['errors']['item_name'] ?? $res['errors']['amount'] ?? $res['error'] ?? 'Could not add sale.';
+        $_SESSION['flash']['error'] = $err;
+    }
+    $redirectPeriod = in_array($_POST['period'] ?? '', ['today', 'week', 'month', 'all'], true) ? $_POST['period'] : 'today';
+    $redirectSales($redirectPeriod, (int) ($_POST['branch'] ?? 0));
+}
+
+$assigneeStmt = $pdo->prepare(
+    "SELECT u.id, u.username, r.role_name
+       FROM users u
+       JOIN roles r ON r.id = u.role_id
+      WHERE u.tenant_id = ? AND u.is_active = 1
+        AND r.role_name IN ('tenant_owner','cashier','reception','sales','barber','stylist','general','junior_admin','sales_agent')
+   ORDER BY u.username ASC"
+);
+$assigneeStmt->execute([$tenantId]);
+$saleAssignees = $assigneeStmt->fetchAll() ?: [];
 
 $allowed = ['today', 'week', 'month', 'all'];
 $period  = in_array($_GET['period'] ?? '', $allowed, true) ? $_GET['period'] : 'today';
@@ -55,6 +106,89 @@ $periodLabel = match ($period) {
 $page_title = 'Sales';
 ob_start();
 ?>
+<?php if (!empty($_SESSION['flash']['success'])): ?>
+  <div class="alert alert-success py-2"><?php echo htmlspecialchars($_SESSION['flash']['success']); unset($_SESSION['flash']['success']); ?></div>
+<?php endif; ?>
+<?php if (!empty($_SESSION['flash']['error'])): ?>
+  <div class="alert alert-danger py-2"><?php echo htmlspecialchars($_SESSION['flash']['error']); unset($_SESSION['flash']['error']); ?></div>
+<?php endif; ?>
+
+<div class="card border-0 shadow-sm mb-4" style="border-radius:14px;">
+  <div class="card-body p-4">
+    <h2 class="h6 fw-bold mb-1"><i class="fas fa-clock-rotate-left me-2 text-secondary"></i>Add a past sale manually</h2>
+    <p class="text-muted small mb-3">Record a sale that happened earlier — assign staff, item, amount, and date. Stock is not changed.</p>
+    <form method="post" class="row g-3">
+      <input type="hidden" name="action" value="add_manual_sale">
+      <input type="hidden" name="period" value="<?php echo htmlspecialchars($period); ?>">
+      <input type="hidden" name="branch" value="<?php echo (int)$branchFilter; ?>">
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">Record as</label>
+        <select name="record_type" class="form-select form-select-sm" id="manualRecordType">
+          <option value="commission">Service / product sale</option>
+          <option value="pos">POS (retail) sale</option>
+        </select>
+      </div>
+      <div class="col-md-3" id="manualItemTypeWrap">
+        <label class="form-label small fw-semibold">Type</label>
+        <select name="item_type" class="form-select form-select-sm">
+          <option value="service">Service</option>
+          <option value="product">Product</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Staff member</label>
+        <select name="staff_id" class="form-select form-select-sm" required>
+          <option value="">— Choose staff —</option>
+          <?php foreach ($saleAssignees as $u): ?>
+          <option value="<?php echo (int)$u['id']; ?>">
+            <?php echo htmlspecialchars($u['username']); ?>
+            <?php if (($u['role_name'] ?? '') === 'tenant_owner'): ?> (Owner)<?php endif; ?>
+          </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <?php if ($__locations): ?>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Branch / shop</label>
+        <select name="branch_id" class="form-select form-select-sm">
+          <option value="">— Optional —</option>
+          <?php foreach ($__locations as $loc): ?>
+          <option value="<?php echo (int)$loc['id']; ?>"><?php echo htmlspecialchars($loc['title']); ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <?php endif; ?>
+      <div class="col-md-<?php echo $__locations ? '4' : '6'; ?>">
+        <label class="form-label small fw-semibold">What was sold</label>
+        <input type="text" name="item_name" class="form-control form-control-sm" placeholder="e.g. Haircut, Shampoo, etc." required>
+      </div>
+      <div class="col-md-<?php echo $__locations ? '4' : '6'; ?>">
+        <label class="form-label small fw-semibold">Amount (KES)</label>
+        <input type="number" name="amount" class="form-control form-control-sm" min="0.01" step="0.01" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Date &amp; time</label>
+        <input type="datetime-local" name="sale_date" class="form-control form-control-sm"
+               value="<?php echo date('Y-m-d\TH:i'); ?>" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Payment</label>
+        <select name="payment_method" class="form-select form-select-sm">
+          <option value="cash">Cash</option>
+          <option value="mpesa">M-Pesa</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Customer <span class="text-muted fw-normal">(optional)</span></label>
+        <input type="text" name="customer_name" class="form-control form-control-sm" placeholder="Customer name">
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>Add past sale</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
   <h1 class="h5 mb-0 fw-bold">Sales by branch / shop</h1>
   <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -208,12 +342,20 @@ ob_start();
                 <td class="text-end text-nowrap">
                   <a class="btn btn-sm btn-outline-secondary" href="<?php echo htmlspecialchars($s['receipt_url'] ?? ReceiptUrl::forUnifiedRow($s)); ?>">Receipt</a>
                   <?php if (($s['sale_type'] ?? '') === 'pos' && !$isPending): ?>
-                  <form method="post" class="d-inline" onsubmit="return confirm('Void this sale? Stock will be restored.');">
+                  <form method="post" class="d-inline" onsubmit="return confirm('Void this sale? Stock will be restored if it was a live POS sale.');">
                     <input type="hidden" name="action" value="void_sale">
                     <input type="hidden" name="sale_id" value="<?php echo (int)$s['id']; ?>">
                     <input type="hidden" name="period" value="<?php echo htmlspecialchars($period); ?>">
                     <input type="hidden" name="branch" value="<?php echo (int)$branchFilter; ?>">
                     <button class="btn btn-sm btn-outline-danger">Void</button>
+                  </form>
+                  <?php elseif (($s['sale_type'] ?? '') === 'commission'): ?>
+                  <form method="post" class="d-inline" onsubmit="return confirm('Delete this sale permanently?');">
+                    <input type="hidden" name="action" value="delete_commission_sale">
+                    <input type="hidden" name="sale_id" value="<?php echo (int)$s['id']; ?>">
+                    <input type="hidden" name="period" value="<?php echo htmlspecialchars($period); ?>">
+                    <input type="hidden" name="branch" value="<?php echo (int)$branchFilter; ?>">
+                    <button class="btn btn-sm btn-outline-danger">Delete</button>
                   </form>
                   <?php endif; ?>
                 </td>
@@ -231,13 +373,24 @@ ob_start();
 <script>
 (function(){
   var inp = document.getElementById('saleSearch');
-  if (!inp) return;
-  inp.addEventListener('input', function(){
-    var q = this.value.toLowerCase().trim();
-    document.querySelectorAll('.saleTable tbody tr').forEach(function(tr){
-      tr.style.display = !q || tr.dataset.search.indexOf(q) !== -1 ? '' : 'none';
+  if (inp) {
+    inp.addEventListener('input', function(){
+      var q = this.value.toLowerCase().trim();
+      document.querySelectorAll('.saleTable tbody tr').forEach(function(tr){
+        tr.style.display = !q || tr.dataset.search.indexOf(q) !== -1 ? '' : 'none';
+      });
     });
-  });
+  }
+
+  var recordType = document.getElementById('manualRecordType');
+  var itemTypeWrap = document.getElementById('manualItemTypeWrap');
+  if (recordType && itemTypeWrap) {
+    var sync = function(){
+      itemTypeWrap.style.display = recordType.value === 'commission' ? '' : 'none';
+    };
+    recordType.addEventListener('change', sync);
+    sync();
+  }
 })();
 </script>
 <?php
