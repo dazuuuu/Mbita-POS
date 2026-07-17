@@ -113,6 +113,8 @@ class SchemaHelper
     {
         return self::tableExists($db, 'tenants') || self::columnExists($db, 'tenants', 'id');
     }
+
+    public static function migration023Ready(PDO $db): bool
     {
         return self::tableExists($db, 'commission_sales')
             && self::tableExists($db, 'commission_sale_expenses')
