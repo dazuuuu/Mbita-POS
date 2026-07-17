@@ -121,7 +121,10 @@ ob_start();
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
           <div>
             <h2 class="h5 fw-bold mb-1">Customer check-in</h2>
-            <p class="text-muted small mb-0">Official service check-in — creates an unpaid receipt for till payment.</p>
+            <p class="text-muted small mb-0">
+              <strong>Step 1 — Check in:</strong> record customer details and services here. No payment yet.<br>
+              <strong>Step 2 — Pay at till:</strong> reception/cashier processes payment under Process payments.
+            </p>
           </div>
           <span class="checkin-badge"><i class="fas fa-calendar-day me-1"></i><?php echo htmlspecialchars($checkInDate); ?> · <?php echo htmlspecialchars($checkInTime); ?></span>
         </div>

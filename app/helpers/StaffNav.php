@@ -51,11 +51,24 @@ class StaffNav
             || TenantContext::can(Capabilities::COMMISSION_RECORD);
     }
 
-    /** Product till sales only — not services. */
+    /** Product till only — never services (services = check-in, pay later). */
     public static function canSellProducts(?array $modules = null): bool
     {
         $modules = $modules ?? self::staffModules();
-        return self::hasProducts($modules) && TenantContext::can(Capabilities::SALES_RECORD);
+        if (!self::hasProducts($modules)) {
+            return false;
+        }
+        if (!TenantContext::can(Capabilities::SALES_RECORD)) {
+            return false;
+        }
+        // On service branches, product till is separate — only if products module on
+        return true;
+    }
+
+    /** Services are NEVER sold at till — check-in records customer, payment is later. */
+    public static function canSellServices(): bool
+    {
+        return false;
     }
 
     /**

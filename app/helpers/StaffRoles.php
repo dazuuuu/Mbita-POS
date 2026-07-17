@@ -78,7 +78,7 @@ class StaffRoles
                 [Capabilities::CREDITS_MANAGE,   'Manage credits', 'Issue and track customer credit sales'],
             ],
             'Services & commission' => [
-                [Capabilities::COMMISSION_RECORD, 'Record commissioned sales', 'Create service sales (reception: pending invoice; staff with payment rights: immediate)'],
+                [Capabilities::COMMISSION_RECORD, 'Check in customers (services)', 'Record customer at reception — payment happens later at till'],
                 [Capabilities::COMMISSION_VIEW,   'View own commission', 'See commission earned and payout history'],
             ],
             'Administration' => [

@@ -121,7 +121,7 @@ class TenantModules
     public static function descriptions(): array
     {
         return [
-            self::SERVICES            => 'Barbershop/salon services, service sales, and appointments.',
+            self::SERVICES            => 'Barbershop/salon services — customer check-in, then pay at till.',
             self::PRODUCTS            => 'Product catalogue, stock, categories, and till sales.',
             self::WHOLESALE           => 'Retail and wholesale prices on each product (for shops).',
             self::PRODUCT_COMMISSIONS => 'Commission when staff sell products.',
