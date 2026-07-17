@@ -32,6 +32,8 @@ spl_autoload_register(function ($class) {
 require_once ROOT_PATH . '/app/helpers/SchemaHelper.php';
 require_once ROOT_PATH . '/app/helpers/AppUrl.php';
 require_once ROOT_PATH . '/app/helpers/TenantModules.php';
+require_once ROOT_PATH . '/app/helpers/ReceiptUrl.php';
+require_once ROOT_PATH . '/app/helpers/StaffNav.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

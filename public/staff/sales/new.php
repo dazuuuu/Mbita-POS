@@ -1,9 +1,18 @@
 <?php
-// public/staff/sales/new.php  — point-of-sale: record a sale (services + products)
+// public/staff/sales/new.php  — product POS (services use Customer check-in)
 require_once __DIR__ . '/../../../app/app.php';
 PageGuard::capability(Capabilities::SALES_RECORD);
 
 $pdo = Database::pdo();
+$modules = StaffNav::staffModules($pdo);
+if (!StaffNav::canSellProducts($modules)) {
+    if (StaffNav::canCheckIn($modules)) {
+        header('Location: ' . public_path('staff/checkin/'));
+        exit;
+    }
+    header('Location: ' . public_path('auth/login.php?denied=1'));
+    exit;
+}
 $tenantId = (int) TenantContext::tenantId();
 $userId = (int) TenantContext::userId();
 
@@ -59,8 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (StaffNav::hasServices($modules)) {
+        $serviceItems = [];
+    }
+
     if (!$productItems && !$serviceItems) {
-        $error = 'Add at least one service or product to the sale.';
+        $error = StaffNav::hasServices($modules)
+            ? 'Add at least one product. For services, use Customer check-in.'
+            : 'Add at least one service or product to the sale.';
     } else {
         $paymentMethod = in_array($_POST['payment_method'] ?? '', ['cash', 'mpesa'], true)
             ? $_POST['payment_method'] : '';

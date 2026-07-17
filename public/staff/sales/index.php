@@ -6,6 +6,9 @@ PageGuard::capability(Capabilities::SALES_VIEW);
 
 $pdo = Database::pdo();
 $SA  = new Models\SaleModel($pdo);
+$modules = StaffNav::staffModules($pdo);
+$canSellProducts = StaffNav::canSellProducts($modules);
+$canCheckIn = StaffNav::canCheckIn($modules);
 
 $viewAll = ($_GET['period'] ?? '') === 'all';
 $today   = date('Y-m-d');
@@ -65,9 +68,16 @@ ob_start();
     </div>
   </div>
   <div class="col-12 col-md-6 d-flex align-items-center gap-2 flex-wrap">
+    <?php if ($canSellProducts): ?>
     <a href="<?php echo public_path('staff/sales/new.php'); ?>" class="btn btn-primary">
-      <i class="fas fa-cash-register me-1"></i>Make a sale
+      <i class="fas fa-cash-register me-1"></i>Sell products
     </a>
+    <?php endif; ?>
+    <?php if ($canCheckIn): ?>
+    <a href="<?php echo public_path('staff/checkin/'); ?>" class="btn btn-outline-primary">
+      <i class="fas fa-user-check me-1"></i>Customer check-in
+    </a>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -87,7 +97,7 @@ ob_start();
     <?php if (!$sales): ?>
       <div class="text-muted py-4 text-center">
         <i class="fas fa-receipt fa-2x d-block mb-2" style="opacity:.25;"></i>
-        <?php echo $viewAll ? 'No sales recorded yet.' : 'No sales recorded today. Tap "Make a sale" to start.'; ?>
+        <?php echo $viewAll ? 'No sales recorded yet.' : 'No sales recorded today.'; ?>
       </div>
     <?php else: ?>
       <?php foreach ($salesByBranch as $branchName => $branchRows): ?>
@@ -122,7 +132,7 @@ ob_start();
                       : '<span class="badge bg-warning text-dark">Credit</span>');
                 ?></td>
                 <td class="text-end fw-semibold">KES <?php echo number_format((float)$s['total'],0); ?></td>
-                <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo htmlspecialchars($s['receipt_url'] ?? (public_path('staff/sales/receipt.php') . '?id=' . (int) $s['id'])); ?>">Receipt</a></td>
+                <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo htmlspecialchars($s['receipt_url'] ?? ReceiptUrl::forUnifiedRow($s)); ?>">Receipt</a></td>
               </tr>
               <?php endforeach; ?>
             </tbody>

@@ -7,6 +7,12 @@ if (!StaffRoles::isEmployeeRole(TenantContext::role())) {
     exit;
 }
 
+$modules = StaffNav::staffModules();
+if (StaffNav::canCheckIn($modules)) {
+    header('Location: ' . public_path('staff/checkin/'));
+    exit;
+}
+
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();
 $userId = (int) TenantContext::userId();

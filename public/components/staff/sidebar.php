@@ -7,17 +7,7 @@ if ($__tenant === null && $tenantIdSidebar) {
     $__tenant = (new Models\TenantModel($pdoSidebar))->find($tenantIdSidebar);
 }
 
-$modules = TenantModules::fromTenant($__tenant);
-$uid = TenantContext::userId();
-if ($uid) {
-    $bStmt = $pdoSidebar->prepare('SELECT b.* FROM users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = ?');
-    $bStmt->execute([$uid]);
-    $staffBranch = $bStmt->fetch();
-    if ($staffBranch) {
-        $modules = TenantModules::fromBranch($staffBranch);
-    }
-}
-
+$modules = StaffNav::staffModules($pdoSidebar, $__tenant);
 $shopName   = $__tenant['name'] ?? 'My Shop';
 $logo = public_path('assets/images/logo/logo.png');
 $username   = $_SESSION['username'] ?? 'User';
@@ -27,14 +17,6 @@ $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOn = function (string $needle) use ($uri): string {
     return strpos($uri, $needle) !== false ? 'active' : '';
 };
-
-$hasServices = !empty($modules[TenantModules::SERVICES]);
-$hasProducts = !empty($modules[TenantModules::PRODUCTS]);
-$hasAppointments = !empty($modules[TenantModules::APPOINTMENTS]);
-$canCheckIn = $hasServices && (
-    TenantContext::can(Capabilities::CUSTOMERS_CHECKIN)
-    || TenantContext::can(Capabilities::INVOICES_MANAGE)
-);
 ?>
 <button class="t-sidebar-toggle" id="tSidebarToggle" aria-label="Toggle menu"><i class="fas fa-bars"></i></button>
 <div class="t-sidebar-overlay" id="tSidebarOverlay"></div>
@@ -55,43 +37,43 @@ $canCheckIn = $hasServices && (
             <i class="fas fa-gauge-high"></i><span>Dashboard</span>
         </a>
 
-        <?php if ($canCheckIn): ?>
+        <?php if (StaffNav::canCheckIn($modules)): ?>
         <a class="t-link <?php echo $isOn('/staff/checkin'); ?>" href="<?php echo public_path('staff/checkin/'); ?>">
             <i class="fas fa-user-check"></i><span>Customer check-in</span>
         </a>
         <?php endif; ?>
 
-        <?php if ($hasAppointments && TenantContext::can(Capabilities::APPOINTMENTS_MANAGE)): ?>
+        <?php if (StaffNav::canManageAppointments($modules)): ?>
         <a class="t-link <?php echo $isOn('/staff/appointments'); ?>" href="<?php echo public_path('staff/appointments/'); ?>">
             <i class="fas fa-calendar-check"></i><span>Appointments</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::PAYMENTS_RECEIVE) || TenantContext::can(Capabilities::PAYMENTS_UPDATE)): ?>
+        <?php if (StaffNav::canProcessPayments()): ?>
         <a class="t-link <?php echo $isOn('/staff/payments'); ?>" href="<?php echo public_path('staff/payments/'); ?>">
             <i class="fas fa-money-bill-wave"></i><span>Process payments</span>
         </a>
         <?php endif; ?>
 
-        <?php if ($hasProducts && TenantContext::can(Capabilities::SALES_RECORD)): ?>
+        <?php if (StaffNav::canSellProducts($modules)): ?>
         <a class="t-link <?php echo $isOn('/sales/new'); ?>" href="<?php echo public_path('staff/sales/new.php'); ?>">
             <i class="fas fa-cash-register"></i><span>Sell products</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::SALES_VIEW)): ?>
+        <?php if (StaffNav::canViewSalesHistory()): ?>
         <a class="t-link <?php echo $isOn('/staff/sales/'); ?>" href="<?php echo public_path('staff/sales/'); ?>">
-            <i class="fas fa-receipt"></i><span>My sales</span>
+            <i class="fas fa-receipt"></i><span>Sales history</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::COMMISSION_VIEW)): ?>
+        <?php if (StaffNav::canViewCommission()): ?>
         <a class="t-link <?php echo $isOn('/staff/commissions'); ?>" href="<?php echo public_path('staff/commissions/'); ?>">
             <i class="fas fa-coins"></i><span>My commission</span>
         </a>
         <?php endif; ?>
 
-        <?php if ($hasProducts && TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
+        <?php if (StaffNav::hasProducts($modules) && TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
         <a class="t-link <?php echo $isOn('/staff/products'); ?>" href="<?php echo public_path('staff/products/'); ?>">
             <i class="fas fa-box"></i><span>Products</span>
         </a>

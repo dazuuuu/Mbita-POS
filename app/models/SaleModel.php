@@ -207,7 +207,7 @@ class SaleModel extends Model
             $row['sale_type'] = 'pos';
             $row['item_label'] = null;
             $row['payment_status'] = 'paid';
-            $row['receipt_url'] = ReceiptUrl::forPos((int) $row['id']);
+            $row['receipt_url'] = \ReceiptUrl::forPos((int) $row['id']);
         }
         unset($row);
 
@@ -260,7 +260,7 @@ class SaleModel extends Model
                     'sale_type'       => 'commission',
                     'item_label'      => ($row['item_name'] ?? '') . ' (' . ($row['item_type'] ?? 'service') . ')',
                     'total_commission'=> (float) ($row['total_commission'] ?? 0),
-                    'receipt_url'     => ReceiptUrl::forCommission((int) $row['id']),
+                    'receipt_url'     => \ReceiptUrl::forCommission((int) $row['id']),
                 ];
             }
         }
@@ -295,7 +295,7 @@ class SaleModel extends Model
         $pos = $this->forStaff($staffId, $limit, $date);
         foreach ($pos as &$row) {
             $row['sale_type'] = 'pos';
-            $row['receipt_url'] = ReceiptUrl::forPos((int) $row['id']);
+            $row['receipt_url'] = \ReceiptUrl::forPos((int) $row['id']);
             if (!isset($row['branch_name'])) {
                 $row['branch_name'] = null;
             }
@@ -334,7 +334,7 @@ class SaleModel extends Model
                     'sale_type'      => 'commission',
                     'item_label'     => $row['item_name'] . ' (' . $row['item_type'] . ')',
                     'branch_name'    => $row['branch_name'] ?? null,
-                    'receipt_url'    => ReceiptUrl::forCommission((int) $row['id']),
+                    'receipt_url'    => \ReceiptUrl::forCommission((int) $row['id']),
                 ];
             }
         }

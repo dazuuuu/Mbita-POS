@@ -38,8 +38,12 @@ ob_start();
       <div class="h4 mb-0">KES <?php echo number_format($total, 2); ?></div>
     </div></div>
   </div>
-  <div class="col-md-4 d-flex align-items-center">
+  <div class="col-md-4 d-flex align-items-center gap-2">
+    <?php if (StaffNav::canCheckIn()): ?>
+    <a class="btn btn-primary" href="<?php echo public_path('staff/checkin/'); ?>"><i class="fas fa-user-check me-1"></i>Customer check-in</a>
+    <?php elseif (StaffNav::canRecordCommissionSale()): ?>
     <a class="btn btn-primary" href="<?php echo public_path('staff/commissions/new.php'); ?>">+ Record sale</a>
+    <?php endif; ?>
   </div>
 </div>
 <div class="card border-0 shadow-sm" style="border-radius:12px;">

@@ -6,13 +6,7 @@ PageGuard::staff();
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
-
-$stmt = $pdo->prepare('SELECT u.branch_id, b.modules, b.branch_type FROM users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = ?');
-$stmt->execute([TenantContext::userId()]);
-$userBranch = $stmt->fetch();
-$modules = $userBranch && !empty($userBranch['modules'])
-    ? TenantModules::fromBranch($userBranch)
-    : TenantModules::fromTenant($__tenant);
+$modules = StaffNav::staffModules($pdo, $__tenant);
 
 $stmt = $pdo->prepare('SELECT b.title FROM users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = ?');
 $stmt->execute([TenantContext::userId()]);
@@ -20,19 +14,6 @@ $branch = $stmt->fetchColumn() ?: 'All branches';
 
 $staffType = $_SESSION['staff_type'] ?? null;
 $roleLabel = StaffRoles::typeLabels()[$staffType] ?? 'Staff';
-$hasServices = !empty($modules[TenantModules::SERVICES]);
-$hasProducts = !empty($modules[TenantModules::PRODUCTS]);
-$hasAppointments = !empty($modules[TenantModules::APPOINTMENTS]);
-
-$caps = [
-    'checkin'      => $hasServices && (TenantContext::can(Capabilities::CUSTOMERS_CHECKIN) || TenantContext::can(Capabilities::INVOICES_MANAGE)),
-    'appointments' => $hasAppointments && TenantContext::can(Capabilities::APPOINTMENTS_MANAGE),
-    'payments'     => TenantContext::can(Capabilities::PAYMENTS_RECEIVE) || TenantContext::can(Capabilities::PAYMENTS_UPDATE),
-    'products'     => $hasProducts && TenantContext::can(Capabilities::SALES_RECORD),
-    'commission'   => TenantContext::can(Capabilities::COMMISSION_VIEW),
-    'inventory'    => TenantContext::can(Capabilities::INVENTORY_EDIT),
-    'reports'      => TenantContext::can(Capabilities::REPORTS_VIEW),
-];
 
 $page_title = 'Dashboard';
 $who = $_SESSION['username'] ?? 'there';
@@ -50,19 +31,19 @@ ob_start();
 </div>
 
 <div class="row g-3">
-  <?php if ($caps['checkin']): ?>
+  <?php if (StaffNav::canCheckIn($modules)): ?>
   <div class="col-12 col-md-6 col-lg-4">
     <a href="<?php echo public_path('staff/checkin/'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Services</div>
         <div class="h5 mb-0 mt-1"><i class="fas fa-user-check text-primary me-2"></i>Customer check-in</div>
-        <div class="small text-muted mt-1">Check in customer, assign staff, generate unpaid receipt for till.</div>
+        <div class="small text-muted mt-1">Check in customer, assign staff, send unpaid receipt to till.</div>
       </div>
     </a>
   </div>
   <?php endif; ?>
 
-  <?php if ($caps['appointments']): ?>
+  <?php if (StaffNav::canManageAppointments($modules)): ?>
   <div class="col-12 col-md-6 col-lg-4">
     <a href="<?php echo public_path('staff/appointments/'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
@@ -73,7 +54,7 @@ ob_start();
   </div>
   <?php endif; ?>
 
-  <?php if ($caps['products']): ?>
+  <?php if (StaffNav::canSellProducts($modules)): ?>
   <div class="col-12 col-md-6 col-lg-4">
     <a href="<?php echo public_path('staff/sales/new.php'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
@@ -84,7 +65,7 @@ ob_start();
   </div>
   <?php endif; ?>
 
-  <?php if ($caps['payments']): ?>
+  <?php if (StaffNav::canProcessPayments()): ?>
   <div class="col-12 col-md-6 col-lg-4">
     <a href="<?php echo public_path('staff/payments/'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
@@ -96,7 +77,7 @@ ob_start();
   </div>
   <?php endif; ?>
 
-  <?php if ($caps['commission']): ?>
+  <?php if (StaffNav::canViewCommission()): ?>
   <div class="col-12 col-md-6 col-lg-4">
     <a href="<?php echo public_path('staff/commissions/'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
@@ -107,7 +88,7 @@ ob_start();
   </div>
   <?php endif; ?>
 
-  <?php if ($caps['reports']): ?>
+  <?php if (TenantContext::can(Capabilities::REPORTS_VIEW)): ?>
   <div class="col-12 col-md-6 col-lg-4">
     <a href="<?php echo public_path('super/reports/'); ?>" class="card border-0 shadow-sm h-100 text-decoration-none text-reset" style="border-radius:12px;">
       <div class="card-body">
@@ -118,7 +99,7 @@ ob_start();
   </div>
   <?php endif; ?>
 
-  <?php if (!$caps['checkin'] && !$caps['products'] && !$caps['payments'] && !$caps['appointments']): ?>
+  <?php if (!StaffNav::canCheckIn($modules) && !StaffNav::canSellProducts($modules) && !StaffNav::canProcessPayments() && !StaffNav::canManageAppointments($modules)): ?>
   <div class="col-12">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body text-muted">
