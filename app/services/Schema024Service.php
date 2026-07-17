@@ -85,9 +85,20 @@ class Schema024Service
                     $db->exec("UPDATE commission_sales SET receipt_number = CONCAT('CRS-', LPAD(id, 6, '0'))
                                WHERE receipt_number IS NULL OR receipt_number = ''");
                 } catch (Throwable $e) { /* ignore */ }
+                // Unique index — skip if already exists (duplicate key name error is OK)
+                try {
+                    $idx = $db->query("SHOW INDEX FROM commission_sales WHERE Key_name = 'uq_cs_receipt'")->fetch();
+                    if (!$idx) {
+                        $db->exec('ALTER TABLE commission_sales ADD UNIQUE KEY uq_cs_receipt (tenant_id, receipt_number)');
+                        $log[] = 'Added commission_sales.uq_cs_receipt index';
+                    }
+                } catch (Throwable $e) {
+                    $log[] = 'Note commission_sales index: ' . $e->getMessage();
+                }
             }
         }
 
+        SchemaHelper::clearCache();
         return ['ok' => SchemaHelper::migration024Ready($db), 'log' => $log];
     }
 

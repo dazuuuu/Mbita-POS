@@ -25,22 +25,39 @@ class SchemaHelper
     public static function columnExists(PDO $db, string $table, string $column): bool
     {
         $key = $table . '.' . $column;
-        if (!isset(self::$columnCache[$key])) {
-            self::$columnCache[$key] = false;
-            try {
-                // SHOW COLUMNS works on AMPPS even when information_schema is restricted.
-                $safeTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-                $stmt = $db->query("SHOW COLUMNS FROM `{$safeTable}`");
-                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    if (($row['Field'] ?? '') === $column) {
-                        self::$columnCache[$key] = true;
-                        break;
-                    }
-                }
-            } catch (Throwable $e) {
-                self::$columnCache[$key] = false;
-            }
+        if (isset(self::$columnCache[$key])) {
+            return self::$columnCache[$key];
         }
+
+        self::$columnCache[$key] = false;
+        $safeTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+
+        try {
+            $stmt = $db->prepare(
+                'SELECT 1 FROM information_schema.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1'
+            );
+            $stmt->execute([$safeTable, $column]);
+            if ($stmt->fetchColumn()) {
+                self::$columnCache[$key] = true;
+                return true;
+            }
+        } catch (Throwable $e) {
+            // fall through to SHOW COLUMNS
+        }
+
+        try {
+            $stmt = $db->query("SHOW COLUMNS FROM `{$safeTable}`");
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                if (($row['Field'] ?? '') === $column) {
+                    self::$columnCache[$key] = true;
+                    break;
+                }
+            }
+        } catch (Throwable $e) {
+            self::$columnCache[$key] = false;
+        }
+
         return self::$columnCache[$key];
     }
 

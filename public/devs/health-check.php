@@ -36,6 +36,12 @@ echo "\nDatabase:\n";
 try {
     $pdo = Database::pdo();
     echo "[OK] Connected to " . $pdo->query('SELECT DATABASE()')->fetchColumn() . "\n";
+    GeneralMigrationService::ensureApplied($pdo);
+    echo "[OK] General migration check ran\n";
+    $report = GeneralMigrationService::statusReport($pdo);
+    foreach ($report['checks'] as $c) {
+        echo ($c['ok'] ? '[OK]' : '[FAIL]') . ' ' . $c['label'] . "\n";
+    }
     Schema025Service::ensureApplied($pdo);
     echo "[OK] Schema 025 check ran\n";
     $s020 = Schema020Service::ensureApplied($pdo);

@@ -4,6 +4,8 @@ require_once __DIR__ . '/../../../app/app.php';
 PageGuard::tenant();
 
 $pdo = Database::pdo();
+SchemaHelper::clearCache();
+GeneralMigrationService::ensureApplied($pdo);
 Schema024Service::ensureApplied($pdo);
 Schema026Service::ensureApplied($pdo);
 Schema020Service::ensureApplied($pdo);
@@ -151,7 +153,7 @@ ob_start();
 <?php if (!$schemaReady): ?>
 <div class="alert alert-warning">
   <strong>Database update needed.</strong> KRA PIN, receipts, customers and credits require migration 024.
-  Open <a href="<?php echo public_path('devs/fix-schema-024.php'); ?>" class="alert-link">fix-schema-024.php</a> once.
+  Open <a href="<?php echo public_path('devs/fix-all-schema.php'); ?>" class="alert-link">fix-all-schema.php</a> once (recommended), then refresh.
 </div>
 <?php endif; ?>
 
