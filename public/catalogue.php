@@ -70,8 +70,7 @@ $shopName   = $tenant['name'] ?? 'Our Shop';
 $shopPhone  = $tenant['phone'] ?? '';
 $shopAddr   = $tenant['address'] ?? '';
 $currency   = $tenant['currency'] ?? 'KES';
-$logoPath   = $tenant['logo_path'] ?? null;
-$logoUrl    = $logoPath ? '/Curlz' . ltrim($logoPath, '/Curlz') : public_path('assets/images/logo/logo.png');
+$logoUrl    = Branding::tenantLogoUrl($tenant);
 
 $baseUrl    = public_path('catalogue.php?shop=') . urlencode($shopSlug);
 $shareUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')

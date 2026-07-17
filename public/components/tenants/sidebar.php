@@ -1,7 +1,8 @@
 <?php
 // public/components/tenants/sidebar.php — owner sidebar (Settings first, module-aware)
 $__tenant   = $__tenant ?? null;
-$shopName   = $__tenant['name'] ?? 'My Shop';
+$shopName   = Branding::shopName($__tenant);
+$logoUrl    = Branding::tenantLogoUrl($__tenant);
 $username   = $_SESSION['username'] ?? 'User';
 $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOwner    = TenantContext::role() === 'tenant_owner';
@@ -70,8 +71,9 @@ $modeLabel = $enabledLabels ? implode(' + ', $enabledLabels) : 'Set up in Settin
 <div class="cd-overlay" id="cdOverlay"></div>
 <aside class="cd-sidebar" id="cdSidebar">
   <div class="cd-sidebar-brand">
-    <i class="fas fa-chart-bar"></i>
-    <span>CURLZ</span>
+    <img src="<?php echo htmlspecialchars($logoUrl); ?>" alt="<?php echo htmlspecialchars($shopName); ?>"
+         style="max-height:40px;max-width:140px;object-fit:contain;display:block;margin:0 auto 8px;background:#fff;border-radius:6px;padding:4px;">
+    <span><?php echo htmlspecialchars($shopName); ?></span>
     <small class="d-block text-muted" style="font-size:.65rem;font-weight:500;"><?php echo htmlspecialchars($modeLabel); ?></small>
   </div>
   <nav>

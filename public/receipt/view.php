@@ -24,11 +24,27 @@ if ($type === '') {
 }
 
 $tenant = (new Models\TenantModel($pdo))->find($tenantId);
-$shop   = $tenant['name'] ?? 'My Shop';
-$logoUrl = Branding::tenantLogo($tenant);
-if (strpos($logoUrl, '/public/') === 0) {
-    $logoUrl = '/Curlz' . $logoUrl;
-}
+$shop   = Branding::shopName($tenant);
+$logoUrl = Branding::tenantLogoUrl($tenant);
+
+$loadBranch = function (?int $branchId) use ($pdo, $tenantId): ?array {
+    if (!$branchId) {
+        return null;
+    }
+    $b = $pdo->prepare('SELECT title, branch_type FROM branches WHERE id = ? AND tenant_id = ? LIMIT 1');
+    $b->execute([$branchId, $tenantId]);
+    $row = $b->fetch();
+    return $row ?: null;
+};
+
+$userName = function (?int $userId) use ($pdo): string {
+    if (!$userId) {
+        return '';
+    }
+    $st = $pdo->prepare('SELECT username FROM users WHERE id = ? LIMIT 1');
+    $st->execute([$userId]);
+    return (string) ($st->fetchColumn() ?: '');
+};
 
 $backUrl = $isOwner ? public_path('super/sales/') : public_path('staff/sales/');
 $newUrl = $isOwner ? public_path('super/sales/') : public_path('staff/sales/new.php');
@@ -54,17 +70,14 @@ if ($type === 'commission') {
     }
 
     $expenses = $commSvc->expenses($tenantId, $id);
-    $branch = '';
-    if (!empty($sale['branch_id'])) {
-        $b = $pdo->prepare('SELECT title FROM branches WHERE id = ? AND tenant_id = ?');
-        $b->execute([$sale['branch_id'], $tenantId]);
-        $branch = (string) ($b->fetchColumn() ?: '');
+    $branch = $loadBranch(!empty($sale['branch_id']) ? (int) $sale['branch_id'] : null);
+    $servedBy = $userName(!empty($sale['agent_user_id']) ? (int) $sale['agent_user_id'] : null);
+    if ($servedBy === '') {
+        $servedBy = 'To be assigned';
     }
-    $st = $pdo->prepare('SELECT username FROM users WHERE id = ?');
-    $st->execute([$sale['agent_user_id']]);
-    $agent = (string) ($st->fetchColumn() ?: 'Staff');
+    $checkedInBy = $userName(!empty($sale['recorded_by_user_id']) ? (int) $sale['recorded_by_user_id'] : null);
 
-    $receiptHtml = ReceiptService::commissionReceiptHtml($sale, $expenses, $tenant, $branch, $agent, $logoUrl);
+    $receiptHtml = ReceiptService::commissionReceiptHtml($sale, $expenses, $tenant, $branch, $servedBy, $logoUrl, $checkedInBy);
     $receiptNumber = $sale['receipt_number'];
     $saleMeta = $sale;
 
@@ -87,15 +100,8 @@ if ($type === 'commission') {
         exit;
     }
     $items = $SA->items($id);
-    $branch = '';
-    if (!empty($sale['branch_id'])) {
-        $b = $pdo->prepare('SELECT title FROM branches WHERE id = ? AND tenant_id = ?');
-        $b->execute([$sale['branch_id'], $tenantId]);
-        $branch = (string) ($b->fetchColumn() ?: '');
-    }
-    $st = $pdo->prepare('SELECT username FROM users WHERE id = ?');
-    $st->execute([$sale['staff_id']]);
-    $staff = (string) ($st->fetchColumn() ?: 'Staff');
+    $branch = $loadBranch(!empty($sale['branch_id']) ? (int) $sale['branch_id'] : null);
+    $staff = $userName(!empty($sale['staff_id']) ? (int) $sale['staff_id'] : null) ?: 'Staff';
 
     $receiptHtml = ReceiptService::posReceiptHtml($sale, $items, $tenant, $branch, $staff, $logoUrl);
     $receiptNumber = $sale['receipt_number'];
@@ -139,9 +145,15 @@ $page_title = 'Receipt ' . $receiptNumber;
 $extra_css = <<<'CSS'
 <style>
   .rc-wrap { max-width: 480px; margin: 0 auto; }
-  .rc-sheet { background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:24px; margin-bottom:18px; }
-  .rc-pending { border:2px dashed #f59e0b; }
-  @media print { .rc-actions, .t-sidebar, .t-sidebar-toggle, .cd-sidebar, .cd-header, .noprint { display:none !important; } .rc-sheet { box-shadow:none; } body { background:#fff; } }
+  .rc-sheet { background:#fff; border:1px solid #ddd; padding:24px; margin-bottom:18px; }
+  .rc-pending { border:2px dashed #111; }
+  .receipt-print, .receipt-print * { color:#111 !important; }
+  @media print {
+    .rc-actions, .t-sidebar, .t-sidebar-toggle, .cd-sidebar, .cd-header, .noprint { display:none !important; }
+    .rc-sheet { box-shadow:none; border:none; padding:0; }
+    body, .t-main { background:#fff !important; }
+    .receipt-print img { filter:grayscale(100%) !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
 </style>
 CSS;
 

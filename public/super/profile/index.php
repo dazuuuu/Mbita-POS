@@ -110,7 +110,7 @@ ob_start();
         <div class="text-muted small text-uppercase mb-2">Current logo</div>
         <img src="<?php echo htmlspecialchars(Branding::tenantLogo($__tenant)); ?>"
              alt="Logo" style="max-height:90px;max-width:100%;object-fit:contain;">
-        <div class="text-muted small mt-3">The login screen always shows the default Modern logo, not your business logo.</div>
+        <div class="text-muted small mt-3">Your logo appears on menus, login screens, and printed receipts after you upload it here.</div>
       </div>
     </div>
   </div>

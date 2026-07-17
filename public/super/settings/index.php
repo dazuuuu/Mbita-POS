@@ -584,7 +584,7 @@ document.querySelectorAll('input[name="owner_login_method"]').forEach(function(r
   <div class="col-lg-4">
     <div class="card border-0 shadow-sm text-center p-4" style="border-radius:12px;">
       <div class="text-muted small mb-2">Receipt preview logo</div>
-      <img src="<?php echo htmlspecialchars(Branding::tenantLogo($__tenant)); ?>" alt="" style="max-height:80px;">
+      <img src="<?php echo htmlspecialchars(Branding::tenantLogoUrl($__tenant)); ?>" alt="<?php echo htmlspecialchars(Branding::shopName($__tenant)); ?>" style="max-height:80px;">
     </div>
   </div>
 </div>

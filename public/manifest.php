@@ -4,19 +4,20 @@ require_once __DIR__ . '/../app/app.php';
 
 header('Content-Type: application/manifest+json; charset=utf-8');
 
+$brand = Branding::portalBranding();
 $start = public_path('');
 $scope = AppUrl::publicScope();
 $manifest = [
-    'name'             => 'Curlz POS',
-    'short_name'       => 'Curlz POS',
-    'description'      => 'Point of sale — record sales, track stock, print receipts.',
+    'name'             => $brand['name'],
+    'short_name'       => $brand['name'],
+    'description'      => $brand['name'] . ' — point of sale',
     'id'               => $scope,
     'start_url'        => $start,
     'scope'            => $scope,
     'display'          => 'standalone',
     'orientation'      => 'portrait-primary',
-    'background_color' => '#0f172a',
-    'theme_color'      => '#0f172a',
+    'background_color' => '#ffffff',
+    'theme_color'      => '#111111',
     'icons'            => [
         ['src' => asset_path('icons/icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
         ['src' => asset_path('icons/icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],

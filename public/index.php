@@ -1,8 +1,11 @@
 <?php
-// public/index.php — Curlz POS · login portal (installable PWA)
+// public/index.php — business-branded login portal (installable PWA)
 require_once __DIR__ . '/../app/app.php';
 
 $LOGIN    = public_path('auth/login.php');
+$portal   = Branding::portalBranding();
+$brandName = $portal['name'];
+$brandLogo = $portal['logo_url'];
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']);
 $role     = $_SESSION['role'] ?? '';
 if ($role === 'tenant_owner') {
@@ -21,8 +24,8 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Curlz POS — Sign in</title>
-<meta name="description" content="Curlz POS — record sales, track stock, print receipts.">
+<title><?php echo htmlspecialchars($brandName); ?> — Sign in</title>
+<meta name="description" content="<?php echo htmlspecialchars($brandName); ?> — record sales, track stock, print receipts.">
 <?php include __DIR__ . '/components/pwa_head.php'; ?>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
@@ -171,10 +174,10 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
         <div class="inner">
           <div class="brand">
             <div class="logo-box">
-              <img src="<?php echo htmlspecialchars(asset_path('images/logo/logo.png')); ?>" alt="Curlz POS"
+              <img src="<?php echo htmlspecialchars($brandLogo); ?>" alt="<?php echo htmlspecialchars($brandName); ?>"
                    onerror="this.style.display='none';this.parentNode.innerHTML+='<i class=\'fa-solid fa-layer-group logo-fallback\'></i>'">
             </div>
-            <h1>Curlz POS</h1>
+            <h1><?php echo htmlspecialchars($brandName); ?></h1>
             <p>Run your shop from your phone</p>
           </div>
 
@@ -215,7 +218,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
   <p class="hint" id="iosHint" style="display:none;">
     To install: tap <b>Share</b> <i class="fa-solid fa-arrow-up-from-bracket"></i> then <b>Add to Home Screen</b>.
   </p>
-  <p class="foot">Curlz POS &middot; works on phone &amp; desktop</p>
+  <p class="foot"><?php echo htmlspecialchars($brandName); ?> &middot; works on phone &amp; desktop</p>
 
 <script>
 (function(){

@@ -8,7 +8,7 @@
 $__tenant = $__tenant ?? (TenantContext::tenantId()
     ? (new Models\TenantModel(Database::pdo()))->find(TenantContext::tenantId())
     : null);
-$shopName = $__tenant['name'] ?? 'My Shop';
+$shopName = Branding::shopName($__tenant);
 ?>
 <!DOCTYPE html>
 <html lang="en">

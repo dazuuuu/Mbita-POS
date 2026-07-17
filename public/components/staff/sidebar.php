@@ -8,8 +8,8 @@ if ($__tenant === null && $tenantIdSidebar) {
 }
 
 $modules = StaffNav::staffModules($pdoSidebar, $__tenant);
-$shopName   = $__tenant['name'] ?? 'My Shop';
-$logo = public_path('assets/images/logo/logo.png');
+$shopName   = Branding::shopName($__tenant);
+$logo       = Branding::tenantLogoUrl($__tenant);
 $username   = $_SESSION['username'] ?? 'User';
 $staffType  = $_SESSION['staff_type'] ?? null;
 $roleLabel  = StaffRoles::typeLabels()[$staffType] ?? 'Staff';

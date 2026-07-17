@@ -34,6 +34,7 @@ require_once ROOT_PATH . '/app/helpers/AppUrl.php';
 require_once ROOT_PATH . '/app/helpers/TenantModules.php';
 require_once ROOT_PATH . '/app/helpers/ReceiptUrl.php';
 require_once ROOT_PATH . '/app/helpers/StaffNav.php';
+require_once ROOT_PATH . '/app/helpers/Branding.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

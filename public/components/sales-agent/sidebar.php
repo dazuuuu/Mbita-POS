@@ -1,8 +1,8 @@
 <?php
 // public/components/sales-agent/sidebar.php
 $__tenant   = $__tenant ?? null;
-$shopName   = $__tenant['name'] ?? 'My Shop';
-$logo = public_path('assets/images/logo/logo.png');
+$shopName   = Branding::shopName($__tenant);
+$logo       = Branding::tenantLogoUrl($__tenant);
 $username   = $_SESSION['username'] ?? 'User';
 $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOn = function (string $needle) use ($uri): string {
