@@ -15,7 +15,7 @@ $useHomeNavbar = $use_home_navbar ?? false;
     <meta name="description" content="<?php echo $page_description ?? 'ISMAN Company provides premium engineering services, metal fabrication, and turnkey fit-out solutions.'; ?>">
     
     <!-- Theme CSS (contains all design tokens) -->
-    <link rel="stylesheet" href="/Curlz/public/assets/css/theme.css">
+    <link rel="stylesheet" href="<?php echo public_path('assets/css/theme.css'); ?>">
     
     <!-- Bootstrap CSS (only for components that need it) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">

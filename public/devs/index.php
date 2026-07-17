@@ -1,8 +1,6 @@
 <?php
-// public/devs/index.php (Updated with separate registration links)
-require_once __DIR__ . '/../../app/init.php';
-
-session_start();
+// public/devs/index.php — dev portal (uses central paths from app/config/paths.php)
+require_once __DIR__ . '/../../app/app.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -33,7 +31,8 @@ session_start();
                         <a class="nav-link" href="?page=">🏠 Home</a>
                         <div class="mt-2 mb-2"><strong>Authentication:</strong></div>
                         <a class="nav-link" href="?page=register-user">👤 User Registration</a>
-                        <a class="nav-link" href="?page=register-admin">👑 Admin Registration</a>
+                        <a class="nav-link" href="?page=register-super">👑 Register Super (store owner)</a>
+                        <a class="nav-link" href="?page=register-tenant">🏪 Register tenant (with email)</a>
                         <a class="nav-link" href="?page=login">🔐 Login</a>
                         <a class="nav-link" href="?page=forgot">🔑 Forgot Password</a>
                         <a class="nav-link" href="?page=dashboard">📊 Dashboard</a>
@@ -64,9 +63,9 @@ session_start();
                     <div class="alert alert-info">
                         <strong>ℹ️ Production Note:</strong> 
                         <ul class="mb-0 mt-2">
-                            <li>Users register via <code>register.php</code> - Automatically assigned <strong>USER</strong> role</li>
-                            <li>Admins register via <code>register_admin.php</code> - Requires admin code, automatically assigned <strong>ADMIN</strong> role</li>
-                            <li>No role selection by users - Roles are hardcoded in the registration process</li>
+                            <li>Super (store owner) via <code>devs/register-admin.php</code> — <strong>tenant_owner</strong>, manages <code>/super/</code></li>
+                            <li>Full tenant setup via <code>devs/register-tenant.php</code> — emails credentials to owner</li>
+                            <li>Staff are created by the shop owner with a PIN — no email login for staff</li>
                         </ul>
                     </div>
                     
@@ -77,25 +76,29 @@ session_start();
                         
                         switch($page_param) {
                             case 'register-user':
-                                $url = '../auth/register.php';
+                                $url = public_path('auth/register.php');
                                 break;
+                            case 'register-super':
                             case 'register-admin':
-                                $url = '../auth/register_admin.php';
+                                $url = public_path('devs/register-admin.php') . '?key=curlz-dev';
+                                break;
+                            case 'register-tenant':
+                                $url = public_path('devs/register-tenant.php') . '?key=curlz-dev';
                                 break;
                             case 'login':
-                                $url = '../auth/login.php';
+                                $url = public_path('auth/login.php');
                                 break;
                             case 'forgot':
-                                $url = '../auth/forgot_password.php';
+                                $url = public_path('auth/forgot-password.php');
                                 break;
                             case 'dashboard':
-                                $url = '../index.php';
+                                $url = public_path('');
                                 break;
                             default:
-                                $url = '../index.php';
+                                $url = public_path('');
                         }
                         ?>
-                        <iframe src="<?php echo $url; ?>" style="width:100%; height:100%; border:none;"></iframe>
+                        <iframe src="<?php echo htmlspecialchars($url); ?>" style="width:100%; height:100%; border:none;"></iframe>
                     </div>
                     
                     <div class="mt-4">
@@ -110,9 +113,8 @@ session_start();
                                         <p>Click "User Registration" and create a new account<br>
                                         <small class="text-muted">→ Account will be created with ROLE: USER automatically</small></p>
                                         
-                                        <h6 class="mt-3">2. Test Admin Registration:</h6>
-                                        <p>Click "Admin Registration" - Requires admin code: <code>ADMIN2024</code><br>
-                                        <small class="text-muted">→ Account will be created with ROLE: ADMIN automatically</small></p>
+                                        <h6 class="mt-3">2. Register Super owner:</h6>
+                                        <p>Creates shop + owner (<code>tenant_owner</code>) who logs in on the Admin tab and uses <code>/super/</code>.</p>
                                         
                                         <h6 class="mt-3">3. Test Login:</h6>
                                         <p>Test both user and admin accounts<br>

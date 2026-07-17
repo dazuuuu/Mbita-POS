@@ -1,16 +1,22 @@
 <?php
-// public/index.php — Curlz POS · login portal (installable PWA)
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+// public/index.php — business-branded login portal (installable PWA)
+require_once __DIR__ . '/../app/app.php';
 
-$LOGIN    = '/Curlz/public/auth/login.php';
+$LOGIN    = public_path('auth/login.php');
+$portal   = Branding::portalBranding(Database::pdo());
+$brandName = $portal['name'];
+$brandLogo = $portal['logo_url'];
+$brandHasLogo = !empty($portal['has_logo']);
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']);
 $role     = $_SESSION['role'] ?? '';
-if ($role === 'staff') {
-    $dashUrl = '/Curlz/public/staff/dashboard/';
+if ($role === 'tenant_owner') {
+    $dashUrl = public_path('super/settings/?tab=locations');
 } elseif ($role === 'sales_agent') {
-    $dashUrl = '/Curlz/public/sales-agent/dashboard/';
+    $dashUrl = public_path('sales-agent/dashboard/');
+} elseif (StaffRoles::isEmployeeRole($role)) {
+    $dashUrl = public_path('staff/dashboard/');
 } else {
-    $dashUrl = '/Curlz/public/super/dashboard/';
+    $dashUrl = public_path('auth/login.php');
 }
 $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 ?>
@@ -19,8 +25,8 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Curlz POS — Sign in</title>
-<meta name="description" content="Curlz POS — record sales, track stock, print receipts.">
+<title><?php echo htmlspecialchars($brandName); ?> — Sign in</title>
+<meta name="description" content="<?php echo htmlspecialchars($brandName); ?> — record sales, track stock, print receipts.">
 <?php include __DIR__ . '/components/pwa_head.php'; ?>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
@@ -168,11 +174,12 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
         <div class="sheen" id="sheen"></div>
         <div class="inner">
           <div class="brand">
+            <?php if ($brandHasLogo && $brandLogo): ?>
             <div class="logo-box">
-              <img src="/Curlz/public/assets/images/logo/logo.png" alt="Curlz POS"
-                   onerror="this.style.display='none';this.parentNode.innerHTML+='<i class=\'fa-solid fa-layer-group logo-fallback\'></i>'">
+              <img src="<?php echo htmlspecialchars($brandLogo); ?>" alt="<?php echo htmlspecialchars($brandName); ?>">
             </div>
-            <h1>Curlz POS</h1>
+            <?php endif; ?>
+            <h1><?php echo htmlspecialchars($brandName); ?></h1>
             <p>Run your shop from your phone</p>
           </div>
 
@@ -183,21 +190,21 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
               <span class="tx"><b>Open the POS</b><span>Continue to your dashboard</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
-            <a class="portal staff" href="/Curlz/public/auth/logout.php">
+            <a class="portal staff" href="<?php echo public_path('auth/logout.php'); ?>">
               <span class="ic"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
               <span class="tx"><b>Switch account</b><span>Log out and sign in as someone else</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
           <?php else: ?>
             <div class="lede">Sign in to continue</div>
-            <a class="portal owner" href="<?php echo $h($LOGIN); ?>?as=owner">
+            <a class="portal owner" href="<?php echo $h($LOGIN); ?>?mode=admin">
               <span class="ic"><i class="fa-solid fa-user-shield"></i></span>
-              <span class="tx"><b>Owner / Manager</b><span>Sales, stock, staff &amp; reports</span></span>
+              <span class="tx"><b>Admin / Owner</b><span>PIN or email — manage shop, staff &amp; settings</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
-            <a class="portal staff" href="<?php echo $h($LOGIN); ?>?as=staff">
-              <span class="ic"><i class="fa-solid fa-cash-register"></i></span>
-              <span class="tx"><b>Staff / Cashier</b><span>Make sales &amp; print receipts</span></span>
+            <a class="portal staff" href="<?php echo $h($LOGIN); ?>?mode=staff">
+              <span class="ic"><i class="fa-solid fa-key"></i></span>
+              <span class="tx"><b>Staff</b><span>PIN only — like unlocking your phone</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
           <?php endif; ?>
@@ -213,7 +220,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
   <p class="hint" id="iosHint" style="display:none;">
     To install: tap <b>Share</b> <i class="fa-solid fa-arrow-up-from-bracket"></i> then <b>Add to Home Screen</b>.
   </p>
-  <p class="foot">Curlz POS &middot; works on phone &amp; desktop</p>
+  <p class="foot"><?php echo htmlspecialchars($brandName); ?> &middot; works on phone &amp; desktop</p>
 
 <script>
 (function(){

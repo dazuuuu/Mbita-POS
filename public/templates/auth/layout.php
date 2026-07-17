@@ -1,14 +1,17 @@
 <?php
 // public/templates/auth/layout.php
 // Centered card used by register / login / otp-verify / activate.
-// Always shows the DEFAULT Modern logo (never a tenant logo) per the branding rule.
+$__authBrand = Branding::portalBranding(Database::pdo());
+$__authName  = $__authBrand['name'];
+$__authLogo  = $__authBrand['logo_url'];
+$__authTenant = $__authBrand['tenant'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($page_title ?? 'Modern POS'); ?></title>
+    <title><?php echo htmlspecialchars(($page_title ?? 'Sign in') . ' — ' . $__authName); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -143,18 +146,14 @@
                 <div class="card-sheen" id="sheen"></div>
                 <div class="card-inner">
                     <div class="auth-head">
-                        <div class="logo-icon">
+                        <?php if ($__authLogo): ?>
+                        <img src="<?php echo htmlspecialchars($__authLogo); ?>" alt="<?php echo htmlspecialchars($__authName); ?>"
+                             style="height:36px;max-width:180px;object-fit:contain;display:block;margin:0 auto 6px;filter:brightness(0) invert(1) drop-shadow(0 0 8px rgba(37,99,235,.6));"
+                             onerror="this.style.display='none';document.getElementById('authLogoFallback')?.classList.remove('d-none');">
+                        <?php endif; ?>
+                        <div id="authLogoFallback" class="logo-icon <?php echo $__authLogo ? 'd-none' : ''; ?>">
                             <i class="fas fa-layer-group"></i>
                         </div>
-                        <!-- <span class="logo-name">Modern<span>POS</span></span> -->
-                        <?php
-                        $logoPath = '/Curlz/public/assets/images/logo/logo.png';
-                        if (file_exists($_SERVER['DOCUMENT_ROOT'] . $logoPath)):
-                        ?>
-                        <img src="<?php echo htmlspecialchars($logoPath); ?>" alt="Modern POS"
-                             style="height:36px;filter:brightness(0) invert(1) drop-shadow(0 0 8px rgba(37,99,235,.6))"
-                             onerror="this.style.display='none'">
-                        <?php endif; ?>
                     </div>
                     <div class="auth-body">
                         <div class="badge-wrap">

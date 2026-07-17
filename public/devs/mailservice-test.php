@@ -3,7 +3,7 @@
 // DEV-ONLY. Calls MailService directly — the exact path OTP uses — and reports
 // which file loaded, what config it read, and the precise send result.
 // Key-guarded. Delete before production.
-//   http://localhost/Modern/public/devs/mailservice-test.php?key=modern-dev
+//   http://localhost/public/devs/mailservice-test.php?key=modern-dev
 
 require_once __DIR__ . '/../../app/app.php';
 

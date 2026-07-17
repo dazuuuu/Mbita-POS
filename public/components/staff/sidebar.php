@@ -1,13 +1,17 @@
 <?php
-// public/components/staff/sidebar.php
-// Staff sidebar — focused nav for the 'staff' role. Capability-gated, so a
-// person only sees what the owner has granted them. Expects $__tenant + booted
-// TenantContext. Mirrors the tenant sidebar's look.
-
+// public/components/staff/sidebar.php — capability-gated employee nav
 $__tenant   = $__tenant ?? null;
-$shopName   = $__tenant['name'] ?? 'My Shop';
-$logo = '/Curlz/public/assets/images/logo/logo.png';
+$pdoSidebar = Database::pdo();
+$tenantIdSidebar = TenantContext::tenantId();
+if ($__tenant === null && $tenantIdSidebar) {
+    $__tenant = (new Models\TenantModel($pdoSidebar))->find($tenantIdSidebar);
+}
+$__tenant = Branding::tenantOrPortal($__tenant, $pdoSidebar);
+
+$modules = StaffNav::staffModules($pdoSidebar, $__tenant);
 $username   = $_SESSION['username'] ?? 'User';
+$staffType  = $_SESSION['staff_type'] ?? null;
+$roleLabel  = StaffRoles::typeLabels()[$staffType] ?? 'Staff';
 $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOn = function (string $needle) use ($uri): string {
     return strpos($uri, $needle) !== false ? 'active' : '';
@@ -19,52 +23,76 @@ $isOn = function (string $needle) use ($uri): string {
 <aside class="t-sidebar" id="tSidebar">
     <div class="t-brand">
         <button class="t-close" id="tSidebarClose" aria-label="Close"><i class="fas fa-times"></i></button>
-        <img class="t-logo" src="<?php echo htmlspecialchars($logo); ?>" alt="<?php echo htmlspecialchars($shopName); ?>">
-        <div class="t-shop"><?php echo htmlspecialchars($shopName); ?></div>
+        <?php
+        $brandLogo = Branding::tenantLogoUrl($__tenant);
+        $brandName = Branding::shopName($__tenant);
+        ?>
+        <?php if ($brandLogo): ?>
+        <img class="t-logo" src="<?php echo htmlspecialchars($brandLogo); ?>" alt="<?php echo htmlspecialchars($brandName); ?>">
+        <?php endif; ?>
+        <div class="t-shop"><?php echo htmlspecialchars($brandName); ?></div>
         <div class="t-user">
             <?php echo htmlspecialchars($username); ?>
-            <span class="t-role">Staff</span>
+            <span class="t-role"><?php echo htmlspecialchars($roleLabel); ?></span>
         </div>
     </div>
 
     <nav class="t-nav">
-        <a class="t-link <?php echo $isOn('/dashboard'); ?>" href="/Curlz/public/staff/dashboard/">
+        <a class="t-link <?php echo $isOn('/dashboard'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
             <i class="fas fa-gauge-high"></i><span>Dashboard</span>
         </a>
 
-        <?php if (TenantContext::can(Capabilities::SALES_RECORD)): ?>
-        <a class="t-link <?php echo $isOn('/sales/new'); ?>" href="/Curlz/public/staff/sales/new.php">
-            <i class="fas fa-cash-register"></i><span>Make a sale</span>
+        <?php if (StaffNav::canCheckIn($modules)): ?>
+        <a class="t-link <?php echo $isOn('/staff/checkin'); ?>" href="<?php echo public_path('staff/checkin/'); ?>">
+            <i class="fas fa-user-check"></i><span>Customer check-in</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::SALES_VIEW)): ?>
-        <a class="t-link <?php echo $isOn('/staff/sales/'); ?>" href="/Curlz/public/staff/sales/">
-            <i class="fas fa-receipt"></i><span>My sales</span>
+        <?php if (StaffNav::canManageAppointments($modules)): ?>
+        <a class="t-link <?php echo $isOn('/staff/appointments'); ?>" href="<?php echo public_path('staff/appointments/'); ?>">
+            <i class="fas fa-calendar-check"></i><span>Appointments</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::COMMISSION_RECORD) || TenantContext::can(Capabilities::COMMISSION_VIEW)): ?>
-        <a class="t-link <?php echo $isOn('/staff/commissions'); ?>" href="/Curlz/public/staff/commissions/">
-            <i class="fas fa-coins"></i><span>Commission</span>
+        <?php if (StaffNav::canProcessPayments()): ?>
+        <a class="t-link <?php echo $isOn('/staff/payments'); ?>" href="<?php echo public_path('staff/payments/'); ?>">
+            <i class="fas fa-money-bill-wave"></i><span>Process payments</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
-        <a class="t-link <?php echo $isOn('/staff/products'); ?>" href="/Curlz/public/staff/products/">
+        <?php if (StaffNav::canSellProducts($modules)): ?>
+        <a class="t-link <?php echo $isOn('/sales/new'); ?>" href="<?php echo public_path('staff/sales/new.php'); ?>">
+            <i class="fas fa-cash-register"></i><span>Sell products</span>
+        </a>
+        <?php endif; ?>
+
+        <?php if (StaffNav::canViewSalesHistory()): ?>
+        <a class="t-link <?php echo $isOn('/staff/sales/'); ?>" href="<?php echo public_path('staff/sales/'); ?>">
+            <i class="fas fa-receipt"></i><span>Sales history</span>
+        </a>
+        <?php endif; ?>
+
+        <?php if (StaffNav::canViewCommission()): ?>
+        <a class="t-link <?php echo $isOn('/staff/commissions'); ?>" href="<?php echo public_path('staff/commissions/'); ?>">
+            <i class="fas fa-coins"></i><span>My commission</span>
+        </a>
+        <?php endif; ?>
+
+        <?php if (StaffNav::hasProducts($modules) && TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
+        <a class="t-link <?php echo $isOn('/staff/products'); ?>" href="<?php echo public_path('staff/products/'); ?>">
             <i class="fas fa-box"></i><span>Products</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::INVENTORY_VIEW)): ?>
-        <a class="t-link <?php echo $isOn('/staff/catalogue'); ?>" href="/Curlz/public/staff/catalogue/">
-            <i class="fas fa-share-nodes"></i><span>Share catalogue</span>
+        <?php if (TenantContext::can(Capabilities::REPORTS_VIEW)): ?>
+        <a class="t-link <?php echo $isOn('/super/reports'); ?>" href="<?php echo public_path('super/reports/'); ?>">
+            <i class="fas fa-chart-bar"></i><span>Reports</span>
         </a>
         <?php endif; ?>
 
         <hr>
 
-        <a class="t-link t-danger" href="/Curlz/public/auth/logout.php">
+        <a class="t-link t-danger" href="<?php echo public_path('auth/logout.php'); ?>">
             <i class="fas fa-arrow-right-from-bracket"></i><span>Logout</span>
         </a>
     </nav>

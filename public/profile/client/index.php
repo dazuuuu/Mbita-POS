@@ -7,16 +7,17 @@ $page_subheader = 'Manage your account information and preferences';
 ob_start();
 
 require_once __DIR__ . '/../../../app/config/db_connect.php';
+require_once __DIR__ . '/../../../app/helpers/AppUrl.php';
 require_once __DIR__ . '/../../../app/helpers/functions.php';
 
 // Check if logged in
 if (!isLoggedIn()) {
-    redirect('/Modern/public/auth/login.php');
+    redirect(public_path('auth/login.php'));
 }
 
 // Check if user is client (role_id 3)
 if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 3) {
-    redirect('/Modern/public/auth/login.php');
+    redirect(public_path('auth/login.php'));
 }
 
 $user_id = $_SESSION['user_id'];

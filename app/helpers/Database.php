@@ -21,10 +21,15 @@ class Database
             );
 
             self::$pdo = new PDO($dsn, $cfg['username'], $cfg['password'], [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION, // fail loudly
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,                 // real prepared stmts
+                PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_TIMEOUT            => 3,
             ]);
+            // Fail fast when MySQL is not running (avoids "endless loading" tabs).
+            if (defined('PDO::MYSQL_ATTR_CONNECT_TIMEOUT')) {
+                self::$pdo->setAttribute(PDO::MYSQL_ATTR_CONNECT_TIMEOUT, 3);
+            }
         }
         return self::$pdo;
     }

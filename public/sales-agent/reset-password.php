@@ -4,11 +4,11 @@ require_once __DIR__ . '/../../app/app.php';
 
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']) && TenantContext::check();
 if (!$loggedIn || TenantContext::role() !== 'sales_agent') {
-    header('Location: /Curlz/public/auth/login.php');
+    header('Location: ' . public_path('auth/login.php'));
     exit;
 }
 if (empty($_SESSION['must_reset'])) {
-    header('Location: /Curlz/public/sales-agent/dashboard/');
+    header('Location: ' . public_path('sales-agent/dashboard/'));
     exit;
 }
 
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
         }
         session_destroy();
-        header('Location: /Curlz/public/auth/login.php?reset=1');
+        header('Location: ' . public_path('auth/login.php?reset=1'));
         exit;
     }
 }

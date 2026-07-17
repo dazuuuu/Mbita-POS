@@ -5,9 +5,11 @@
 // for resolving the logo / hero URLs. Safe to include more than once.
 
 if (!defined('BASE_URL')) {
-    // Web path to the /public folder. Centralise here; change once if the
-    // app ever moves. (Matches the hardcoded /Modern/public used elsewhere.)
-    define('BASE_URL', '/Curlz/public');
+    // Web path to /public — set via app/config/paths.php (loaded through AppUrl).
+    if (!function_exists('public_path')) {
+        require_once dirname(__DIR__) . '/helpers/AppUrl.php';
+    }
+    define('BASE_URL', rtrim(public_path(''), '/'));
 }
 
 /* ====================================================================

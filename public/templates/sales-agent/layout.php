@@ -3,7 +3,7 @@
 $__tenant = $__tenant ?? (TenantContext::tenantId()
     ? (new Models\TenantModel(Database::pdo()))->find(TenantContext::tenantId())
     : null);
-$shopName = $__tenant['name'] ?? 'My Shop';
+$shopName = Branding::shopName($__tenant);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -42,6 +42,7 @@ $shopName = $__tenant['name'] ?? 'My Shop';
         <?php echo $content ?? ''; ?>
     </main>
 </div>
+<?php include __DIR__ . '/../../components/staff/notification_overlay.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php echo $extra_js ?? ''; ?>
 </body>
