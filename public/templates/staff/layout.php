@@ -49,6 +49,7 @@ $shopName = Branding::shopName($__tenant);
         <?php echo $content ?? ''; ?>
     </main>
 </div>
+<?php include __DIR__ . '/../../components/staff/notification_overlay.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php echo $extra_js ?? ''; ?>
 </body>

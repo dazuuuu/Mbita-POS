@@ -79,6 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['logged_in']    = true;
                 $_SESSION['otp_verified'] = true;
                 $_SESSION['must_reset']   = false;
+                if (StaffAttendanceService::shouldTrack($user['role_name'] ?? '')) {
+                    StaffAttendanceService::recordLogin($pdo, (int) $user['tenant_id'], (int) $user['id']);
+                }
                 header('Location: ' . auth_employee_dashboard($user['role_name'] ?? ''));
                 exit;
             }

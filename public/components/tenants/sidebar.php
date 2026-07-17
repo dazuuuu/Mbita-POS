@@ -51,8 +51,10 @@ if ($isOwner && (
 }
 
 if ($isOwner && !empty($modules[TenantModules::STAFF])) {
-    $nav[] = ['href' => public_path('super/staff/'), 'icon' => 'fa-user-gear', 'label' => 'Staff', 'active' => $isOn('/super/staff') && !$isOn('/authorization')];
+    $nav[] = ['href' => public_path('super/staff/'), 'icon' => 'fa-user-gear', 'label' => 'Staff', 'active' => $isOn('/super/staff') && !$isOn('/authorization') && !$isOn('/attendance')];
+    $nav[] = ['href' => public_path('super/staff/attendance/'), 'icon' => 'fa-clock', 'label' => 'Attendance', 'active' => $isOn('/attendance')];
     $nav[] = ['href' => public_path('super/staff/authorization.php'), 'icon' => 'fa-user-shield', 'label' => 'User Access', 'active' => $isOn('/authorization')];
+    $nav[] = ['href' => public_path('super/notifications/'), 'icon' => 'fa-bullhorn', 'label' => 'Notify staff', 'active' => $isOn('/super/notifications')];
     if (!empty($modules[TenantModules::SALES_AGENTS])) {
         $nav[] = ['href' => public_path('super/sales-agents/'), 'icon' => 'fa-user-tie', 'label' => 'Sales Agents', 'active' => $isOn('/super/sales-agents')];
     }
