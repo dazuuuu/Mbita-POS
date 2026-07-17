@@ -45,9 +45,9 @@ class StaffRoles
     {
         return [
             'cashier'      => 'Receive and update payments, overcheck payments, and follow-ups.',
-            'reception'    => 'Appointments, invoices, customer check-in. Can be granted payment acceptance.',
+            'reception'    => 'Appointments, check-in, service invoices. Assigns staff; payment at till.',
             'sales'        => 'Sell products, view catalogue, generate invoices, appointments, and commissions.',
-            'barber'       => 'Service commission sales. Customers assigned by reception or self.',
+            'barber'       => 'Performs services. Commission credited when invoice is paid at till.',
             'junior_admin' => 'Manage inventory, oversee sales, view reports. Delegated admin powers.',
             'general'      => 'Basic staff with view/sell defaults — customize permissions below.',
         ];
@@ -59,14 +59,14 @@ class StaffRoles
         $mods = $modules ?? TenantModules::defaults();
         $groups = [
             'Payments & till' => [
-                [Capabilities::PAYMENTS_RECEIVE, 'Receive payments', 'Take cash, M-Pesa, and card payments'],
+                [Capabilities::PAYMENTS_RECEIVE, 'Receive payments', 'Process cash/M-Pesa at till (default: cashier & reception). Delegate via staff permissions.'],
                 [Capabilities::PAYMENTS_UPDATE, 'Update & verify payments', 'Correct payment records and follow up on pending payments'],
                 [Capabilities::SALES_RECORD,   'Make sales', 'Use the till to record product sales'],
                 [Capabilities::SALES_VIEW,       'View sales', 'See sales history and receipts'],
             ],
             'Appointments & customers' => [
                 [Capabilities::APPOINTMENTS_MANAGE, 'Manage appointments', 'Book, reschedule, and cancel appointments'],
-                [Capabilities::INVOICES_MANAGE,   'Generate invoices', 'Create and send invoices to customers'],
+                [Capabilities::INVOICES_MANAGE,   'Generate invoices', 'Check-in customers and create service invoices (payment at till)'],
                 [Capabilities::CUSTOMERS_MANAGE,  'Manage customers', 'Add and edit customer details'],
                 [Capabilities::CUSTOMERS_CHECKIN, 'Customer check-in', 'Check customers in when they arrive'],
             ],
@@ -78,7 +78,7 @@ class StaffRoles
                 [Capabilities::CREDITS_MANAGE,   'Manage credits', 'Issue and track customer credit sales'],
             ],
             'Services & commission' => [
-                [Capabilities::COMMISSION_RECORD, 'Record commissioned sales', 'Log service sales and earn commission'],
+                [Capabilities::COMMISSION_RECORD, 'Record commissioned sales', 'Create service sales (reception: pending invoice; staff with payment rights: immediate)'],
                 [Capabilities::COMMISSION_VIEW,   'View own commission', 'See commission earned and payout history'],
             ],
             'Administration' => [

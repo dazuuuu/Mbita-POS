@@ -32,7 +32,7 @@ $isOn = function (string $needle) use ($uri): string {
         </a>
 
         <?php if (TenantContext::can(Capabilities::PAYMENTS_RECEIVE) || TenantContext::can(Capabilities::PAYMENTS_UPDATE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/payments'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/payments'); ?>" href="<?php echo public_path('staff/payments/'); ?>">
             <i class="fas fa-money-bill-wave"></i><span>Payments</span>
         </a>
         <?php endif; ?>
@@ -44,7 +44,7 @@ $isOn = function (string $needle) use ($uri): string {
         <?php endif; ?>
 
         <?php if (TenantContext::can(Capabilities::INVOICES_MANAGE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/invoices'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
+        <a class="t-link <?php echo $isOn('/staff/invoices'); ?>" href="<?php echo public_path('staff/invoices/new.php'); ?>">
             <i class="fas fa-file-invoice"></i><span>Invoices</span>
         </a>
         <?php endif; ?>

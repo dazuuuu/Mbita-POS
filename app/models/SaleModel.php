@@ -196,6 +196,80 @@ class SaleModel extends Model
         return $stmt->fetchAll();
     }
 
+    /**
+     * POS + commission/service sales for tenant owner view (unified sales list).
+     * @return list<array> normalized rows with sale_type, staff_name, total, receipt_url, etc.
+     */
+    public function unifiedForTenant(int $limit = 1000, string $period = 'all', ?int $branchId = null, bool $includePending = true): array
+    {
+        $pos = $this->forTenant($limit, $period, $branchId);
+        foreach ($pos as &$row) {
+            $row['sale_type'] = 'pos';
+            $row['item_label'] = null;
+            $row['payment_status'] = 'paid';
+            $row['receipt_url'] = ReceiptUrl::forPos((int) $row['id']);
+        }
+        unset($row);
+
+        $comm = [];
+        if (\SchemaHelper::tableExists($this->db, 'commission_sales')) {
+            $tid = \TenantContext::tenantId();
+            $periodSql = match ($period) {
+                'today' => 'AND DATE(cs.created_at) = CURDATE()',
+                'week'  => 'AND cs.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)',
+                'month' => 'AND cs.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)',
+                default => '',
+            };
+            $branchSql = '';
+            $params = [$tid];
+            if ($branchId !== null && $branchId > 0) {
+                $branchSql = ' AND cs.branch_id = ?';
+                $params[] = $branchId;
+            }
+            $pendingSql = '';
+            if (!$includePending && \SchemaHelper::columnExists($this->db, 'commission_sales', 'payment_status')) {
+                $pendingSql = " AND cs.payment_status = 'paid'";
+            }
+            $params[] = $limit;
+            $stmt = $this->db->prepare(
+                "SELECT cs.*, u.username AS agent_name, b.title AS branch_name
+                   FROM commission_sales cs
+              LEFT JOIN users u ON u.id = cs.agent_user_id
+              LEFT JOIN branches b ON b.id = cs.branch_id
+                  WHERE cs.tenant_id = ? {$periodSql}{$branchSql}{$pendingSql}
+               ORDER BY cs.created_at DESC, cs.id DESC
+                  LIMIT ?"
+            );
+            foreach ($params as $i => $val) {
+                $stmt->bindValue($i + 1, $val, \PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            foreach ($stmt->fetchAll() ?: [] as $row) {
+                $status = $row['payment_status'] ?? 'paid';
+                $comm[] = [
+                    'id'              => (int) $row['id'],
+                    'receipt_number'  => $row['receipt_number'],
+                    'created_at'      => $row['created_at'],
+                    'total'           => (float) $row['charged_amount'],
+                    'payment_method'  => $row['payment_method'] ?? 'cash',
+                    'payment_status'  => $status,
+                    'customer_name'   => $row['customer_name'],
+                    'staff_name'      => $row['agent_name'] ?? '—',
+                    'branch_name'     => $row['branch_name'] ?? null,
+                    'item_count'      => 1,
+                    'sale_type'       => 'commission',
+                    'item_label'      => ($row['item_name'] ?? '') . ' (' . ($row['item_type'] ?? 'service') . ')',
+                    'total_commission'=> (float) ($row['total_commission'] ?? 0),
+                    'receipt_url'     => ReceiptUrl::forCommission((int) $row['id']),
+                ];
+            }
+        }
+
+        $merged = array_merge($pos, $comm);
+        usort($merged, fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
+        return array_slice($merged, 0, $limit);
+    }
+
     /** All sales for a specific tenant ID (for CLI cron — no TenantContext). */
     public function forTenantId(int $tenantId, string $date): array
     {
@@ -221,7 +295,7 @@ class SaleModel extends Model
         $pos = $this->forStaff($staffId, $limit, $date);
         foreach ($pos as &$row) {
             $row['sale_type'] = 'pos';
-            $row['receipt_url'] = public_path('staff/sales/receipt.php') . '?id=' . (int) $row['id'];
+            $row['receipt_url'] = ReceiptUrl::forPos((int) $row['id']);
             if (!isset($row['branch_name'])) {
                 $row['branch_name'] = null;
             }
@@ -260,7 +334,7 @@ class SaleModel extends Model
                     'sale_type'      => 'commission',
                     'item_label'     => $row['item_name'] . ' (' . $row['item_type'] . ')',
                     'branch_name'    => $row['branch_name'] ?? null,
-                    'receipt_url'    => public_path('commission/receipt.php') . '?id=' . (int) $row['id'],
+                    'receipt_url'    => ReceiptUrl::forCommission((int) $row['id']),
                 ];
             }
         }
@@ -360,16 +434,44 @@ class SaleModel extends Model
         }
     }
 
-    /** Totals for a set of sales rows (revenue, count, by method). */
+    /** Totals for a set of sales rows (revenue, count, by method). Includes commission rows. */
     public static function summarize(array $rows): array
     {
-        $sum = ['count' => 0, 'revenue' => 0.0, 'cash' => 0.0, 'mpesa' => 0.0];
+        $sum = ['count' => 0, 'revenue' => 0.0, 'cash' => 0.0, 'mpesa' => 0.0, 'pending' => 0];
         foreach ($rows as $r) {
+            if (($r['payment_status'] ?? 'paid') === 'pending') {
+                $sum['pending']++;
+                continue;
+            }
             $sum['count']++;
-            $sum['revenue'] += (float) $r['total'];
-            $sum[$r['payment_method']] = ($sum[$r['payment_method']] ?? 0) + (float) $r['total'];
+            $amount = (float) ($r['total'] ?? $r['charged_amount'] ?? 0);
+            $sum['revenue'] += $amount;
+            $method = $r['payment_method'] ?? 'cash';
+            if (isset($sum[$method])) {
+                $sum[$method] += $amount;
+            }
         }
         $sum['revenue'] = round($sum['revenue'], 2);
         return $sum;
+    }
+
+    /** Per-staff breakdown including commission agent names. */
+    public static function unifiedStaffBreakdown(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $r) {
+            if (($r['payment_status'] ?? 'paid') === 'pending') {
+                continue;
+            }
+            $name = $r['staff_name'] ?? $r['agent_name'] ?? 'Unknown';
+            if (!isset($out[$name])) {
+                $out[$name] = ['count' => 0, 'revenue' => 0.0, 'commission' => 0.0];
+            }
+            $out[$name]['count']++;
+            $out[$name]['revenue'] += (float) ($r['total'] ?? 0);
+            $out[$name]['commission'] += (float) ($r['total_commission'] ?? 0);
+        }
+        uasort($out, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        return $out;
     }
 }

@@ -16,7 +16,104 @@ class CommissionService
     {
         Schema023Service::ensureApplied($db);
         Schema024Service::ensureApplied($db);
+        Schema030Service::ensureApplied($db);
         return SchemaHelper::migration023Ready($db);
+    }
+
+    private function hasPaymentWorkflow(): bool
+    {
+        return SchemaHelper::columnExists($this->db, 'commission_sales', 'payment_status');
+    }
+
+    /** Reception creates a service invoice — payment collected later at till. */
+    public function recordInvoice(int $tenantId, int $recordedBy, array $in): array
+    {
+        $agentId = (int) ($in['agent_user_id'] ?? 0);
+        if ($agentId <= 0) {
+            return ['ok' => false, 'errors' => ['agent_user_id' => 'Assign the staff member who performed the service.']];
+        }
+        $in['pending'] = true;
+        $in['recorded_by_user_id'] = $recordedBy;
+        return $this->recordSale($tenantId, $agentId, $in);
+    }
+
+    /** Cashier/reception marks a pending invoice as paid. */
+    public function processPayment(int $tenantId, int $saleId, array $in): array
+    {
+        if (!$this->hasPaymentWorkflow()) {
+            return ['ok' => false, 'error' => 'Payment workflow is not set up. Run fix-all-schema.php once.'];
+        }
+        $method = in_array($in['payment_method'] ?? '', ['cash', 'mpesa'], true) ? $in['payment_method'] : null;
+        if (!$method) {
+            return ['ok' => false, 'error' => 'Choose cash or M-Pesa.'];
+        }
+
+        $sale = $this->find($tenantId, $saleId);
+        if (!$sale) {
+            return ['ok' => false, 'error' => 'Invoice not found.'];
+        }
+        if (($sale['payment_status'] ?? 'paid') !== 'pending') {
+            return ['ok' => false, 'error' => 'This invoice is already paid or voided.'];
+        }
+
+        try {
+            $stmt = $this->db->prepare(
+                "UPDATE commission_sales
+                    SET payment_method = ?, payment_status = 'paid', paid_at = NOW()
+                  WHERE id = ? AND tenant_id = ? AND payment_status = 'pending'"
+            );
+            $stmt->execute([$method, $saleId, $tenantId]);
+            if ($stmt->rowCount() !== 1) {
+                return ['ok' => false, 'error' => 'Could not process payment.'];
+            }
+            return ['ok' => true, 'id' => $saleId, 'receipt_number' => $sale['receipt_number']];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => 'Could not process payment.'];
+        }
+    }
+
+    /** Pending invoices awaiting payment at till. */
+    public function pendingPayments(int $tenantId, ?int $branchId = null): array
+    {
+        if (!$this->hasPaymentWorkflow()) {
+            return [];
+        }
+        $branchSql = '';
+        $params = [$tenantId];
+        if ($branchId !== null && $branchId > 0) {
+            $branchSql = ' AND cs.branch_id = ?';
+            $params[] = $branchId;
+        }
+        return $this->rows(
+            "SELECT cs.*, u.username AS agent_name, r.username AS recorded_by_name, b.title AS branch_name
+               FROM commission_sales cs
+          LEFT JOIN users u ON u.id = cs.agent_user_id
+          LEFT JOIN users r ON r.id = cs.recorded_by_user_id
+          LEFT JOIN branches b ON b.id = cs.branch_id
+              WHERE cs.tenant_id = ? AND cs.payment_status = 'pending' {$branchSql}
+           ORDER BY cs.created_at ASC
+              LIMIT 200",
+            $params
+        );
+    }
+
+    /** Whether this user may process payments (module + capability). */
+    public static function canProcessPayment(PDO $db, ?array $tenant, ?array $branch = null): bool
+    {
+        if (!TenantContext::can(Capabilities::PAYMENTS_RECEIVE)) {
+            return false;
+        }
+        $modules = $branch
+            ? TenantModules::fromBranch($branch)
+            : TenantModules::fromTenant($tenant);
+        if (empty($modules[TenantModules::PAYMENT_PROCESSING])) {
+            return true;
+        }
+        $role = TenantContext::role();
+        if (in_array($role, ['tenant_owner', 'cashier', 'reception'], true)) {
+            return true;
+        }
+        return TenantContext::can(Capabilities::PAYMENTS_RECEIVE);
     }
 
     /** Decode cart JSON from the record-sale form into sale line items. */
@@ -117,6 +214,10 @@ class CommissionService
         $paymentMethod = in_array($in['payment_method'] ?? 'cash', ['cash', 'mpesa', 'credit'], true)
             ? $in['payment_method'] : 'cash';
         $isCredit = $paymentMethod === 'credit';
+        if (!empty($in['pending'])) {
+            $paymentMethod = 'cash';
+            $isCredit = false;
+        }
         $customerName = trim($in['customer_name'] ?? '');
         $customerPhone = trim($in['customer_phone'] ?? '');
 
@@ -229,6 +330,14 @@ class CommissionService
             if ($ownsTx) {
                 $this->db->commit();
             }
+
+            if (!empty($in['pending']) && $this->hasPaymentWorkflow()) {
+                $this->db->prepare(
+                    "UPDATE commission_sales SET payment_status = 'pending', recorded_by_user_id = ?
+                     WHERE id = ? AND tenant_id = ?"
+                )->execute([(int) ($in['recorded_by_user_id'] ?? $agentUserId), $saleId, $tenantId]);
+            }
+
             return [
                 'ok' => true, 'id' => $saleId, 'receipt_number' => $receipt,
                 'commission' => $calc, 'errors' => [],
@@ -473,12 +582,15 @@ class CommissionService
 
     public function unpaidSales(int $tenantId, int $agentUserId): array
     {
+        $paidFilter = $this->hasPaymentWorkflow()
+            ? " AND (cs.payment_status = 'paid' OR cs.payment_status IS NULL)"
+            : '';
         return $this->rows(
-            'SELECT cs.*, b.title AS branch_name
+            "SELECT cs.*, b.title AS branch_name
                FROM commission_sales cs
           LEFT JOIN branches b ON b.id = cs.branch_id
-              WHERE cs.tenant_id = ? AND cs.agent_user_id = ? AND cs.payout_id IS NULL
-           ORDER BY cs.branch_id ASC, cs.created_at DESC',
+              WHERE cs.tenant_id = ? AND cs.agent_user_id = ? AND cs.payout_id IS NULL{$paidFilter}
+           ORDER BY cs.branch_id ASC, cs.created_at DESC",
             [$tenantId, $agentUserId]
         );
     }

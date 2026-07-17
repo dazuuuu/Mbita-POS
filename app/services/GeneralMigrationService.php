@@ -22,6 +22,7 @@ class GeneralMigrationService
             '027 wholesale'       => fn () => self::ensure027Wholesale($db, $log),
             '028 owner login'     => fn () => Schema028Service::ensureApplied($db),
             '029 branch scope'    => fn () => Schema029Service::ensureApplied($db),
+            '030 payments'        => fn () => Schema030Service::ensureApplied($db),
         ];
 
         foreach ($steps as $label => $fn) {
@@ -68,6 +69,7 @@ class GeneralMigrationService
 
         if (SchemaHelper::tableExists($db, 'commission_sales')) {
             $checks[] = ['label' => 'commission_sales.receipt_number', 'ok' => SchemaHelper::columnExists($db, 'commission_sales', 'receipt_number')];
+            $checks[] = ['label' => 'commission_sales.payment_status', 'ok' => SchemaHelper::columnExists($db, 'commission_sales', 'payment_status')];
         }
 
         $allOk = true;

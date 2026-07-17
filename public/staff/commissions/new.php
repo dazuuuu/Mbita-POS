@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? $commSvc->recordSale($tenantId, $userId, array_merge($common, $items[0]))
             : $commSvc->recordSaleBatch($tenantId, $userId, $common, $items);
         if ($res['ok']) {
-            header('Location: ' . public_path('commission/receipt.php') . '?id=' . (int) $res['id']);
+            header('Location: ' . ReceiptUrl::forCommission((int) $res['id']));
             exit;
         }
         $errors = $res['errors'];

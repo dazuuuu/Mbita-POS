@@ -60,7 +60,7 @@ ob_start();
                 <td><?php echo htmlspecialchars($s['item_name']); ?> <span class="badge bg-light text-dark"><?php echo $s['item_type']; ?></span></td>
                 <td>KES <?php echo number_format((float)$s['charged_amount'], 2); ?></td>
                 <td class="text-success fw-semibold">KES <?php echo number_format((float)$s['total_commission'], 2); ?></td>
-                <td><a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('commission/receipt.php'); ?>?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
+                <td><a class="btn btn-sm btn-outline-secondary" href="<?php echo ReceiptUrl::forCommission((int)$s['id']); ?>">Receipt</a></td>
               </tr>
               <?php endforeach; ?>
             </tbody>

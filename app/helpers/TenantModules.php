@@ -14,6 +14,7 @@ class TenantModules
     public const STAFF               = 'staff';
     public const SALES_AGENTS        = 'sales_agents';
     public const STAFF_PROMOTION     = 'staff_promotion';
+    public const PAYMENT_PROCESSING  = 'payment_processing';
 
     /** All module keys (for forms). */
     public static function keys(): array
@@ -29,6 +30,7 @@ class TenantModules
             self::STAFF,
             self::SALES_AGENTS,
             self::STAFF_PROMOTION,
+            self::PAYMENT_PROCESSING,
         ];
     }
 
@@ -67,6 +69,7 @@ class TenantModules
                 self::STAFF               => true,
                 self::SALES_AGENTS        => true,
                 self::STAFF_PROMOTION     => true,
+                self::PAYMENT_PROCESSING  => true,
             ];
         }
 
@@ -81,6 +84,7 @@ class TenantModules
             self::STAFF               => true,
             self::SALES_AGENTS        => false,
             self::STAFF_PROMOTION     => true,
+            self::PAYMENT_PROCESSING  => true,
         ];
     }
 
@@ -105,6 +109,7 @@ class TenantModules
             self::STAFF               => 'Staff management',
             self::SALES_AGENTS        => 'Sales agents',
             self::STAFF_PROMOTION     => 'Promote staff (junior admin)',
+            self::PAYMENT_PROCESSING  => 'Payment processing (cashier/reception)',
         ];
     }
 
@@ -121,6 +126,7 @@ class TenantModules
             self::STAFF               => 'Add staff and assign them to this location.',
             self::SALES_AGENTS        => 'Dedicated sales-agent accounts.',
             self::STAFF_PROMOTION     => 'Junior admin — delegate inventory, sales, reports.',
+            self::PAYMENT_PROCESSING  => 'Only cashier/reception process payments by default. Delegate via staff permissions.',
         ];
     }
 

@@ -406,7 +406,7 @@ ob_start();
     <div class="card border-0 shadow-sm p-4 small text-muted" style="border-radius:12px;">
       <strong>Typical setups</strong>
       <ul class="mb-0 ps-3 mt-2">
-        <li class="mb-2"><strong>Barbershop branch</strong> — Services, Service commissions, Reception, Staff.</li>
+        <li class="mb-2"><strong>Barbershop branch</strong> — Services, Service commissions, Reception, Payment processing, Staff.</li>
         <li class="mb-2"><strong>Shop</strong> — Products, Wholesale pricing, Cashier, Product commissions.</li>
         <li class="mb-2"><strong>Both</strong> — Enable everything you need; nothing is forced.</li>
       </ul>
