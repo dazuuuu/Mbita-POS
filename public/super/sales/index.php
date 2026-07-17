@@ -6,6 +6,16 @@ PageGuard::tenant();
 $pdo  = Database::pdo();
 $SA   = new Models\SaleModel($pdo);
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'void_sale') {
+    $res = $SA->voidSale((int) ($_POST['sale_id'] ?? 0));
+    $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+        ? 'Sale voided and stock restored.'
+        : ($res['error'] ?? 'Could not void sale.');
+    $redirectPeriod = in_array($_POST['period'] ?? '', ['today', 'week', 'month', 'all'], true) ? $_POST['period'] : 'today';
+    header('Location: ' . public_path('super/sales/') . '?period=' . urlencode($redirectPeriod));
+    exit;
+}
+
 // Period filter
 $allowed = ['today', 'week', 'month', 'all'];
 $period  = in_array($_GET['period'] ?? '', $allowed, true) ? $_GET['period'] : 'today';
@@ -166,7 +176,15 @@ ob_start();
               <td class="small"><?php echo htmlspecialchars($s['customer_name'] ?: '—'); ?></td>
               <td><?php echo $s['payment_method']==='cash' ? '<span class="badge bg-light text-dark">Cash</span>' : '<span class="badge bg-success text-white">M-Pesa</span>'; ?></td>
               <td class="text-end fw-semibold">KES <?php echo number_format((float)$s['total'],0); ?></td>
-              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('staff/sales/receipt.php'); ?>?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
+              <td class="text-end text-nowrap">
+                <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('staff/sales/receipt.php'); ?>?id=<?php echo (int)$s['id']; ?>">Receipt</a>
+                <form method="post" class="d-inline" onsubmit="return confirm('Void this sale? Stock will be restored.');">
+                  <input type="hidden" name="action" value="void_sale">
+                  <input type="hidden" name="sale_id" value="<?php echo (int)$s['id']; ?>">
+                  <input type="hidden" name="period" value="<?php echo htmlspecialchars($period); ?>">
+                  <button class="btn btn-sm btn-outline-danger">Void</button>
+                </form>
+              </td>
             </tr>
             <?php endforeach; ?>
           </tbody>

@@ -14,8 +14,14 @@ $modules = TenantModules::effectiveForTenant($__tenant, $__locations);
 $showWholesale = !empty($modules[TenantModules::WHOLESALE]);
 $availableTypes = StaffRoles::availableStaffTypes($modules);
 
+$editId = (int) ($_GET['edit'] ?? $_POST['staff_id'] ?? 0);
+$editRow = $editId ? $svc->findStaff((int) $tenantId, $editId) : null;
+if (!$editRow) {
+    $editId = 0;
+}
+
 $errors = [];
-$old = ['name' => '', 'pin' => '', 'staff_type' => 'general'];
+$old = ['name' => '', 'pin' => '', 'staff_type' => 'general', 'branch_id' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? 'create';
@@ -29,11 +35,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'toggle') {
+        $staffId = (int) ($_POST['staff_id'] ?? 0);
+        $enable = !empty($_POST['enable']);
+        $ok = $enable ? $svc->activate((int) $tenantId, $staffId) : $svc->deactivate((int) $tenantId, $staffId);
+        $_SESSION['flash'][$ok ? 'success' : 'error'] = $ok
+            ? ($enable ? 'Staff member reactivated.' : 'Staff member deactivated.')
+            : 'Could not update staff status.';
+        header('Location: ' . public_path('super/staff/'));
+        exit;
+    }
+
+    if ($action === 'update') {
+        $staffId = (int) ($_POST['staff_id'] ?? 0);
+        $old = [
+            'name'       => trim($_POST['name'] ?? ''),
+            'staff_type' => $_POST['staff_type'] ?? 'general',
+            'branch_id'  => $_POST['branch_id'] ?? '',
+            'pin'        => trim($_POST['pin'] ?? ''),
+        ];
+        $res = $svc->update((int) $tenantId, $staffId, $old);
+        if ($res['ok']) {
+            $_SESSION['flash']['success'] = 'Staff member updated.';
+            header('Location: ' . public_path('super/staff/'));
+            exit;
+        }
+        $errors = $res['errors'];
+        $editId = $staffId;
+        $editRow = $svc->findStaff((int) $tenantId, $staffId);
+    }
+
     if ($action === 'create') {
         $old = [
             'name'       => trim($_POST['name'] ?? ''),
             'pin'        => trim($_POST['pin'] ?? ''),
             'staff_type' => $_POST['staff_type'] ?? 'general',
+            'branch_id'  => $_POST['branch_id'] ?? '',
         ];
 
         $res = $svc->create((int) $tenantId, $old);
@@ -48,6 +85,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$formOld = $editRow ? [
+    'name'       => $old['name'] !== '' ? $old['name'] : $editRow['username'],
+    'staff_type' => $old['staff_type'] ?? ($editRow['staff_type'] ?? 'general'),
+    'branch_id'  => $old['branch_id'] !== '' ? $old['branch_id'] : ($editRow['branch_id'] ?? ''),
+    'pin'        => '',
+] : $old;
+
 $staff = $svc->listForTenant((int) $tenantId);
 $typeLabels = StaffRoles::typeLabels();
 $page_title = 'Staff';
@@ -57,23 +101,29 @@ ob_start();
   <div class="col-12 col-lg-5">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
-        <h2 class="h5 mb-1">Add staff</h2>
+        <h2 class="h5 mb-1"><?php echo $editRow ? 'Edit staff' : 'Add staff'; ?></h2>
         <p class="text-muted small mb-3">
-          Staff log in with your shop code <strong><?php echo htmlspecialchars($__tenant['slug'] ?? ''); ?></strong>
-          and a 4–5 digit PIN — no email required. Set their role, then delegate features on the authorization page.
+          <?php if ($editRow): ?>
+            Update name, role, or branch. Leave PIN blank to keep the current one.
+          <?php else: ?>
+            Staff log in with your shop code <strong><?php echo htmlspecialchars($__tenant['slug'] ?? ''); ?></strong>
+            and a 4–5 digit PIN — no email required.
+          <?php endif; ?>
         </p>
         <?php if (!empty($errors['_'])): ?><div class="alert alert-danger py-2"><?php echo htmlspecialchars($errors['_']); ?></div><?php endif; ?>
         <form method="post" novalidate>
-          <input type="hidden" name="action" value="create">
+          <input type="hidden" name="action" value="<?php echo $editRow ? 'update' : 'create'; ?>">
+          <?php if ($editRow): ?><input type="hidden" name="staff_id" value="<?php echo (int)$editRow['id']; ?>"><?php endif; ?>
           <div class="mb-3">
             <label class="form-label">Full name</label>
-            <input name="name" class="form-control" placeholder="e.g. Alice Wanjiru" required value="<?php echo htmlspecialchars($old['name']); ?>">
+            <input name="name" class="form-control" placeholder="e.g. Alice Wanjiru" required value="<?php echo htmlspecialchars($formOld['name']); ?>">
             <?php if (!empty($errors['name'])): ?><small class="text-danger"><?php echo htmlspecialchars($errors['name']); ?></small><?php endif; ?>
           </div>
           <div class="mb-3">
-            <label class="form-label">Login PIN (4–5 digits)</label>
+            <label class="form-label"><?php echo $editRow ? 'New PIN (optional)' : 'Login PIN (4–5 digits)'; ?></label>
             <input name="pin" type="password" inputmode="numeric" pattern="\d{4,5}" maxlength="5"
-                   class="form-control" placeholder="e.g. 1234" required autocomplete="off">
+                   class="form-control" placeholder="<?php echo $editRow ? 'Leave blank to keep current PIN' : 'e.g. 1234'; ?>"
+                   <?php echo $editRow ? '' : 'required'; ?> autocomplete="off">
             <?php if (!empty($errors['pin'])): ?><small class="text-danger"><?php echo htmlspecialchars($errors['pin']); ?></small><?php endif; ?>
           </div>
           <div class="mb-3">
@@ -84,19 +134,34 @@ ob_start();
                     continue;
                 }
               ?>
-              <option value="<?php echo htmlspecialchars($val); ?>" <?php echo ($old['staff_type'] ?? '') === $val ? 'selected' : ''; ?>>
+              <option value="<?php echo htmlspecialchars($val); ?>" <?php echo ($formOld['staff_type'] ?? '') === $val ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars($label); ?>
               </option>
               <?php endforeach; ?>
             </select>
-            <small class="text-muted">Each role has default permissions you can customize after creation.</small>
             <?php if (!empty($errors['staff_type'])): ?><small class="text-danger d-block"><?php echo htmlspecialchars($errors['staff_type']); ?></small><?php endif; ?>
           </div>
-          <button class="btn btn-primary">Create staff &amp; set permissions</button>
+          <?php if ($__locations): ?>
+          <div class="mb-3">
+            <label class="form-label">Branch</label>
+            <select name="branch_id" class="form-select">
+              <option value="">All branches</option>
+              <?php foreach ($__locations as $loc): ?>
+              <option value="<?php echo (int)$loc['id']; ?>" <?php echo (string)($formOld['branch_id'] ?? '') === (string)$loc['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($loc['title']); ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+            <?php if (!empty($errors['branch_id'])): ?><small class="text-danger"><?php echo htmlspecialchars($errors['branch_id']); ?></small><?php endif; ?>
+          </div>
+          <?php endif; ?>
+          <button class="btn btn-primary"><?php echo $editRow ? 'Save changes' : 'Create staff &amp; set permissions'; ?></button>
+          <?php if ($editRow): ?><a class="btn btn-link" href="<?php echo public_path('super/staff/'); ?>">Cancel</a><?php endif; ?>
         </form>
       </div>
     </div>
 
+    <?php if (!$editRow): ?>
     <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;">
       <div class="card-body p-4 small text-muted">
         <strong>Role guide</strong>
@@ -109,6 +174,7 @@ ob_start();
         </ul>
       </div>
     </div>
+    <?php endif; ?>
   </div>
 
   <div class="col-12 col-lg-7">
@@ -141,7 +207,14 @@ ob_start();
                     <?php endif; ?>
                   </td>
                   <td class="text-end text-nowrap">
-                    <a class="btn btn-sm btn-outline-primary" href="<?php echo public_path('super/staff/authorization.php'); ?>?staff=<?php echo (int)$s['id']; ?>">Permissions</a>
+                    <a class="btn btn-sm btn-outline-primary" href="<?php echo public_path('super/staff/'); ?>?edit=<?php echo (int)$s['id']; ?>">Edit</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/staff/authorization.php'); ?>?staff=<?php echo (int)$s['id']; ?>">Permissions</a>
+                    <form method="post" class="d-inline">
+                      <input type="hidden" name="action" value="toggle">
+                      <input type="hidden" name="staff_id" value="<?php echo (int) $s['id']; ?>">
+                      <input type="hidden" name="enable" value="<?php echo (int)$s['is_active'] ? '0' : '1'; ?>">
+                      <button type="submit" class="btn btn-sm btn-outline-secondary"><?php echo (int)$s['is_active'] ? 'Deactivate' : 'Activate'; ?></button>
+                    </form>
                     <form method="post" class="d-inline" onsubmit="return confirm('Permanently delete this staff member and ALL their sales?');">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="staff_id" value="<?php echo (int) $s['id']; ?>">

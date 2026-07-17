@@ -61,6 +61,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . public_path('super/settings/?tab=locations')); exit;
     }
 
+    if ($action === 'update_location') {
+        $branchId = (int) ($_POST['branch_id'] ?? 0);
+        $branch = $branchModel->find($branchId);
+        $title = trim($_POST['title'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+        $branchType = $_POST['branch_type'] ?? null;
+        if ($branch && ($branch['branch_type'] ?? '') === 'shop') {
+            $branchType = 'shop';
+        }
+        $res = $branchModel->updateLocation($branchId, $title, $location, $branchType);
+        $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+            ? 'Location updated.'
+            : ($res['error'] ?? 'Could not save changes.');
+        header('Location: ' . public_path('super/settings/?tab=locations')); exit;
+    }
+
+    if ($action === 'delete_location') {
+        $res = $branchModel->deleteSafe((int) ($_POST['branch_id'] ?? 0));
+        $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+            ? 'Location removed.'
+            : ($res['error'] ?? 'Could not delete location.');
+        header('Location: ' . public_path('super/settings/?tab=locations')); exit;
+    }
+
     if ($action === 'location_modules') {
         $branchId = (int) ($_POST['branch_id'] ?? 0);
         $mods = TenantModules::sanitizePosted($_POST['modules'] ?? []);
@@ -127,6 +151,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         header('Location: ' . public_path('super/settings/?tab=staff')); exit;
     }
+
+    if ($action === 'staff_toggle') {
+        $staffId = (int) ($_POST['staff_id'] ?? 0);
+        $enable = !empty($_POST['enable']);
+        $ok = $enable ? $staffSvc->activate($tenantId, $staffId) : $staffSvc->deactivate($tenantId, $staffId);
+        $_SESSION['flash'][$ok ? 'success' : 'error'] = $ok
+            ? ($enable ? 'Staff member reactivated.' : 'Staff member deactivated.')
+            : 'Could not update staff status.';
+        header('Location: ' . public_path('super/settings/?tab=staff')); exit;
+    }
+
+    if ($action === 'staff_update') {
+        $staffId = (int) ($_POST['staff_id'] ?? 0);
+        $in = [
+            'name'       => $_POST['name'] ?? '',
+            'staff_type' => $_POST['staff_type'] ?? 'general',
+            'branch_id'  => $_POST['branch_id'] ?? '',
+            'pin'        => trim($_POST['pin'] ?? ''),
+        ];
+        $res = $staffSvc->update($tenantId, $staffId, $in);
+        $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+            ? 'Staff member updated.'
+            : ($res['errors']['name'] ?? $res['errors']['pin'] ?? $res['errors']['_'] ?? 'Could not save changes.');
+        header('Location: ' . public_path('super/settings/?tab=staff' . ($res['ok'] ? '' : '&edit_staff=' . $staffId))); exit;
+    }
 }
 
 $__tenant = $tenantModel->find($tenantId);
@@ -146,6 +195,12 @@ $editCustomerRow = $editCustomer ? $custSvc->find($tenantId, $editCustomer) : nu
 
 $oldBranch = ['title' => '', 'location' => '', 'branch_type' => 'barbershop'];
 $oldShop = ['shop_title' => '', 'shop_location' => ''];
+$editLocationId = (int) ($_GET['edit_location'] ?? 0);
+$editLocation = $editLocationId ? $branchModel->find($editLocationId) : null;
+$editStaffId = (int) ($_GET['edit_staff'] ?? 0);
+$editStaffRow = $editStaffId ? $staffSvc->findStaff($tenantId, $editStaffId) : null;
+$modules = TenantModules::effectiveForTenant($__tenant, $locations);
+$staffTypes = StaffRoles::availableStaffTypes($modules);
 
 $page_title = 'Settings';
 ob_start();
@@ -231,14 +286,54 @@ ob_start();
             <?php foreach ($locations as $loc):
               $typeLabel = TenantModules::locationLabel($loc);
               $isShop = ($loc['branch_type'] ?? 'shop') === 'shop';
+              $isEditing = $editLocation && (int)$editLocation['id'] === (int)$loc['id'];
             ?>
-            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+            <?php if ($isEditing): ?>
+            <form method="post" class="list-group-item px-0 border-0 mb-3">
+              <input type="hidden" name="action" value="update_location">
+              <input type="hidden" name="branch_id" value="<?php echo (int)$loc['id']; ?>">
+              <div class="mb-2">
+                <label class="form-label small mb-1">Name</label>
+                <input name="title" class="form-control form-control-sm" required value="<?php echo htmlspecialchars($loc['title']); ?>">
+              </div>
+              <?php if (!$isShop): ?>
+              <div class="mb-2">
+                <label class="form-label small mb-1">Type</label>
+                <select name="branch_type" class="form-select form-select-sm">
+                  <?php foreach ($branchTypes as $val => $label): ?>
+                  <option value="<?php echo htmlspecialchars($val); ?>" <?php echo ($loc['branch_type'] ?? '') === $val ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <?php else: ?>
+              <input type="hidden" name="branch_type" value="shop">
+              <?php endif; ?>
+              <div class="mb-2">
+                <label class="form-label small mb-1">Location</label>
+                <input name="location" class="form-control form-control-sm" value="<?php echo htmlspecialchars($loc['location'] ?? ''); ?>">
+              </div>
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-primary">Save</button>
+                <a class="btn btn-sm btn-outline-secondary" href="?tab=locations">Cancel</a>
+              </div>
+            </form>
+            <?php else: ?>
+            <div class="list-group-item px-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
               <div>
                 <div class="fw-semibold"><?php echo htmlspecialchars($loc['title']); ?></div>
-                <small class="text-muted"><?php echo htmlspecialchars($typeLabel); ?><?php echo $loc['location'] ? ' · ' . htmlspecialchars($loc['location']) : ''; ?></small>
+                <small class="text-muted"><?php echo htmlspecialchars($typeLabel); ?><?php echo $loc['location'] ? ' · ' . htmlspecialchars($loc['location']) : ''; ?><?php if ((int)($loc['staff_count'] ?? 0) > 0): ?> · <?php echo (int)$loc['staff_count']; ?> staff<?php endif; ?></small>
               </div>
-              <a class="btn btn-sm btn-outline-primary" href="?tab=modules&branch=<?php echo (int)$loc['id']; ?>">Modules</a>
+              <div class="d-flex gap-1 flex-wrap">
+                <a class="btn btn-sm btn-outline-secondary" href="?tab=locations&edit_location=<?php echo (int)$loc['id']; ?>">Edit</a>
+                <a class="btn btn-sm btn-outline-primary" href="?tab=modules&branch=<?php echo (int)$loc['id']; ?>">Modules</a>
+                <form method="post" class="d-inline" onsubmit="return confirm('Delete this location? This cannot be undone.');">
+                  <input type="hidden" name="action" value="delete_location">
+                  <input type="hidden" name="branch_id" value="<?php echo (int)$loc['id']; ?>">
+                  <button class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+              </div>
             </div>
+            <?php endif; ?>
             <?php endforeach; ?>
           </div>
         <?php endif; ?>
@@ -420,6 +515,48 @@ ob_start();
 </div>
 
 <?php else: ?>
+<div class="row g-4">
+  <?php if ($editStaffRow): ?>
+  <div class="col-12 col-lg-5">
+    <div class="card border-0 shadow-sm p-4" style="border-radius:12px;">
+      <h2 class="h6 mb-3">Edit staff — <?php echo htmlspecialchars($editStaffRow['username']); ?></h2>
+      <form method="post">
+        <input type="hidden" name="action" value="staff_update">
+        <input type="hidden" name="staff_id" value="<?php echo (int)$editStaffRow['id']; ?>">
+        <div class="mb-3">
+          <label class="form-label">Name</label>
+          <input name="name" class="form-control" required value="<?php echo htmlspecialchars($editStaffRow['username']); ?>">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Role</label>
+          <select name="staff_type" class="form-select">
+            <?php foreach (StaffRoles::typeLabels() as $val => $label):
+              if (!in_array($val, $staffTypes, true)) continue;
+            ?>
+            <option value="<?php echo htmlspecialchars($val); ?>" <?php echo ($editStaffRow['staff_type'] ?? '') === $val ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Branch</label>
+          <select name="branch_id" class="form-select">
+            <option value="">All branches</option>
+            <?php foreach ($locations as $loc): ?>
+            <option value="<?php echo (int)$loc['id']; ?>" <?php echo (int)($editStaffRow['branch_id'] ?? 0) === (int)$loc['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($loc['title']); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">New PIN <span class="text-muted">(optional)</span></label>
+          <input name="pin" type="password" inputmode="numeric" maxlength="5" class="form-control" placeholder="Leave blank to keep current PIN" autocomplete="off">
+        </div>
+        <button class="btn btn-primary">Save changes</button>
+        <a class="btn btn-link" href="?tab=staff">Cancel</a>
+      </form>
+    </div>
+  </div>
+  <?php endif; ?>
+  <div class="col-12 <?php echo $editStaffRow ? 'col-lg-7' : ''; ?>">
 <div class="card border-0 shadow-sm p-4" style="border-radius:12px;">
   <h2 class="h5 mb-1">Staff management</h2>
   <p class="text-muted small mb-3"><a href="<?php echo public_path('super/staff/'); ?>">Add staff</a> · <a href="<?php echo public_path('super/staff/authorization.php'); ?>">User Access</a></p>
@@ -428,7 +565,7 @@ ob_start();
   <?php else: ?>
   <div class="table-responsive">
     <table class="table align-middle">
-      <thead><tr class="text-muted small text-uppercase"><th>Name</th><th>Role</th><th>Status</th><th>Permanent delete</th></tr></thead>
+      <thead><tr class="text-muted small text-uppercase"><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead>
       <tbody>
         <?php foreach ($staff as $s):
           $typeKey = $s['staff_type'] ?? 'general';
@@ -438,11 +575,18 @@ ob_start();
           <td class="fw-semibold"><?php echo htmlspecialchars($s['username']); ?></td>
           <td><?php echo htmlspecialchars($roleLabel); ?></td>
           <td><?php echo (int)$s['is_active'] ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Off</span>'; ?></td>
-          <td>
-            <form method="post" class="d-flex gap-2 align-items-center" onsubmit="return confirm('Delete ALL sales data for this person?');">
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" href="?tab=staff&edit_staff=<?php echo (int)$s['id']; ?>">Edit</a>
+            <form method="post" class="d-inline">
+              <input type="hidden" name="action" value="staff_toggle">
+              <input type="hidden" name="staff_id" value="<?php echo (int)$s['id']; ?>">
+              <input type="hidden" name="enable" value="<?php echo (int)$s['is_active'] ? '0' : '1'; ?>">
+              <button class="btn btn-sm btn-outline-secondary"><?php echo (int)$s['is_active'] ? 'Deactivate' : 'Activate'; ?></button>
+            </form>
+            <form method="post" class="d-inline-flex gap-1 align-items-center" onsubmit="return confirm('Delete ALL sales data for this person?');">
               <input type="hidden" name="action" value="purge_staff">
               <input type="hidden" name="staff_id" value="<?php echo (int)$s['id']; ?>">
-              <input name="confirm_name" class="form-control form-control-sm" placeholder="Type name" required style="max-width:140px;">
+              <input name="confirm_name" class="form-control form-control-sm" placeholder="Type name" required style="max-width:100px;">
               <button class="btn btn-sm btn-danger">Delete</button>
             </form>
           </td>
@@ -452,6 +596,8 @@ ob_start();
     </table>
   </div>
   <?php endif; ?>
+</div>
+  </div>
 </div>
 <?php endif; ?>
 <?php

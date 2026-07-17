@@ -67,11 +67,70 @@ class BranchModel extends Model
         ]);
     }
 
-    /** Is this title already used by the current tenant? (Tenant-scoped read.) */
-    public function titleTaken(string $title): bool
+    /**
+     * @return array ['ok'=>bool, 'error'=>?string]
+     */
+    public function updateLocation(int $id, string $title, ?string $location, ?string $branchType = null): array
     {
-        $rows = $this->all(['title' => trim($title)]);
-        return count($rows) > 0;
+        $branch = $this->find($id);
+        if (!$branch) {
+            return ['ok' => false, 'error' => 'Location not found.'];
+        }
+        $title = trim($title);
+        if ($title === '') {
+            return ['ok' => false, 'error' => 'Name is required.'];
+        }
+        if ($this->titleTaken($title, $id)) {
+            return ['ok' => false, 'error' => 'You already have a location with that name.'];
+        }
+
+        $row = [
+            'title'    => $title,
+            'location' => ($location !== null && trim($location) !== '') ? trim($location) : null,
+        ];
+        if ($branchType !== null) {
+            $validTypes = array_merge(['shop'], array_keys(\TenantModules::branchTypeLabels()));
+            if (!in_array($branchType, $validTypes, true)) {
+                return ['ok' => false, 'error' => 'Choose a valid type.'];
+            }
+            if (\SchemaHelper::columnExists($this->db, $this->table, 'branch_type')) {
+                $row['branch_type'] = $branchType;
+            }
+        }
+        $row = \SchemaHelper::filterColumns($this->db, $this->table, $row);
+        return $this->update($id, $row) ? ['ok' => true, 'error' => null] : ['ok' => false, 'error' => 'Could not save changes.'];
+    }
+
+    /**
+     * @return array ['ok'=>bool, 'error'=>?string]
+     */
+    public function deleteSafe(int $id): array
+    {
+        $branch = $this->find($id);
+        if (!$branch) {
+            return ['ok' => false, 'error' => 'Location not found.'];
+        }
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM users WHERE branch_id = ?');
+        $stmt->execute([$id]);
+        if ((int) $stmt->fetchColumn() > 0) {
+            return ['ok' => false, 'error' => 'Reassign or remove staff from this location first.'];
+        }
+        return $this->delete($id) ? ['ok' => true, 'error' => null] : ['ok' => false, 'error' => 'Could not delete location.'];
+    }
+
+    /** Is this title already used by the current tenant? */
+    public function titleTaken(string $title, ?int $exceptId = null): bool
+    {
+        $title = trim($title);
+        foreach ($this->all([], 'title ASC') as $row) {
+            if ($exceptId !== null && (int) $row['id'] === $exceptId) {
+                continue;
+            }
+            if (strcasecmp($row['title'], $title) === 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** All branches for the current tenant, with staff counts. */

@@ -282,6 +282,68 @@ class SaleModel extends Model
         return $out;
     }
 
+    /**
+     * Void a completed sale and restore product stock.
+     * @return array ['ok'=>bool, 'error'=>?string]
+     */
+    public function voidSale(int $saleId): array
+    {
+        $tid = \TenantContext::tenantId();
+        if ($tid === null) {
+            return ['ok' => false, 'error' => 'No shop in context.'];
+        }
+
+        $db = $this->db;
+        $ownsTx = !$db->inTransaction();
+        try {
+            if ($ownsTx) {
+                $db->beginTransaction();
+            }
+
+            $stmt = $db->prepare(
+                "SELECT id, status FROM sales WHERE id = ? AND tenant_id = ? FOR UPDATE"
+            );
+            $stmt->execute([$saleId, $tid]);
+            $sale = $stmt->fetch();
+            if (!$sale) {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'Sale not found.'];
+            }
+            if (($sale['status'] ?? '') !== 'completed') {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'This sale is already voided or cannot be cancelled.'];
+            }
+
+            $items = $this->items($saleId);
+            $restore = $db->prepare(
+                'UPDATE products SET quantity = quantity + ? WHERE id = ? AND tenant_id = ?'
+            );
+            foreach ($items as $item) {
+                if ((int) ($item['product_id'] ?? 0) <= 0) {
+                    continue;
+                }
+                $restore->execute([(float) $item['quantity'], (int) $item['product_id'], $tid]);
+            }
+
+            $upd = $db->prepare(
+                "UPDATE sales SET status = 'voided' WHERE id = ? AND tenant_id = ? AND status = 'completed'"
+            );
+            $upd->execute([$saleId, $tid]);
+            if ($upd->rowCount() !== 1) {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'Could not void this sale.'];
+            }
+
+            if ($ownsTx) {
+                $db->commit();
+            }
+            return ['ok' => true, 'error' => null];
+        } catch (\Throwable $e) {
+            if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+            return ['ok' => false, 'error' => 'Could not void this sale. Please try again.'];
+        }
+    }
+
     /** Totals for a set of sales rows (revenue, count, by method). */
     public static function summarize(array $rows): array
     {

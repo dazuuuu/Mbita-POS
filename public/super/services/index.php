@@ -6,9 +6,11 @@ PageGuard::tenant();
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
-if (($__tenant['business_type'] ?? 'shop') !== 'barbershop_salon') {
-    $_SESSION['flash']['error'] = 'Services are only available for barbershop & salon businesses.';
-    header('Location: ' . public_path('super/dashboard/'));
+$__locations = (new Models\BranchModel($pdo))->listWithCounts();
+$modules = TenantModules::effectiveForTenant($__tenant, $__locations);
+if (empty($modules[TenantModules::SERVICES])) {
+    $_SESSION['flash']['error'] = 'Services are not enabled for any of your locations. Turn on Services in Settings → Modules.';
+    header('Location: ' . public_path('super/settings/?tab=modules'));
     exit;
 }
 

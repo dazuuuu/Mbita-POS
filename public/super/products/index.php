@@ -66,8 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . $base); exit;
     }
     if ($action === 'delete') {
-        $P->deleteSafe((int) ($_POST['id'] ?? 0));
-        $_SESSION['flash']['success'] = 'Product deleted.';
+        $res = $P->deleteSafe((int) ($_POST['id'] ?? 0));
+        $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+            ? 'Product deleted.'
+            : ($res['error'] ?? 'Could not delete product.');
         header('Location: ' . $base); exit;
     }
 

@@ -125,14 +125,18 @@ class StaffService
         return $email;
     }
 
-    private function pinExists(int $tenantId, string $pin): bool
+    private function pinExists(int $tenantId, string $pin, ?int $exceptUserId = null): bool
     {
         if (!SchemaHelper::columnExists($this->db, 'users', 'login_pin_lookup')) {
             return false;
         }
-        $stmt = $this->db->prepare('SELECT 1 FROM users WHERE tenant_id = ? AND login_pin_lookup = ? LIMIT 1');
+        $stmt = $this->db->prepare('SELECT id FROM users WHERE tenant_id = ? AND login_pin_lookup = ? LIMIT 1');
         $stmt->execute([$tenantId, self::pinLookup($tenantId, $pin)]);
-        return (bool) $stmt->fetchColumn();
+        $id = $stmt->fetchColumn();
+        if ($id === false) {
+            return false;
+        }
+        return $exceptUserId === null || (int) $id !== $exceptUserId;
     }
 
     private function branchBelongsToTenant(int $branchId, int $tenantId): bool
@@ -251,6 +255,73 @@ class StaffService
         }
     }
 
+    /**
+     * Update staff profile (name, role, branch). PIN is optional.
+     * @return array ['ok'=>bool, 'errors'=>array]
+     */
+    public function update(int $tenantId, int $userId, array $in): array
+    {
+        $staff = $this->findStaff($tenantId, $userId);
+        if (!$staff) {
+            return ['ok' => false, 'errors' => ['_' => 'Staff member not found.']];
+        }
+
+        $name      = trim($in['name'] ?? $staff['username']);
+        $staffType = $in['staff_type'] ?? ($staff['staff_type'] ?? 'general');
+        $branchId  = isset($in['branch_id']) && (int) $in['branch_id'] > 0 ? (int) $in['branch_id'] : null;
+        $pin       = trim($in['pin'] ?? '');
+        $errors    = [];
+
+        if ($name === '') {
+            $errors['name'] = 'Staff name is required.';
+        }
+        if (!isset(StaffRoles::typeLabels()[$staffType])) {
+            $errors['staff_type'] = 'Choose a valid staff role.';
+        }
+        if ($branchId !== null && !$this->branchBelongsToTenant($branchId, $tenantId)) {
+            $errors['branch_id'] = 'Choose a valid branch.';
+        }
+        if ($pin !== '' && !preg_match('/^\d{4,5}$/', $pin)) {
+            $errors['pin'] = 'PIN must be 4 or 5 digits.';
+        }
+        if (!$errors && $pin !== '' && $this->pinExists($tenantId, $pin, $userId)) {
+            $errors['pin'] = 'That PIN is already in use by another staff member.';
+        }
+        if ($errors) {
+            return ['ok' => false, 'errors' => $errors];
+        }
+
+        $roleName = StaffRoles::roleForType($staffType);
+        $roleId = $this->roleId($roleName);
+        if ($roleId === null) {
+            return ['ok' => false, 'errors' => ['_' => 'Staff role missing. Run migration 025.']];
+        }
+
+        $row = [
+            'username'   => $name,
+            'staff_type' => $staffType,
+            'branch_id'  => $branchId,
+            'role_id'    => $roleId,
+        ];
+        if ($pin !== '') {
+            $row['login_pin_hash'] = password_hash($pin, PASSWORD_DEFAULT);
+            $row['login_pin_lookup'] = self::pinLookup($tenantId, $pin);
+        }
+        $row = SchemaHelper::filterColumns($this->db, 'users', $row);
+        $sets = [];
+        $params = [];
+        foreach ($row as $col => $val) {
+            $sets[] = "{$col} = ?";
+            $params[] = $val;
+        }
+        $params[] = $userId;
+        $params[] = $tenantId;
+        $stmt = $this->db->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ? AND tenant_id = ?');
+        $stmt->execute($params);
+
+        return ['ok' => true, 'errors' => []];
+    }
+
     /** Update staff PIN (owner action). */
     public function updatePin(int $tenantId, int $userId, string $pin): array
     {
@@ -339,6 +410,16 @@ class StaffService
 
     public function deactivate(int $tenantId, int $userId): bool
     {
+        return $this->setActive($tenantId, $userId, false);
+    }
+
+    public function activate(int $tenantId, int $userId): bool
+    {
+        return $this->setActive($tenantId, $userId, true);
+    }
+
+    private function setActive(int $tenantId, int $userId, bool $active): bool
+    {
         $staff = $this->findStaff($tenantId, $userId);
         if (!$staff) {
             return false;
@@ -347,9 +428,9 @@ class StaffService
         $placeholders = implode(',', array_fill(0, count($roles), '?'));
         $stmt = $this->db->prepare(
             "UPDATE users u JOIN roles r ON r.id = u.role_id
-                SET u.is_active = 0 WHERE u.id = ? AND u.tenant_id = ? AND r.role_name IN ({$placeholders})"
+                SET u.is_active = ? WHERE u.id = ? AND u.tenant_id = ? AND r.role_name IN ({$placeholders})"
         );
-        $stmt->execute(array_merge([$userId, $tenantId], $roles));
+        $stmt->execute(array_merge([$active ? 1 : 0, $userId, $tenantId], $roles));
         return $stmt->rowCount() > 0;
     }
 }
