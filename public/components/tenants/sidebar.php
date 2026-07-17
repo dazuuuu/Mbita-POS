@@ -72,11 +72,14 @@ $modeLabel = $enabledLabels ? implode(' + ', $enabledLabels) : 'Set up in Settin
 <div class="cd-overlay" id="cdOverlay"></div>
 <aside class="cd-sidebar" id="cdSidebar">
   <div class="cd-sidebar-brand">
-    <?php
-    $__brandTenant = $__tenant;
-    $__brandSubline = $modeLabel;
-    include __DIR__ . '/../branding/logo_block.php';
-    ?>
+    <?php $brandLogo = Branding::tenantLogoUrl($__tenant); ?>
+    <?php if ($brandLogo): ?>
+    <img src="<?php echo htmlspecialchars($brandLogo); ?>" alt="<?php echo htmlspecialchars($shopName); ?>"
+         style="height:28px;max-width:72px;object-fit:contain;background:#fff;border-radius:4px;padding:2px 4px;">
+    <?php else: ?>
+    <i class="fas fa-chart-bar"></i>
+    <?php endif; ?>
+    <span><?php echo htmlspecialchars($shopName); ?></span>
   </div>
   <nav>
     <ul class="cd-nav">

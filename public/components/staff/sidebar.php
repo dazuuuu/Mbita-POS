@@ -23,7 +23,14 @@ $isOn = function (string $needle) use ($uri): string {
 <aside class="t-sidebar" id="tSidebar">
     <div class="t-brand">
         <button class="t-close" id="tSidebarClose" aria-label="Close"><i class="fas fa-times"></i></button>
-        <?php include __DIR__ . '/../branding/logo_block.php'; ?>
+        <?php
+        $brandLogo = Branding::tenantLogoUrl($__tenant);
+        $brandName = Branding::shopName($__tenant);
+        ?>
+        <?php if ($brandLogo): ?>
+        <img class="t-logo" src="<?php echo htmlspecialchars($brandLogo); ?>" alt="<?php echo htmlspecialchars($brandName); ?>">
+        <?php endif; ?>
+        <div class="t-shop"><?php echo htmlspecialchars($brandName); ?></div>
         <div class="t-user">
             <?php echo htmlspecialchars($username); ?>
             <span class="t-role"><?php echo htmlspecialchars($roleLabel); ?></span>

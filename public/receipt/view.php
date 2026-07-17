@@ -145,14 +145,12 @@ $page_title = 'Receipt ' . $receiptNumber;
 $extra_css = <<<'CSS'
 <style>
   .rc-wrap { max-width: 480px; margin: 0 auto; }
-  .rc-sheet { background:#fff; border:1px solid #ddd; padding:24px; margin-bottom:18px; }
-  .rc-pending { border:2px dashed #111; }
-  .receipt-print, .receipt-print * { color:#111 !important; }
+  .rc-sheet { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:24px; margin-bottom:18px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .rc-pending { border:2px dashed #f59e0b; }
   @media print {
     .rc-actions, .t-sidebar, .t-sidebar-toggle, .cd-sidebar, .cd-header, .noprint { display:none !important; }
     .rc-sheet { box-shadow:none; border:none; padding:0; }
     body, .t-main { background:#fff !important; }
-    .receipt-print img { filter:grayscale(100%) !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
 </style>
 CSS;

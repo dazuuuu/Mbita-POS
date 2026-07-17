@@ -16,7 +16,6 @@ $isDashboard = strpos($_SERVER['REQUEST_URI'] ?? '', '/dashboard') !== false;
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="<?php echo public_path('assets/css/curlz-dashboard.css'); ?>">
-    <link rel="stylesheet" href="<?php echo public_path('assets/css/branding.css'); ?>">
     <?php echo $extra_css ?? ''; ?>
 </head>
 <body class="cd-body">
