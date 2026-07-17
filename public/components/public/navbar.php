@@ -66,10 +66,10 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
                     <!-- Inline engineering gear fallback -->
                     <svg width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M24 4l3.2 4.1 5-1.7 1.1 5.2 5.2 1.1-1.7 5L46 24l-4.1 3.2 1.7 5-5.2 1.1-1.1 5.2-5-1.7L24 44l-3.2-4.1-5 1.7-1.1-5.2-5.2-1.1 1.7-5L2 24l4.1-3.2-1.7-5 5.2-1.1L10.7 9.4l5 1.7L24 4z"
-                              fill="var(--brand-primary,#0D9488)"/>
+                              fill="#c9a227"/>
                         <circle cx="24" cy="24" r="9" fill="#fff"/>
                         <text x="24" y="28.5" text-anchor="middle" font-family="Montserrat, sans-serif"
-                              font-size="11" font-weight="800" fill="var(--brand-primary,#0D9488)">C</text>
+                              font-size="11" font-weight="800" fill="#0a0a0a">C</text>
                     </svg>
                 <?php endif; ?>
             </span>
@@ -171,9 +171,9 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
         <a class="header-brand drawer-brand" href="<?php echo public_path(''); ?>">
             <span class="brand-mark" aria-hidden="true">
                 <svg width="34" height="34" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M24 4l3.2 4.1 5-1.7 1.1 5.2 5.2 1.1-1.7 5L46 24l-4.1 3.2 1.7 5-5.2 1.1-1.1 5.2-5-1.7L24 44l-3.2-4.1-5 1.7-1.1-5.2-5.2-1.1 1.7-5L2 24l4.1-3.2-1.7-5 5.2-1.1L10.7 9.4l5 1.7L24 4z" fill="var(--brand-primary,#0D9488)"/>
+                    <path d="M24 4l3.2 4.1 5-1.7 1.1 5.2 5.2 1.1-1.7 5L46 24l-4.1 3.2 1.7 5-5.2 1.1-1.1 5.2-5-1.7L24 44l-3.2-4.1-5 1.7-1.1-5.2-5.2-1.1 1.7-5L2 24l4.1-3.2-1.7-5 5.2-1.1L10.7 9.4l5 1.7L24 4z" fill="#c9a227"/>
                     <circle cx="24" cy="24" r="9" fill="#fff"/>
-                    <text x="24" y="28.5" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="11" font-weight="800" fill="var(--brand-primary,#0D9488)">C</text>
+                    <text x="24" y="28.5" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="11" font-weight="800" fill="#0a0a0a">C</text>
                 </svg>
             </span>
             <span class="brand-text">
@@ -243,7 +243,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 
 <style>
 /* ============================================================
-   NAVBAR — ISMAN Engineering. Uses theme.css tokens; fallbacks safe.
+   NAVBAR — Black · White · Gold
 ============================================================ */
 * {
     margin: 0;
@@ -260,10 +260,11 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     height: 36px;
     display: flex;
     align-items: center;
-    background: var(--brand-primary, #0D9488);
+    background: #0a0a0a;
     color: #fff;
     font-family: var(--font-body, sans-serif);
     font-size: 0.8rem;
+    border-bottom: 1px solid #c9a227;
 }
 
 .topbar-inner {
@@ -295,7 +296,8 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .topbar-link:hover {
-    opacity: 0.75;
+    opacity: 1;
+    color: #c9a227;
 }
 
 .topbar-link i {
@@ -320,13 +322,13 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     right: 0;
     z-index: 1000;
     height: 80px;
-    background: var(--color-surface, #fff);
-    border-bottom: 1px solid var(--color-border, #E2EAE8);
+    background: #ffffff;
+    border-bottom: 1px solid #e5e5e5;
     transition: box-shadow 0.3s ease, top 0.3s ease;
 }
 
 .site-header.is-scrolled {
-    box-shadow: 0 4px 24px rgba(10, 52, 47, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
 .header-inner {
@@ -376,7 +378,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     font-size: 1.18rem;
     font-weight: 800;
     letter-spacing: 0.02em;
-    color: var(--color-text-heading, #0A1413);
+    color: #0a0a0a;
 }
 
 .brand-tag {
@@ -385,7 +387,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     font-weight: 600;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--color-text-muted, #7B8987);
+    color: #c9a227;
 }
 
 /* Desktop nav */
@@ -409,7 +411,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     font-family: var(--font-body, sans-serif);
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--color-text-body, #44524F);
+    color: #333333;
     padding: 9px 14px;
     border-radius: var(--radius-md, 12px);
     text-decoration: none;
@@ -419,12 +421,12 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .nav-link:hover {
-    color: var(--brand-primary, #0D9488);
-    background: rgba(13, 148, 136, 0.07);
+    color: #0a0a0a;
+    background: rgba(201, 162, 39, 0.1);
 }
 
 .nav-link.is-active {
-    color: var(--brand-primary, #0D9488);
+    color: #0a0a0a;
     font-weight: 600;
 }
 
@@ -435,7 +437,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     left: 14px;
     right: 14px;
     height: 2px;
-    background: var(--brand-primary, #0D9488);
+    background: #c9a227;
     border-radius: 2px;
 }
 
@@ -448,8 +450,8 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #fff;
-    background: var(--brand-primary, #0D9488);
+    color: #0a0a0a;
+    background: #c9a227;
     border-radius: var(--radius-full, 9999px);
     padding: 2px 7px;
 }
@@ -506,8 +508,8 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .dropdown-link:hover {
-    background: rgba(13, 148, 136, 0.08);
-    color: var(--brand-primary, #0D9488);
+    background: rgba(201, 162, 39, 0.08);
+    color: #c9a227;
 }
 
 .dropdown-link i {
@@ -517,7 +519,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .dropdown-link:hover i {
-    color: var(--brand-primary, #0D9488);
+    color: #c9a227;
 }
 
 .dropdown-divider {
@@ -528,7 +530,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 
 .cart-badge {
     display: inline-block;
-    background: var(--brand-primary, #0D9488);
+    background: #c9a227;
     color: #fff;
     font-size: 0.65rem;
     font-weight: 600;
@@ -557,8 +559,8 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .cart-icon-mobile:hover {
-    color: var(--brand-primary, #0D9488);
-    border-color: var(--brand-primary, #0D9488);
+    color: #c9a227;
+    border-color: #c9a227;
 }
 
 .cart-count-mobile {
@@ -598,17 +600,31 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .theme-toggle:hover {
-    color: var(--brand-primary, #0D9488);
-    border-color: var(--brand-primary, #0D9488);
+    color: #c9a227;
+    border-color: #c9a227;
 }
 
 html[data-theme="dark"] .theme-toggle i::before {
     content: "\f185";
 }
 
+.nav-cta,
+.drawer-cta {
+    background: #c9a227 !important;
+    color: #0a0a0a !important;
+    border: 1px solid #9a7b1a !important;
+    font-weight: 700;
+}
+
+.nav-cta:hover,
+.drawer-cta:hover {
+    background: #e8c547 !important;
+    color: #0a0a0a !important;
+}
+
 /* sun */
 .nav-cta {
-    box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25);
+    box-shadow: 0 4px 14px rgba(201, 162, 39, 0.3);
 }
 
 /* User dropdown */
@@ -632,7 +648,7 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .user-trigger:hover {
-    border-color: var(--brand-primary, #0D9488);
+    border-color: #c9a227;
     box-shadow: var(--shadow-sm);
 }
 
@@ -640,7 +656,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: var(--brand-primary, #0D9488);
+    background: #c9a227;
     color: #fff;
     display: flex;
     align-items: center;
@@ -705,8 +721,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .dropdown-item:hover {
-    background: rgba(13, 148, 136, 0.08);
-    color: var(--brand-primary, #0D9488);
+    background: rgba(201, 162, 39, 0.08);
+    color: #c9a227;
 }
 
 .dropdown-item--danger {
@@ -764,7 +780,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease;
-    background: rgba(13, 148, 136, 0.03);
+    background: rgba(201, 162, 39, 0.03);
 }
 
 .drawer-submenu.open {
@@ -784,8 +800,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .drawer-sub-link:hover {
-    background: rgba(13, 148, 136, 0.08);
-    color: var(--brand-primary, #0D9488);
+    background: rgba(201, 162, 39, 0.08);
+    color: #c9a227;
 }
 
 .drawer-sub-link i {
@@ -817,8 +833,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .hamburger:hover {
-    border-color: var(--brand-primary, #0D9488);
-    background: rgba(13, 148, 136, 0.05);
+    border-color: #c9a227;
+    background: rgba(201, 162, 39, 0.05);
 }
 
 .ham-bar {
@@ -848,7 +864,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     position: fixed;
     inset: 0;
     z-index: 1099;
-    background: rgba(6, 52, 47, 0.55);
+    background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
     opacity: 0;
@@ -873,7 +889,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     flex-direction: column;
     transform: translateX(100%);
     transition: transform 0.38s cubic-bezier(0.32, 0, 0.15, 1);
-    box-shadow: -8px 0 40px rgba(6, 52, 47, 0.18);
+    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.18);
     overflow-y: auto;
     overscroll-behavior: contain;
 }
@@ -912,8 +928,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .drawer-close:hover {
-    background: var(--brand-primary, #0D9488);
-    border-color: var(--brand-primary, #0D9488);
+    background: #c9a227;
+    border-color: #c9a227;
     color: #fff;
 }
 
@@ -957,8 +973,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 
 .drawer-link:hover,
 .drawer-link:focus-visible {
-    color: var(--brand-primary, #0D9488);
-    background: rgba(13, 148, 136, 0.05);
+    color: #c9a227;
+    background: rgba(201, 162, 39, 0.05);
 }
 
 .drawer-arrow {
@@ -970,7 +986,7 @@ html[data-theme="dark"] .theme-toggle i::before {
 
 .drawer-link:hover .drawer-arrow {
     transform: translateX(4px);
-    color: var(--brand-primary, #0D9488);
+    color: #c9a227;
 }
 
 .drawer-foot {
@@ -995,7 +1011,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--brand-primary, #0D9488);
+    background: #c9a227;
     color: #fff;
     display: flex;
     align-items: center;
@@ -1044,8 +1060,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .drawer-foot-link:hover {
-    background: rgba(13, 148, 136, 0.08);
-    color: var(--brand-primary, #0D9488);
+    background: rgba(201, 162, 39, 0.08);
+    color: #c9a227;
 }
 
 .drawer-foot-link--danger {
@@ -1076,7 +1092,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     gap: 8px;
     font-size: 0.9rem;
     font-weight: 600;
-    color: var(--brand-primary, #0D9488);
+    color: #c9a227;
     text-decoration: none;
 }
 
@@ -1269,7 +1285,7 @@ body {
 .drawer-link:focus-visible,
 .nav-link:focus-visible,
 .theme-toggle:focus-visible {
-    outline: 2px solid var(--brand-primary, #0D9488);
+    outline: 2px solid #c9a227;
     outline-offset: 2px;
 }
 </style>

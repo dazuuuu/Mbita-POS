@@ -141,15 +141,15 @@ ob_start();
   .auth-switch { display:flex; gap:8px; margin-bottom:20px; }
   .auth-switch a {
     flex:1; text-align:center; padding:10px; border-radius:10px; font-size:.85rem; font-weight:600;
-    text-decoration:none; color:#94a3b8; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+    text-decoration:none; color:#666; background:#f5f5f5; border:1px solid #e5e5e5;
   }
-  .auth-switch a.active { color:#fff; background:rgba(37,99,235,.25); border-color:rgba(37,99,235,.5); }
-  .lock-time { text-align:center; font-size:2.4rem; font-weight:200; color:#fff; letter-spacing:-.02em; margin:4px 0 2px; line-height:1.1; }
-  .lock-date { text-align:center; color:#64748b; font-size:.82rem; margin-bottom:18px; }
-  .lock-hint { text-align:center; color:#94a3b8; font-size:.88rem; margin-bottom:6px; }
+  .auth-switch a.active { color:#0a0a0a; background:rgba(201,162,39,.15); border-color:#c9a227; }
+  .lock-time { text-align:center; font-size:2.4rem; font-weight:300; color:#0a0a0a; letter-spacing:-.02em; margin:4px 0 2px; line-height:1.1; }
+  .lock-date { text-align:center; color:#666; font-size:.82rem; margin-bottom:18px; }
+  .lock-hint { text-align:center; color:#888; font-size:.88rem; margin-bottom:6px; }
   .auth-foot { text-align:center; margin-top:18px; font-size:.82rem; }
-  .auth-foot a { color:#64748b; text-decoration:none; }
-  .auth-foot a:hover { color:#94a3b8; }
+  .auth-foot a { color:#9a7b1a; text-decoration:none; }
+  .auth-foot a:hover { color:#c9a227; }
 </style>
 
 <div class="auth-switch">

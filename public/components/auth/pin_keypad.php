@@ -28,10 +28,10 @@ $pinPadId = 'pinPad_' . bin2hex(random_bytes(3));
   .phone-lock-dots { display: flex; justify-content: center; gap: 14px; margin: 8px 0 28px; min-height: 16px; }
   .phone-lock-dot {
     width: 14px; height: 14px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,.35); background: transparent;
+    border: 2px solid #ccc; background: transparent;
     transition: all .15s ease;
   }
-  .phone-lock-dot.filled { background: #fff; border-color: #fff; transform: scale(1.05); }
+  .phone-lock-dot.filled { background: #c9a227; border-color: #c9a227; transform: scale(1.05); }
   .phone-lock-dot.error { border-color: #f87171; background: rgba(248,113,113,.3); animation: pinShake .35s ease; }
   @keyframes pinShake {
     0%,100%{ transform: translateX(0); }
