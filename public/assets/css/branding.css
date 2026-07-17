@@ -1,0 +1,70 @@
+<?php
+// public/assets/css/branding.css — shared tenant logo + name blocks
+
+.brand-block--sidebar {
+  text-align: center;
+  padding: 4px 0 2px;
+}
+.brand-logo--sidebar {
+  max-height: 44px;
+  max-width: 160px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 8px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px;
+}
+.brand-name--sidebar {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.brand-subline {
+  display: block;
+  font-size: .65rem;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.brand-block--auth {
+  margin-bottom: 8px;
+}
+.brand-logo--auth {
+  max-height: 64px;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 10px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .25);
+}
+.brand-name--auth {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+}
+
+/* Owner sidebar (green header) */
+.cd-sidebar-brand.brand-block--sidebar {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.cd-sidebar-brand .brand-name--sidebar {
+  font-size: .95rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.cd-sidebar-brand .brand-logo--sidebar {
+  margin-bottom: 4px;
+}

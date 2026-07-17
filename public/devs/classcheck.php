@@ -3,7 +3,7 @@
 // DEV-ONLY. Shows the REAL file each guard class is loaded from, and the actual
 // source of PageGuard's methods that are running — so we can catch a stale or
 // duplicate copy being autoloaded. Key-guarded. Delete before prod.
-//   http://localhost/Modern/public/devs/classcheck.php?key=modern-dev
+//   http://localhost/public/devs/classcheck.php?key=modern-dev
 
 require_once __DIR__ . '/../../app/app.php';
 

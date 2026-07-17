@@ -28,7 +28,7 @@ if ($st['status'] === 'success') {
         $_SESSION['first_login']  = true;
         unset($_SESSION['reg_pending']);
     }
-    echo json_encode(['status' => 'success', 'redirect' => '/Curlz/public/super/dashboard/']);
+    echo json_encode(['status' => 'success', 'redirect' => public_path('super/dashboard/')]);
     exit;
 }
 

@@ -2,8 +2,14 @@
 // public/staff/commissions/new.php
 require_once __DIR__ . '/../../../app/app.php';
 PageGuard::commissionAgent();
-if (TenantContext::role() !== 'staff') {
-    header('Location: /Curlz/public/sales-agent/sales/new.php');
+if (!StaffRoles::isEmployeeRole(TenantContext::role())) {
+    header('Location: ' . public_path('sales-agent/sales/new.php'));
+    exit;
+}
+
+$modules = StaffNav::staffModules();
+if (StaffNav::canCheckIn($modules)) {
+    header('Location: ' . public_path('staff/checkin/'));
     exit;
 }
 
@@ -19,16 +25,9 @@ $stmt = $pdo->prepare('SELECT branch_id FROM users WHERE id = ?');
 $stmt->execute([$userId]);
 $branchId = (int) ($stmt->fetchColumn() ?: 0) ?: null;
 
-$services = $svcSvc->activeForTenant($tenantId);
-try {
-    $stmt = $pdo->prepare("SELECT id, name, selling_price, commission_type, commission_value, credit_allowed FROM products WHERE tenant_id = ? AND status = 'active' ORDER BY name");
-    $stmt->execute([$tenantId]);
-    $products = $stmt->fetchAll();
-} catch (Throwable $e) {
-    $stmt = $pdo->prepare("SELECT id, name, selling_price, commission_type, commission_value FROM products WHERE tenant_id = ? AND status = 'active' ORDER BY name");
-    $stmt->execute([$tenantId]);
-    $products = $stmt->fetchAll();
-}
+$services = $svcSvc->activeForTenant($tenantId, $branchId);
+$P = new Models\ProductModel($pdo);
+$products = $P->sellable($branchId);
 
 $errors = [];
 $preview = null;
@@ -93,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? $commSvc->recordSale($tenantId, $userId, array_merge($common, $items[0]))
             : $commSvc->recordSaleBatch($tenantId, $userId, $common, $items);
         if ($res['ok']) {
-            header('Location: /Curlz/public/commission/receipt.php?id=' . $res['id']);
+            header('Location: ' . ReceiptUrl::forCommission((int) $res['id']));
             exit;
         }
         $errors = $res['errors'];

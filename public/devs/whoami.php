@@ -2,7 +2,7 @@
 // public/devs/whoami.php
 // DEV-ONLY. Shows what role the session carries vs what the DB join returns, so
 // we can see exactly why a tenant_owner gets ?denied=1. Key-guarded. Delete before prod.
-//   http://localhost/Modern/public/devs/whoami.php?key=modern-dev&user=2
+//   http://localhost/public/devs/whoami.php?key=modern-dev&user=2
 
 require_once __DIR__ . '/../../app/app.php';
 

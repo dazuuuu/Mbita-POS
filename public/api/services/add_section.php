@@ -10,6 +10,7 @@ function sendJsonResponse($success, $message) {
 }
 
 try {
+    require_once dirname(__DIR__, 3) . '/app/helpers/AppUrl.php';
     if (session_status() === PHP_SESSION_NONE) session_start();
     
     if (!isset($_SESSION['user_id']) || !isset($_SESSION['role_id']) || $_SESSION['role_id'] > 2) {
@@ -36,7 +37,7 @@ try {
     $media_type = 'image';
     
     if (isset($_FILES['media_file']) && $_FILES['media_file']['error'] === 0) {
-        $upload_dir = $_SERVER['DOCUMENT_ROOT'] . '/Modern/public/uploads/services/sections/';
+        $upload_dir = ROOT_PATH . '/public/uploads/services/sections/';
         if (!is_dir($upload_dir)) {
             mkdir($upload_dir, 0777, true);
         }
@@ -46,7 +47,7 @@ try {
         $target_file = $upload_dir . $filename;
         
         if (move_uploaded_file($_FILES['media_file']['tmp_name'], $target_file)) {
-            $media_url = '/Modern/public/uploads/services/sections/' . $filename;
+            $media_url = public_path('uploads/services/sections/') . $filename;
             $media_type = in_array($ext, ['mp4', 'webm', 'ogg']) ? 'video' : 'image';
         }
     }
