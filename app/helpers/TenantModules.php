@@ -15,6 +15,7 @@ class TenantModules
     public const SALES_AGENTS        = 'sales_agents';
     public const STAFF_PROMOTION     = 'staff_promotion';
     public const PAYMENT_PROCESSING  = 'payment_processing';
+    public const APPOINTMENTS        = 'appointments';
 
     /** All module keys (for forms). */
     public static function keys(): array
@@ -31,6 +32,7 @@ class TenantModules
             self::SALES_AGENTS,
             self::STAFF_PROMOTION,
             self::PAYMENT_PROCESSING,
+            self::APPOINTMENTS,
         ];
     }
 
@@ -70,6 +72,7 @@ class TenantModules
                 self::SALES_AGENTS        => true,
                 self::STAFF_PROMOTION     => true,
                 self::PAYMENT_PROCESSING  => true,
+                self::APPOINTMENTS        => false,
             ];
         }
 
@@ -85,6 +88,7 @@ class TenantModules
             self::SALES_AGENTS        => false,
             self::STAFF_PROMOTION     => true,
             self::PAYMENT_PROCESSING  => true,
+            self::APPOINTMENTS        => true,
         ];
     }
 
@@ -110,6 +114,7 @@ class TenantModules
             self::SALES_AGENTS        => 'Sales agents',
             self::STAFF_PROMOTION     => 'Promote staff (junior admin)',
             self::PAYMENT_PROCESSING  => 'Payment processing (cashier/reception)',
+            self::APPOINTMENTS        => 'Appointments booking',
         ];
     }
 
@@ -127,6 +132,7 @@ class TenantModules
             self::SALES_AGENTS        => 'Dedicated sales-agent accounts.',
             self::STAFF_PROMOTION     => 'Junior admin — delegate inventory, sales, reports.',
             self::PAYMENT_PROCESSING  => 'Only cashier/reception process payments by default. Delegate via staff permissions.',
+            self::APPOINTMENTS        => 'Let staff book appointments. Super controls who can book via Staff → Authorization.',
         ];
     }
 

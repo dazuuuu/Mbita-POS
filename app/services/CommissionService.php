@@ -17,6 +17,7 @@ class CommissionService
         Schema023Service::ensureApplied($db);
         Schema024Service::ensureApplied($db);
         Schema030Service::ensureApplied($db);
+        Schema031Service::ensureApplied($db);
         return SchemaHelper::migration023Ready($db);
     }
 
@@ -37,15 +38,65 @@ class CommissionService
         return $this->recordSale($tenantId, $agentId, $in);
     }
 
+    /** Reception check-in — multiple pending service invoices for one customer visit. */
+    public function recordCheckIn(int $tenantId, int $recordedBy, array $common, array $items): array
+    {
+        if (!$items) {
+            return ['ok' => false, 'errors' => ['_' => 'Add at least one service.']];
+        }
+        $agentId = (int) ($common['agent_user_id'] ?? 0);
+        if ($agentId <= 0) {
+            return ['ok' => false, 'errors' => ['agent_user_id' => 'Assign the staff member for this visit.']];
+        }
+        $customerName = trim($common['customer_name'] ?? '');
+        if ($customerName === '') {
+            return ['ok' => false, 'errors' => ['customer_name' => 'Customer name is required for check-in.']];
+        }
+
+        $ids = [];
+        $receipts = [];
+        $total = 0.0;
+        foreach ($items as $item) {
+            if (($item['item_type'] ?? '') !== 'service') {
+                continue;
+            }
+            $res = $this->recordInvoice($tenantId, $recordedBy, array_merge($common, $item, [
+                'agent_user_id' => $agentId,
+                'customer_name' => $customerName,
+            ]));
+            if (!$res['ok']) {
+                return $res;
+            }
+            $ids[] = (int) $res['id'];
+            $receipts[] = $res['receipt_number'];
+            $total += (float) ($item['charged_amount'] ?? 0);
+        }
+        if (!$ids) {
+            return ['ok' => false, 'errors' => ['_' => 'Add at least one service.']];
+        }
+        return [
+            'ok' => true,
+            'ids' => $ids,
+            'id' => $ids[0],
+            'receipt_numbers' => $receipts,
+            'receipt_number' => $receipts[0],
+            'total' => $total,
+            'count' => count($ids),
+            'errors' => [],
+        ];
+    }
+
     /** Cashier/reception marks a pending invoice as paid. */
     public function processPayment(int $tenantId, int $saleId, array $in): array
     {
         if (!$this->hasPaymentWorkflow()) {
             return ['ok' => false, 'error' => 'Payment workflow is not set up. Run fix-all-schema.php once.'];
         }
-        $method = in_array($in['payment_method'] ?? '', ['cash', 'mpesa'], true) ? $in['payment_method'] : null;
-        if (!$method) {
-            return ['ok' => false, 'error' => 'Choose cash or M-Pesa.'];
+
+        $method = $in['payment_method'] ?? 'cash';
+        $isCredit = $method === 'credit';
+        if (!$isCredit && !in_array($method, ['cash', 'mpesa'], true)) {
+            return ['ok' => false, 'error' => 'Choose cash, M-Pesa, or credit.'];
         }
 
         $sale = $this->find($tenantId, $saleId);
@@ -56,18 +107,68 @@ class CommissionService
             return ['ok' => false, 'error' => 'This invoice is already paid or voided.'];
         }
 
+        $amount = (float) ($sale['charged_amount'] ?? 0);
+        $creditDueAt = null;
+
+        if ($isCredit) {
+            if (!$this->serviceCreditsEnabled($tenantId)) {
+                return ['ok' => false, 'error' => 'Service credits are not enabled for this shop.'];
+            }
+            $customerId = (int) ($sale['customer_id'] ?? 0);
+            if ($customerId <= 0) {
+                return ['ok' => false, 'error' => 'Customer is required for credit payment. Check-in must include customer name.'];
+            }
+            $custSvc = new CustomerService($this->db);
+            $summary = $custSvc->creditSummary($tenantId, $customerId);
+            if ($summary['available'] + 0.01 < $amount) {
+                return ['ok' => false, 'error' => 'Credit not available. Limit KES '
+                    . number_format($summary['limit'], 0) . ', used KES '
+                    . number_format($summary['used'], 0) . ', available KES '
+                    . number_format($summary['available'], 0) . '.'];
+            }
+            $days = max(1, (int) ($in['credit_days'] ?? $this->defaultCreditDays($tenantId)));
+            $creditDueAt = date('Y-m-d H:i:s', strtotime("+{$days} days"));
+        }
+
+        $ownsTx = !$this->db->inTransaction();
+        if ($ownsTx) {
+            $this->db->beginTransaction();
+        }
         try {
+            if ($isCredit) {
+                $custSvc = new CustomerService($this->db);
+                $custSvc->addCredit($tenantId, (int) $sale['customer_id'], $amount);
+            }
+
+            $creditSql = SchemaHelper::columnExists($this->db, 'commission_sales', 'credit_due_at')
+                ? ', credit_due_at = ?' : '';
+            $params = [$method, $isCredit ? 1 : 0];
+            if ($creditSql) {
+                $params[] = $creditDueAt;
+            }
+            $params[] = $saleId;
+            $params[] = $tenantId;
+
             $stmt = $this->db->prepare(
                 "UPDATE commission_sales
-                    SET payment_method = ?, payment_status = 'paid', paid_at = NOW()
+                    SET payment_method = ?, payment_status = 'paid', paid_at = NOW(), is_credit = ?{$creditSql}
                   WHERE id = ? AND tenant_id = ? AND payment_status = 'pending'"
             );
-            $stmt->execute([$method, $saleId, $tenantId]);
+            $stmt->execute($params);
             if ($stmt->rowCount() !== 1) {
+                if ($ownsTx && $this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
                 return ['ok' => false, 'error' => 'Could not process payment.'];
+            }
+            if ($ownsTx) {
+                $this->db->commit();
             }
             return ['ok' => true, 'id' => $saleId, 'receipt_number' => $sale['receipt_number']];
         } catch (Throwable $e) {
+            if ($ownsTx && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             return ['ok' => false, 'error' => 'Could not process payment.'];
         }
     }
@@ -85,11 +186,13 @@ class CommissionService
             $params[] = $branchId;
         }
         return $this->rows(
-            "SELECT cs.*, u.username AS agent_name, r.username AS recorded_by_name, b.title AS branch_name
+            "SELECT cs.*, u.username AS agent_name, r.username AS recorded_by_name, b.title AS branch_name,
+                    c.credit_balance, c.credit_limit AS customer_credit_limit
                FROM commission_sales cs
           LEFT JOIN users u ON u.id = cs.agent_user_id
           LEFT JOIN users r ON r.id = cs.recorded_by_user_id
           LEFT JOIN branches b ON b.id = cs.branch_id
+          LEFT JOIN customers c ON c.id = cs.customer_id
               WHERE cs.tenant_id = ? AND cs.payment_status = 'pending' {$branchSql}
            ORDER BY cs.created_at ASC
               LIMIT 200",
@@ -773,6 +876,31 @@ class CommissionService
         $stmt = $this->db->prepare('SELECT credits_enabled FROM tenants WHERE id = ? LIMIT 1');
         $stmt->execute([$tenantId]);
         return (bool) $stmt->fetchColumn();
+    }
+
+    private function serviceCreditsEnabled(int $tenantId): bool
+    {
+        if (!SchemaHelper::columnExists($this->db, 'tenants', 'service_credits_enabled')) {
+            return !empty($this->creditsEnabled($tenantId));
+        }
+        $stmt = $this->db->prepare('SELECT service_credits_enabled, credits_enabled FROM tenants WHERE id = ? LIMIT 1');
+        $stmt->execute([$tenantId]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return false;
+        }
+        return !empty($row['service_credits_enabled']) || !empty($row['credits_enabled']);
+    }
+
+    private function defaultCreditDays(int $tenantId): int
+    {
+        if (!SchemaHelper::columnExists($this->db, 'tenants', 'default_credit_days')) {
+            return 30;
+        }
+        $stmt = $this->db->prepare('SELECT default_credit_days FROM tenants WHERE id = ? LIMIT 1');
+        $stmt->execute([$tenantId]);
+        $days = (int) $stmt->fetchColumn();
+        return $days > 0 ? $days : 30;
     }
 
     private function loadProduct(int $tenantId, int $productId): ?array

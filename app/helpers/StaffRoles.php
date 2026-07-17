@@ -90,6 +90,14 @@ class StaffRoles
         if (empty($mods[TenantModules::PRODUCTS])) {
             unset($groups['Products & inventory']);
         }
+        if (empty($mods[TenantModules::APPOINTMENTS])) {
+            if (isset($groups['Appointments & customers'])) {
+                $groups['Appointments & customers'] = array_values(array_filter(
+                    $groups['Appointments & customers'],
+                    fn($row) => $row[0] !== Capabilities::APPOINTMENTS_MANAGE
+                ));
+            }
+        }
         if (empty($mods[TenantModules::SERVICES])
             && empty($mods[TenantModules::PRODUCT_COMMISSIONS])
             && empty($mods[TenantModules::SERVICE_COMMISSIONS])) {

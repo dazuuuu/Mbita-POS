@@ -1,8 +1,24 @@
 <?php
 // public/components/staff/sidebar.php — capability-gated employee nav
 $__tenant   = $__tenant ?? null;
+$pdoSidebar = Database::pdo();
+$tenantIdSidebar = TenantContext::tenantId();
+if ($__tenant === null && $tenantIdSidebar) {
+    $__tenant = (new Models\TenantModel($pdoSidebar))->find($tenantIdSidebar);
+}
+
+$modules = TenantModules::fromTenant($__tenant);
+$uid = TenantContext::userId();
+if ($uid) {
+    $bStmt = $pdoSidebar->prepare('SELECT b.* FROM users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = ?');
+    $bStmt->execute([$uid]);
+    $staffBranch = $bStmt->fetch();
+    if ($staffBranch) {
+        $modules = TenantModules::fromBranch($staffBranch);
+    }
+}
+
 $shopName   = $__tenant['name'] ?? 'My Shop';
-$modules    = TenantModules::fromTenant($__tenant);
 $logo = public_path('assets/images/logo/logo.png');
 $username   = $_SESSION['username'] ?? 'User';
 $staffType  = $_SESSION['staff_type'] ?? null;
@@ -11,6 +27,14 @@ $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOn = function (string $needle) use ($uri): string {
     return strpos($uri, $needle) !== false ? 'active' : '';
 };
+
+$hasServices = !empty($modules[TenantModules::SERVICES]);
+$hasProducts = !empty($modules[TenantModules::PRODUCTS]);
+$hasAppointments = !empty($modules[TenantModules::APPOINTMENTS]);
+$canCheckIn = $hasServices && (
+    TenantContext::can(Capabilities::CUSTOMERS_CHECKIN)
+    || TenantContext::can(Capabilities::INVOICES_MANAGE)
+);
 ?>
 <button class="t-sidebar-toggle" id="tSidebarToggle" aria-label="Toggle menu"><i class="fas fa-bars"></i></button>
 <div class="t-sidebar-overlay" id="tSidebarOverlay"></div>
@@ -31,33 +55,27 @@ $isOn = function (string $needle) use ($uri): string {
             <i class="fas fa-gauge-high"></i><span>Dashboard</span>
         </a>
 
-        <?php if (TenantContext::can(Capabilities::PAYMENTS_RECEIVE) || TenantContext::can(Capabilities::PAYMENTS_UPDATE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/payments'); ?>" href="<?php echo public_path('staff/payments/'); ?>">
-            <i class="fas fa-money-bill-wave"></i><span>Payments</span>
+        <?php if ($canCheckIn): ?>
+        <a class="t-link <?php echo $isOn('/staff/checkin'); ?>" href="<?php echo public_path('staff/checkin/'); ?>">
+            <i class="fas fa-user-check"></i><span>Customer check-in</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::APPOINTMENTS_MANAGE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/appointments'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
+        <?php if ($hasAppointments && TenantContext::can(Capabilities::APPOINTMENTS_MANAGE)): ?>
+        <a class="t-link <?php echo $isOn('/staff/appointments'); ?>" href="<?php echo public_path('staff/appointments/'); ?>">
             <i class="fas fa-calendar-check"></i><span>Appointments</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::INVOICES_MANAGE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/invoices'); ?>" href="<?php echo public_path('staff/invoices/new.php'); ?>">
-            <i class="fas fa-file-invoice"></i><span>Invoices</span>
+        <?php if (TenantContext::can(Capabilities::PAYMENTS_RECEIVE) || TenantContext::can(Capabilities::PAYMENTS_UPDATE)): ?>
+        <a class="t-link <?php echo $isOn('/staff/payments'); ?>" href="<?php echo public_path('staff/payments/'); ?>">
+            <i class="fas fa-money-bill-wave"></i><span>Process payments</span>
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::CUSTOMERS_CHECKIN) || TenantContext::can(Capabilities::CUSTOMERS_MANAGE)): ?>
-        <a class="t-link <?php echo $isOn('/staff/customers'); ?>" href="<?php echo public_path('staff/dashboard/'); ?>">
-            <i class="fas fa-user-check"></i><span>Customers</span>
-        </a>
-        <?php endif; ?>
-
-        <?php if (TenantContext::can(Capabilities::SALES_RECORD)): ?>
+        <?php if ($hasProducts && TenantContext::can(Capabilities::SALES_RECORD)): ?>
         <a class="t-link <?php echo $isOn('/sales/new'); ?>" href="<?php echo public_path('staff/sales/new.php'); ?>">
-            <i class="fas fa-cash-register"></i><span>Make a sale</span>
+            <i class="fas fa-cash-register"></i><span>Sell products</span>
         </a>
         <?php endif; ?>
 
@@ -67,13 +85,13 @@ $isOn = function (string $needle) use ($uri): string {
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::COMMISSION_RECORD) || TenantContext::can(Capabilities::COMMISSION_VIEW)): ?>
+        <?php if (TenantContext::can(Capabilities::COMMISSION_VIEW)): ?>
         <a class="t-link <?php echo $isOn('/staff/commissions'); ?>" href="<?php echo public_path('staff/commissions/'); ?>">
-            <i class="fas fa-coins"></i><span>Commission</span>
+            <i class="fas fa-coins"></i><span>My commission</span>
         </a>
         <?php endif; ?>
 
-        <?php if (!empty($modules[TenantModules::PRODUCTS]) && TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
+        <?php if ($hasProducts && TenantContext::can(Capabilities::INVENTORY_EDIT)): ?>
         <a class="t-link <?php echo $isOn('/staff/products'); ?>" href="<?php echo public_path('staff/products/'); ?>">
             <i class="fas fa-box"></i><span>Products</span>
         </a>

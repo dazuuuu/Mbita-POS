@@ -108,6 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'currency'       => trim($_POST['currency'] ?? 'KES'),
             'receipt_footer' => trim($_POST['receipt_footer'] ?? ''),
             'credits_enabled'=> !empty($_POST['credits_enabled']) ? 1 : 0,
+            'service_credits_enabled' => !empty($_POST['service_credits_enabled']) ? 1 : 0,
+            'default_credit_days'     => max(1, (int) ($_POST['default_credit_days'] ?? 30)),
+            'default_credit_limit'    => max(0, (float) ($_POST['default_credit_limit'] ?? 5000)),
         ];
         if (!empty($_FILES['logo']['tmp_name']) && is_uploaded_file($_FILES['logo']['tmp_name'])) {
             $logo = save_tenant_logo($_FILES['logo'], $tenantId);
@@ -126,7 +129,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'customer_save') {
-        $in = ['name' => $_POST['name'] ?? '', 'phone' => $_POST['phone'] ?? '', 'email' => $_POST['email'] ?? '', 'notes' => $_POST['notes'] ?? ''];
+        $in = [
+            'name' => $_POST['name'] ?? '',
+            'phone' => $_POST['phone'] ?? '',
+            'email' => $_POST['email'] ?? '',
+            'notes' => $_POST['notes'] ?? '',
+            'credit_limit' => isset($_POST['credit_limit']) && $_POST['credit_limit'] !== '' ? (float) $_POST['credit_limit'] : null,
+        ];
         $cid = (int) ($_POST['customer_id'] ?? 0);
         $res = $cid ? $custSvc->update($tenantId, $cid, $in) : $custSvc->create($tenantId, $in);
         $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok'] ? 'Customer saved.' : ($res['errors']['name'] ?? $res['errors']['_'] ?? 'Could not save.');
@@ -546,6 +555,23 @@ document.querySelectorAll('input[name="owner_login_method"]').forEach(function(r
               <?php echo !empty($__tenant['credits_enabled']) ? 'checked' : ''; ?> <?php echo $schemaReady ? '' : 'disabled'; ?>>
             <label class="form-check-label" for="credits">Enable product credit sales</label>
           </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" name="service_credits_enabled" id="svcCredits" value="1"
+              <?php echo !empty($__tenant['service_credits_enabled']) ? 'checked' : ''; ?>>
+            <label class="form-check-label" for="svcCredits">Enable service credit at till</label>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Default credit limit (KES)</label>
+              <input type="number" step="0.01" min="0" name="default_credit_limit" class="form-control"
+                     value="<?php echo htmlspecialchars((string)($__tenant['default_credit_limit'] ?? 5000)); ?>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Default credit duration (days)</label>
+              <input type="number" min="1" max="365" name="default_credit_days" class="form-control"
+                     value="<?php echo (int)($__tenant['default_credit_days'] ?? 30); ?>">
+            </div>
+          </div>
           <div class="mb-4">
             <label class="form-label fw-semibold">Logo</label>
             <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/webp">
@@ -574,6 +600,12 @@ document.querySelectorAll('input[name="owner_login_method"]').forEach(function(r
         <div class="mb-3"><label class="form-label">Name</label><input name="name" class="form-control" required value="<?php echo htmlspecialchars($editCustomerRow['name'] ?? ''); ?>"></div>
         <div class="mb-3"><label class="form-label">Phone</label><input name="phone" class="form-control" value="<?php echo htmlspecialchars($editCustomerRow['phone'] ?? ''); ?>"></div>
         <div class="mb-3"><label class="form-label">Email</label><input name="email" type="email" class="form-control" value="<?php echo htmlspecialchars($editCustomerRow['email'] ?? ''); ?>"></div>
+        <div class="mb-3">
+          <label class="form-label">Credit limit (KES)</label>
+          <input name="credit_limit" type="number" step="0.01" min="0" class="form-control" placeholder="Shop default if blank"
+                 value="<?php echo isset($editCustomerRow['credit_limit']) && $editCustomerRow['credit_limit'] !== null ? htmlspecialchars((string)$editCustomerRow['credit_limit']) : ''; ?>">
+          <div class="form-text">Leave blank to use shop default. Credit available = limit minus amount owed.</div>
+        </div>
         <button class="btn btn-primary"><?php echo $editCustomerRow ? 'Update' : 'Add'; ?></button>
         <?php if ($editCustomerRow): ?><a class="btn btn-link" href="?tab=customers">Cancel</a><?php endif; ?>
       </form>
@@ -587,13 +619,17 @@ document.querySelectorAll('input[name="owner_login_method"]').forEach(function(r
       <?php else: ?>
       <div class="table-responsive">
         <table class="table table-sm align-middle">
-          <thead><tr class="text-muted small"><th>Name</th><th>Phone</th><th>Credit owed</th><th></th></tr></thead>
+          <thead><tr class="text-muted small"><th>Name</th><th>Phone</th><th>Credit owed</th><th>Limit</th><th></th></tr></thead>
           <tbody>
-            <?php foreach ($customers as $c): ?>
+            <?php foreach ($customers as $c):
+              $cl = $c['credit_limit'] ?? null;
+              $limitLabel = ($cl !== null && $cl !== '') ? number_format((float)$cl, 0) : 'Default';
+            ?>
             <tr>
               <td class="fw-semibold"><?php echo htmlspecialchars($c['name']); ?></td>
               <td><?php echo htmlspecialchars($c['phone'] ?? '—'); ?></td>
               <td>KES <?php echo number_format((float)$c['credit_balance'], 2); ?></td>
+              <td class="small text-muted"><?php echo $limitLabel; ?></td>
               <td class="text-end">
                 <a class="btn btn-sm btn-outline-primary" href="?tab=customers&edit_customer=<?php echo (int)$c['id']; ?>">Edit</a>
                 <form method="post" class="d-inline" onsubmit="return confirm('Delete?');">

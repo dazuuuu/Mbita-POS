@@ -28,7 +28,7 @@ class TenantModel extends Model
     /** Whitelisted business-settings update. Caller passes their own tenant id. */
     public function updateSettings(int $tenantId, array $data): bool
     {
-        $allowed = ['name', 'logo_path', 'currency', 'phone', 'address', 'location', 'kra_pin', 'receipt_footer', 'credits_enabled', 'business_type', 'modules'];
+        $allowed = ['name', 'logo_path', 'currency', 'phone', 'address', 'location', 'kra_pin', 'receipt_footer', 'credits_enabled', 'service_credits_enabled', 'default_credit_days', 'default_credit_limit', 'business_type', 'modules'];
         $clean = array_intersect_key($data, array_flip($allowed));
         if (isset($clean['modules']) && is_array($clean['modules'])) {
             $clean['modules'] = json_encode(\TenantModules::sanitizePosted($clean['modules']));

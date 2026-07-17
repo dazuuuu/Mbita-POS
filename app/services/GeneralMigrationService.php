@@ -23,6 +23,7 @@ class GeneralMigrationService
             '028 owner login'     => fn () => Schema028Service::ensureApplied($db),
             '029 branch scope'    => fn () => Schema029Service::ensureApplied($db),
             '030 payments'        => fn () => Schema030Service::ensureApplied($db),
+            '031 appointments'    => fn () => Schema031Service::ensureApplied($db),
         ];
 
         foreach ($steps as $label => $fn) {
