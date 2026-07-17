@@ -30,7 +30,19 @@ class Schema026Service
             }
         }
 
+        if (SchemaHelper::tableExists($db, 'branches')
+            && !SchemaHelper::columnExists($db, 'branches', 'modules')) {
+            try {
+                $db->exec('ALTER TABLE branches ADD COLUMN modules JSON NULL AFTER branch_type');
+                $log[] = 'Added branches.modules';
+                SchemaHelper::clearCache();
+            } catch (Throwable $e) {
+                $log[] = 'Failed branches.modules: ' . $e->getMessage();
+            }
+        }
+
         self::seedDefaultModules($db, $log);
+        self::seedBranchModules($db, $log);
 
         $ok = !SchemaHelper::tableExists($db, 'tenants')
             || SchemaHelper::columnExists($db, 'tenants', 'modules');
@@ -54,7 +66,28 @@ class Schema026Service
                 $log[] = 'Seeded default modules for ' . count($rows) . ' tenant(s)';
             }
         } catch (Throwable $e) {
-            $log[] = 'Failed seed modules: ' . $e->getMessage();
+            $log[] = 'Failed seed tenant modules: ' . $e->getMessage();
+        }
+    }
+
+    private static function seedBranchModules(PDO $db, array &$log): void
+    {
+        if (!SchemaHelper::columnExists($db, 'branches', 'modules')) {
+            return;
+        }
+        try {
+            $rows = $db->query('SELECT id, branch_type, modules FROM branches WHERE modules IS NULL')->fetchAll();
+            foreach ($rows as $row) {
+                $type = $row['branch_type'] ?? 'shop';
+                $mods = TenantModules::defaultsForLocationType($type);
+                $stmt = $db->prepare('UPDATE branches SET modules = ? WHERE id = ?');
+                $stmt->execute([json_encode($mods), (int) $row['id']]);
+            }
+            if ($rows) {
+                $log[] = 'Seeded default modules for ' . count($rows) . ' location(s)';
+            }
+        } catch (Throwable $e) {
+            $log[] = 'Failed seed branch modules: ' . $e->getMessage();
         }
     }
 }

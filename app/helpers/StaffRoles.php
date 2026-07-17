@@ -118,8 +118,10 @@ class StaffRoles
         if (!empty($mods[TenantModules::CASHIER])) {
             $types[] = 'cashier';
         }
-        if (!empty($mods[TenantModules::SERVICES])) {
+        if (!empty($mods[TenantModules::RECEPTION])) {
             $types[] = 'reception';
+        }
+        if (!empty($mods[TenantModules::SERVICES])) {
             $types[] = 'barber';
         }
         if (!empty($mods[TenantModules::STAFF_PROMOTION])) {

@@ -158,7 +158,7 @@ class Schema020Service
             'low_stock_threshold' => 'ALTER TABLE products ADD COLUMN low_stock_threshold INT NOT NULL DEFAULT 10',
             'unit'             => "ALTER TABLE products ADD COLUMN unit VARCHAR(20) NOT NULL DEFAULT 'piece'",
             'buying_price'     => 'ALTER TABLE products ADD COLUMN buying_price DECIMAL(12,2) NOT NULL DEFAULT 0',
-            'selling_price'    => 'ALTER TABLE products ADD COLUMN selling_price DECIMAL(12,2) NOT NULL DEFAULT 0',
+            'wholesale_price'     => 'ALTER TABLE products ADD COLUMN wholesale_price DECIMAL(12,2) NULL AFTER selling_price',
             'quantity'         => 'ALTER TABLE products ADD COLUMN quantity DECIMAL(12,2) NOT NULL DEFAULT 0',
         ];
         foreach ($cols as $col => $sql) {

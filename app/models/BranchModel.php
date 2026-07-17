@@ -10,22 +10,26 @@ class BranchModel extends Model
      * Create a branch for the current tenant. Title is unique within the tenant.
      * @return array ['ok'=>bool, 'id'=>?int, 'error'=>?string]
      */
-    public function create(string $title, ?string $location, string $branchType = 'shop'): array
+    public function create(string $title, ?string $location, string $branchType, ?array $modules = null): array
     {
         $title = trim($title);
         if ($title === '') {
-            return ['ok' => false, 'id' => null, 'error' => 'Branch name is required.'];
+            return ['ok' => false, 'id' => null, 'error' => 'Name is required.'];
         }
         if (strlen($title) > 120) {
-            return ['ok' => false, 'id' => null, 'error' => 'Branch name is too long.'];
+            return ['ok' => false, 'id' => null, 'error' => 'Name is too long.'];
         }
-        $types = array_keys(\TenantModules::branchTypeLabels());
-        if (!in_array($branchType, $types, true)) {
-            return ['ok' => false, 'id' => null, 'error' => 'Choose a valid branch type.'];
+
+        $validTypes = array_merge(['shop'], array_keys(\TenantModules::branchTypeLabels()));
+        if (!in_array($branchType, $validTypes, true)) {
+            return ['ok' => false, 'id' => null, 'error' => 'Choose a valid type.'];
         }
         if ($this->titleTaken($title)) {
-            return ['ok' => false, 'id' => null, 'error' => 'You already have a branch with that name.'];
+            return ['ok' => false, 'id' => null, 'error' => 'You already have a location with that name.'];
         }
+
+        $modules = $modules ?? \TenantModules::defaultsForLocationType($branchType);
+
         try {
             $row = [
                 'title'     => $title,
@@ -35,15 +39,32 @@ class BranchModel extends Model
             if (\SchemaHelper::columnExists($this->db, $this->table, 'branch_type')) {
                 $row['branch_type'] = $branchType;
             }
+            if (\SchemaHelper::columnExists($this->db, $this->table, 'modules')) {
+                $row['modules'] = json_encode(\TenantModules::sanitizePosted($modules));
+            }
             $row = \SchemaHelper::filterColumns($this->db, $this->table, $row);
             $id = $this->insert($row);
             return ['ok' => true, 'id' => $id, 'error' => null];
         } catch (\PDOException $e) {
-            if ($e->getCode() === '23000') { // unique violation race
-                return ['ok' => false, 'id' => null, 'error' => 'You already have a branch with that name.'];
+            if ($e->getCode() === '23000') {
+                return ['ok' => false, 'id' => null, 'error' => 'You already have a location with that name.'];
             }
             throw $e;
         }
+    }
+
+    public function updateModules(int $branchId, array $modules): bool
+    {
+        if (!\SchemaHelper::columnExists($this->db, $this->table, 'modules')) {
+            return false;
+        }
+        $branch = $this->find($branchId);
+        if (!$branch) {
+            return false;
+        }
+        return $this->update($branchId, [
+            'modules' => json_encode(\TenantModules::sanitizePosted($modules)),
+        ]);
     }
 
     /** Is this title already used by the current tenant? (Tenant-scoped read.) */

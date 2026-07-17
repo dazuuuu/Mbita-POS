@@ -9,7 +9,8 @@ $pdo = Database::pdo();
 $svc = new StaffService($pdo);
 $tenantId = TenantContext::tenantId();
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
-$modules = TenantModules::fromTenant($__tenant);
+$__locations = (new Models\BranchModel($pdo))->listWithCounts();
+$modules = TenantModules::effectiveForTenant($__tenant, $__locations);
 
 $groups = StaffRoles::permissionGroups($modules);
 $manageable = StaffRoles::manageableCapabilities($modules);

@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['otp_verified'] = true;
                     $_SESSION['first_login']  = true;
                     $_SESSION['must_reset']   = !empty($user['must_reset_password']);
-                    header('Location: ' . public_path('super/dashboard/'));
+                    header('Location: ' . public_path('super/settings/?tab=locations'));
                     exit;
                 }
             }

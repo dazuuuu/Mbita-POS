@@ -9,7 +9,9 @@ $pdo = Database::pdo();
 $tenantId = TenantContext::tenantId();
 $svc = new StaffService($pdo);
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
-$modules = TenantModules::fromTenant($__tenant);
+$__locations = (new Models\BranchModel($pdo))->listWithCounts();
+$modules = TenantModules::effectiveForTenant($__tenant, $__locations);
+$showWholesale = !empty($modules[TenantModules::WHOLESALE]);
 $availableTypes = StaffRoles::availableStaffTypes($modules);
 
 $errors = [];

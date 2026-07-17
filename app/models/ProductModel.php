@@ -188,6 +188,8 @@ class ProductModel extends Model
             'unit'                => $in['unit'] ?? 'piece',
             'buying_price'        => (float) ($in['buying_price'] ?? 0),
             'selling_price'       => (float) ($in['selling_price'] ?? 0),
+            'wholesale_price'     => isset($in['wholesale_price']) && $in['wholesale_price'] !== ''
+                ? (float) $in['wholesale_price'] : null,
             'commission_type'     => in_array($in['commission_type'] ?? 'percent', ['percent', 'fixed'], true) ? $in['commission_type'] : 'percent',
             'commission_value'    => (float) ($in['commission_value'] ?? 0),
             'credit_allowed'      => !empty($in['credit_allowed']) ? 1 : 0,

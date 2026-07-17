@@ -1,18 +1,19 @@
 <?php
-// public/super/settings/index.php — shop, receipt, customers, staff management
+// public/super/settings/index.php — locations (branch/shop), modules, receipts, customers, staff
 require_once __DIR__ . '/../../../app/app.php';
 PageGuard::tenant();
 
 $pdo = Database::pdo();
-// Auto-apply migration 024 columns if missing (fixes credits_enabled etc. on AMPPS).
 Schema024Service::ensureApplied($pdo);
 Schema026Service::ensureApplied($pdo);
+Schema020Service::ensureApplied($pdo);
 
 $tenantId = (int) TenantContext::tenantId();
 $tenantModel = new Models\TenantModel($pdo);
+$branchModel = new Models\BranchModel($pdo);
 $staffSvc = new StaffService($pdo);
 $custSvc = new CustomerService($pdo);
-$tab = $_GET['tab'] ?? 'shop';
+$tab = $_GET['tab'] ?? 'locations';
 
 function save_tenant_logo(array $file, int $tenantId): array
 {
@@ -33,7 +34,43 @@ function save_tenant_logo(array $file, int $tenantId): array
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    if ($action === 'shop') {
+    if ($action === 'create_branch') {
+        $title = trim($_POST['title'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+        $branchType = $_POST['branch_type'] ?? 'barbershop';
+        if (!TenantModules::isBranchType($branchType)) {
+            $_SESSION['flash']['error'] = 'Choose Barbershop, Salon, or Barbershop & Salon.';
+        } else {
+            $res = $branchModel->create($title, $location, $branchType);
+            $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+                ? 'Branch "' . $title . '" created. Set its features on the Modules tab.'
+                : ($res['error'] ?? 'Could not create branch.');
+        }
+        header('Location: ' . public_path('super/settings/?tab=locations')); exit;
+    }
+
+    if ($action === 'create_shop') {
+        $title = trim($_POST['shop_title'] ?? '');
+        $location = trim($_POST['shop_location'] ?? '');
+        $res = $branchModel->create($title, $location, 'shop');
+        $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+            ? 'Shop "' . $title . '" created with retail & wholesale POS defaults. Add products next.'
+            : ($res['error'] ?? 'Could not create shop.');
+        header('Location: ' . public_path('super/settings/?tab=locations')); exit;
+    }
+
+    if ($action === 'location_modules') {
+        $branchId = (int) ($_POST['branch_id'] ?? 0);
+        $mods = TenantModules::sanitizePosted($_POST['modules'] ?? []);
+        if ($branchModel->updateModules($branchId, $mods)) {
+            $_SESSION['flash']['success'] = 'Modules saved for this location.';
+        } else {
+            $_SESSION['flash']['error'] = 'Could not save modules. Run fix-schema-026.php once.';
+        }
+        header('Location: ' . public_path('super/settings/?tab=modules&branch=' . $branchId)); exit;
+    }
+
+    if ($action === 'receipts') {
         $data = [
             'name'           => trim($_POST['name'] ?? ''),
             'phone'          => trim($_POST['phone'] ?? ''),
@@ -44,9 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'receipt_footer' => trim($_POST['receipt_footer'] ?? ''),
             'credits_enabled'=> !empty($_POST['credits_enabled']) ? 1 : 0,
         ];
-        if (!empty($_POST['business_type']) && in_array($_POST['business_type'], ['shop', 'barbershop_salon'], true)) {
-            $data['business_type'] = $_POST['business_type'];
-        }
         if (!empty($_FILES['logo']['tmp_name']) && is_uploaded_file($_FILES['logo']['tmp_name'])) {
             $logo = save_tenant_logo($_FILES['logo'], $tenantId);
             if ($logo['ok']) { $data['logo_path'] = $logo['path']; }
@@ -57,21 +91,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $tenantModel->updateSettings($tenantId, $data);
             if (empty($_SESSION['flash']['error'])) {
-                if (!$tenantModel->hasExtendedSettings()) {
-                    $_SESSION['flash']['error'] = 'Basic settings saved. Run the database update for KRA PIN, credits & receipts: ' . public_path('devs/fix-schema-024.php');
-                } else {
-                    $_SESSION['flash']['success'] = 'Shop settings saved.';
-                }
+                $_SESSION['flash']['success'] = 'Receipt settings saved.';
             }
         }
-        header('Location: ' . public_path('super/settings/?tab=shop')); exit;
-    }
-
-    if ($action === 'modules') {
-        $mods = TenantModules::sanitizePosted($_POST['modules'] ?? []);
-        $tenantModel->updateSettings($tenantId, ['modules' => $mods]);
-        $_SESSION['flash']['success'] = 'Feature modules saved. Sidebar and staff options updated.';
-        header('Location: ' . public_path('super/settings/?tab=modules')); exit;
+        header('Location: ' . public_path('super/settings/?tab=receipts')); exit;
     }
 
     if ($action === 'customer_save') {
@@ -105,13 +128,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $__tenant = $tenantModel->find($tenantId);
+$locations = $branchModel->listWithCounts();
+$__locations = $locations;
 $staff = $staffSvc->listForTenant($tenantId);
 $schemaReady = SchemaHelper::migration024Ready($pdo);
-$modulesReady = SchemaHelper::migration026Ready($pdo);
-$tenantModules = TenantModules::fromTenant($__tenant);
+$modulesReady = SchemaHelper::columnExists($pdo, 'branches', 'modules');
+$branchTypes = TenantModules::branchTypeLabels();
+$selectedBranchId = (int) ($_GET['branch'] ?? ($locations[0]['id'] ?? 0));
+$selectedBranch = $selectedBranchId ? $branchModel->find($selectedBranchId) : null;
+$locationModules = $selectedBranch ? TenantModules::fromBranch($selectedBranch) : [];
+
 $customers = $schemaReady ? $custSvc->listForTenant($tenantId) : [];
 $editCustomer = (int) ($_GET['edit_customer'] ?? 0);
 $editCustomerRow = $editCustomer ? $custSvc->find($tenantId, $editCustomer) : null;
+
+$oldBranch = ['title' => '', 'location' => '', 'branch_type' => 'barbershop'];
+$oldShop = ['shop_title' => '', 'shop_location' => ''];
 
 $page_title = 'Settings';
 ob_start();
@@ -119,85 +151,177 @@ ob_start();
 <?php if (!$schemaReady): ?>
 <div class="alert alert-warning">
   <strong>Database update needed.</strong> KRA PIN, receipts, customers and credits require migration 024.
-  Open <a href="<?php echo public_path('devs/fix-schema-024.php'); ?>" class="alert-link">fix-schema-024.php</a> once, then refresh this page.
+  Open <a href="<?php echo public_path('devs/fix-schema-024.php'); ?>" class="alert-link">fix-schema-024.php</a> once.
 </div>
 <?php endif; ?>
+
 <ul class="nav nav-tabs mb-4">
-  <li class="nav-item"><a class="nav-link <?php echo $tab === 'shop' ? 'active' : ''; ?>" href="?tab=shop">Shop &amp; receipts</a></li>
+  <li class="nav-item"><a class="nav-link <?php echo $tab === 'locations' ? 'active' : ''; ?>" href="?tab=locations">Branches &amp; Shops</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'modules' ? 'active' : ''; ?>" href="?tab=modules">Modules</a></li>
+  <li class="nav-item"><a class="nav-link <?php echo $tab === 'receipts' ? 'active' : ''; ?>" href="?tab=receipts">Receipts</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'customers' ? 'active' : ''; ?>" href="?tab=customers">Customers</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'staff' ? 'active' : ''; ?>" href="?tab=staff">Staff</a></li>
 </ul>
 
-<?php if ($tab === 'modules'): ?>
+<?php if ($tab === 'locations'): ?>
+<p class="text-muted small mb-4">Start here. Create a <strong>branch</strong> (barbershop / salon) or a <strong>shop</strong> (retail &amp; wholesale POS). Then choose features for each on the <a href="?tab=modules">Modules</a> tab.</p>
+<div class="row g-4">
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-1"><i class="fas fa-scissors text-primary me-1"></i> Create branch</h2>
+        <p class="text-muted small mb-3">Barbershop, salon, or both. Title is the name your staff will see.</p>
+        <form method="post" novalidate>
+          <input type="hidden" name="action" value="create_branch">
+          <div class="mb-3">
+            <label class="form-label">Branch name</label>
+            <input name="title" class="form-control" placeholder="e.g. Westy Barbershop" value="<?php echo htmlspecialchars($oldBranch['title']); ?>" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Type</label>
+            <select name="branch_type" class="form-select" required>
+              <?php foreach ($branchTypes as $val => $label): ?>
+              <option value="<?php echo htmlspecialchars($val); ?>" <?php echo ($oldBranch['branch_type'] ?? '') === $val ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($label); ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Location <span class="text-muted">(optional)</span></label>
+            <input name="location" class="form-control" placeholder="e.g. Westlands Mall" value="<?php echo htmlspecialchars($oldBranch['location']); ?>">
+          </div>
+          <button class="btn btn-primary w-100">Create branch</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-1"><i class="fas fa-store text-success me-1"></i> Create shop</h2>
+        <p class="text-muted small mb-3">Retail &amp; wholesale POS. Products get retail + wholesale prices when you add stock.</p>
+        <form method="post" novalidate>
+          <input type="hidden" name="action" value="create_shop">
+          <div class="mb-3">
+            <label class="form-label">Shop name</label>
+            <input name="shop_title" class="form-control" placeholder="e.g. Main Store" value="<?php echo htmlspecialchars($oldShop['shop_title']); ?>" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Location <span class="text-muted">(optional)</span></label>
+            <input name="shop_location" class="form-control" placeholder="e.g. CBD" value="<?php echo htmlspecialchars($oldShop['shop_location']); ?>">
+          </div>
+          <button class="btn btn-success w-100">Create shop</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-3">Your locations <span class="badge bg-light text-dark"><?php echo count($locations); ?></span></h2>
+        <?php if (!$locations): ?>
+          <p class="text-muted small mb-0">No branches or shops yet. Create one on the left.</p>
+        <?php else: ?>
+          <div class="list-group list-group-flush">
+            <?php foreach ($locations as $loc):
+              $typeLabel = TenantModules::locationLabel($loc);
+              $isShop = ($loc['branch_type'] ?? 'shop') === 'shop';
+            ?>
+            <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold"><?php echo htmlspecialchars($loc['title']); ?></div>
+                <small class="text-muted"><?php echo htmlspecialchars($typeLabel); ?><?php echo $loc['location'] ? ' · ' . htmlspecialchars($loc['location']) : ''; ?></small>
+              </div>
+              <a class="btn btn-sm btn-outline-primary" href="?tab=modules&branch=<?php echo (int)$loc['id']; ?>">Modules</a>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php elseif ($tab === 'modules'): ?>
 <div class="row g-4">
   <div class="col-lg-8">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
-        <h2 class="h5 mb-1">Feature modules</h2>
-        <p class="text-muted small mb-4">Turn features on or off — nothing is forced. A barbershop can sell products; a shop can offer services. You choose what fits your business.</p>
-        <?php if (!$modulesReady): ?>
-        <div class="alert alert-warning">Run <a href="<?php echo public_path('devs/fix-schema-026.php'); ?>">fix-schema-026.php</a> once to enable module toggles.</div>
+        <h2 class="h5 mb-1">Modules per location</h2>
+        <p class="text-muted small mb-4">Choose what each branch or shop can do — services, products, commissions, reception, staff, etc.</p>
+        <?php if (!$locations): ?>
+          <div class="alert alert-info mb-0">Create a branch or shop on the <a href="?tab=locations">Branches &amp; Shops</a> tab first.</div>
+        <?php elseif (!$modulesReady): ?>
+          <div class="alert alert-warning">Run <a href="<?php echo public_path('devs/fix-schema-026.php'); ?>">fix-schema-026.php</a> once, then refresh.</div>
+        <?php else: ?>
+          <form method="get" class="mb-4">
+            <input type="hidden" name="tab" value="modules">
+            <label class="form-label fw-semibold">Location</label>
+            <select name="branch" class="form-select" onchange="this.form.submit()">
+              <?php foreach ($locations as $loc): ?>
+              <option value="<?php echo (int)$loc['id']; ?>" <?php echo $selectedBranchId === (int)$loc['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($loc['title']); ?> (<?php echo htmlspecialchars(TenantModules::locationLabel($loc)); ?>)
+              </option>
+              <?php endforeach; ?>
+            </select>
+          </form>
+          <?php if ($selectedBranch): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="location_modules">
+            <input type="hidden" name="branch_id" value="<?php echo (int)$selectedBranch['id']; ?>">
+            <p class="small text-muted mb-3">Configuring: <strong><?php echo htmlspecialchars($selectedBranch['title']); ?></strong></p>
+            <?php foreach (TenantModules::labels() as $key => $label): ?>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" role="switch" id="mod_<?php echo $key; ?>"
+                name="modules[<?php echo htmlspecialchars($key); ?>]" value="1"
+                <?php echo !empty($locationModules[$key]) ? 'checked' : ''; ?>>
+              <label class="form-check-label" for="mod_<?php echo $key; ?>">
+                <span class="fw-semibold"><?php echo htmlspecialchars($label); ?></span>
+                <span class="d-block small text-muted"><?php echo htmlspecialchars(TenantModules::descriptions()[$key]); ?></span>
+              </label>
+            </div>
+            <?php endforeach; ?>
+            <button class="btn btn-primary">Save modules for this location</button>
+          </form>
+          <?php endif; ?>
         <?php endif; ?>
-        <form method="post">
-          <input type="hidden" name="action" value="modules">
-          <?php foreach (TenantModules::labels() as $key => $label): ?>
-          <div class="form-check form-switch mb-3">
-            <input class="form-check-input" type="checkbox" role="switch" id="mod_<?php echo $key; ?>"
-              name="modules[<?php echo htmlspecialchars($key); ?>]" value="1"
-              <?php echo !empty($tenantModules[$key]) ? 'checked' : ''; ?>
-              <?php echo $modulesReady ? '' : 'disabled'; ?>>
-            <label class="form-check-label" for="mod_<?php echo $key; ?>">
-              <span class="fw-semibold"><?php echo htmlspecialchars($label); ?></span>
-              <span class="d-block small text-muted"><?php echo htmlspecialchars(TenantModules::descriptions()[$key]); ?></span>
-            </label>
-          </div>
-          <?php endforeach; ?>
-          <button class="btn btn-primary" <?php echo $modulesReady ? '' : 'disabled'; ?>>Save modules</button>
-        </form>
       </div>
     </div>
   </div>
   <div class="col-lg-4">
     <div class="card border-0 shadow-sm p-4 small text-muted" style="border-radius:12px;">
-      <strong>How it works</strong>
+      <strong>Typical setups</strong>
       <ul class="mb-0 ps-3 mt-2">
-        <li class="mb-2"><strong>Branches</strong> — set each location as shop, barbershop, salon, or both.</li>
-        <li class="mb-2"><strong>Modules</strong> — control what appears in your sidebar and what staff roles are available.</li>
-        <li class="mb-2"><strong>User Access</strong> — fine-tune permissions per staff member after enabling modules.</li>
+        <li class="mb-2"><strong>Barbershop branch</strong> — Services, Service commissions, Reception, Staff.</li>
+        <li class="mb-2"><strong>Shop</strong> — Products, Wholesale pricing, Cashier, Product commissions.</li>
+        <li class="mb-2"><strong>Both</strong> — Enable everything you need; nothing is forced.</li>
       </ul>
+      <hr>
+      <a href="<?php echo public_path('super/staff/authorization.php'); ?>">User Access</a> — fine-tune permissions per staff member.
     </div>
   </div>
 </div>
 
-<?php elseif ($tab === 'shop'): ?>
+<?php elseif ($tab === 'receipts'): ?>
 <div class="row g-4">
   <div class="col-lg-8">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
-        <h2 class="h5 mb-3">Shop &amp; receipt details</h2>
-        <p class="text-muted small">Shown on every receipt — shop name, KRA PIN, location, branch, and footer.</p>
+        <h2 class="h5 mb-3">Receipt &amp; business details</h2>
+        <p class="text-muted small">Shown on every receipt — business name, KRA PIN, location, footer.</p>
         <form method="post" enctype="multipart/form-data">
-          <input type="hidden" name="action" value="shop">
+          <input type="hidden" name="action" value="receipts">
           <div class="mb-3">
             <label class="form-label fw-semibold">Business name</label>
             <input name="name" class="form-control" required value="<?php echo htmlspecialchars($__tenant['name'] ?? ''); ?>">
           </div>
-          <?php if (SchemaHelper::columnExists($pdo, 'tenants', 'business_type')): ?>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Legacy business type</label>
-            <select name="business_type" class="form-select">
-              <option value="shop" <?php echo ($__tenant['business_type'] ?? 'shop') === 'shop' ? 'selected' : ''; ?>>Retail shop</option>
-              <option value="barbershop_salon" <?php echo ($__tenant['business_type'] ?? '') === 'barbershop_salon' ? 'selected' : ''; ?>>Barbershop &amp; salon</option>
-            </select>
-            <small class="text-muted">Prefer <a href="?tab=modules">Modules</a> for full control. This field only sets defaults for new tenants.</small>
-          </div>
-          <?php endif; ?>
           <div class="row g-2">
             <div class="col-md-6 mb-3">
               <label class="form-label fw-semibold">KRA PIN</label>
-              <input name="kra_pin" class="form-control" placeholder="e.g. P051234567X"
-                value="<?php echo htmlspecialchars($__tenant['kra_pin'] ?? ''); ?>">
+              <input name="kra_pin" class="form-control" value="<?php echo htmlspecialchars($__tenant['kra_pin'] ?? ''); ?>">
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label fw-semibold">Phone</label>
@@ -205,9 +329,8 @@ ob_start();
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Location <span class="text-muted">(shown on receipt)</span></label>
-            <input name="location" class="form-control" placeholder="e.g. Kitale Town, Trans-Nzoia"
-              value="<?php echo htmlspecialchars($__tenant['location'] ?? ''); ?>">
+            <label class="form-label fw-semibold">Location</label>
+            <input name="location" class="form-control" value="<?php echo htmlspecialchars($__tenant['location'] ?? ''); ?>">
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Address</label>
@@ -225,16 +348,14 @@ ob_start();
           </div>
           <div class="mb-3 form-check <?php echo $schemaReady ? '' : 'opacity-50'; ?>">
             <input type="checkbox" class="form-check-input" name="credits_enabled" id="credits" value="1"
-              <?php echo !empty($__tenant['credits_enabled']) ? 'checked' : ''; ?>
-              <?php echo $schemaReady ? '' : 'disabled'; ?>>
+              <?php echo !empty($__tenant['credits_enabled']) ? 'checked' : ''; ?> <?php echo $schemaReady ? '' : 'disabled'; ?>>
             <label class="form-check-label" for="credits">Enable product credit sales</label>
-            <div class="form-text">When on, agents can sell credit-eligible products on credit. Mark products as credit-allowed on the Products page.</div>
           </div>
           <div class="mb-4">
             <label class="form-label fw-semibold">Logo</label>
             <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/webp">
           </div>
-          <button class="btn btn-primary">Save settings</button>
+          <button class="btn btn-primary">Save receipt settings</button>
         </form>
       </div>
     </div>
@@ -255,18 +376,9 @@ ob_start();
       <form method="post">
         <input type="hidden" name="action" value="customer_save">
         <?php if ($editCustomerRow): ?><input type="hidden" name="customer_id" value="<?php echo (int)$editCustomerRow['id']; ?>"><?php endif; ?>
-        <div class="mb-3">
-          <label class="form-label">Name</label>
-          <input name="name" class="form-control" required value="<?php echo htmlspecialchars($editCustomerRow['name'] ?? ''); ?>">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Phone <span class="text-muted">(optional)</span></label>
-          <input name="phone" class="form-control" value="<?php echo htmlspecialchars($editCustomerRow['phone'] ?? ''); ?>">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Email <span class="text-muted">(optional)</span></label>
-          <input name="email" type="email" class="form-control" value="<?php echo htmlspecialchars($editCustomerRow['email'] ?? ''); ?>">
-        </div>
+        <div class="mb-3"><label class="form-label">Name</label><input name="name" class="form-control" required value="<?php echo htmlspecialchars($editCustomerRow['name'] ?? ''); ?>"></div>
+        <div class="mb-3"><label class="form-label">Phone</label><input name="phone" class="form-control" value="<?php echo htmlspecialchars($editCustomerRow['phone'] ?? ''); ?>"></div>
+        <div class="mb-3"><label class="form-label">Email</label><input name="email" type="email" class="form-control" value="<?php echo htmlspecialchars($editCustomerRow['email'] ?? ''); ?>"></div>
         <button class="btn btn-primary"><?php echo $editCustomerRow ? 'Update' : 'Add'; ?></button>
         <?php if ($editCustomerRow): ?><a class="btn btn-link" href="?tab=customers">Cancel</a><?php endif; ?>
       </form>
@@ -287,9 +399,9 @@ ob_start();
               <td class="fw-semibold"><?php echo htmlspecialchars($c['name']); ?></td>
               <td><?php echo htmlspecialchars($c['phone'] ?? '—'); ?></td>
               <td>KES <?php echo number_format((float)$c['credit_balance'], 2); ?></td>
-              <td class="text-end text-nowrap">
+              <td class="text-end">
                 <a class="btn btn-sm btn-outline-primary" href="?tab=customers&edit_customer=<?php echo (int)$c['id']; ?>">Edit</a>
-                <form method="post" class="d-inline" onsubmit="return confirm('Delete this customer?');">
+                <form method="post" class="d-inline" onsubmit="return confirm('Delete?');">
                   <input type="hidden" name="action" value="customer_delete">
                   <input type="hidden" name="customer_id" value="<?php echo (int)$c['id']; ?>">
                   <button class="btn btn-sm btn-outline-danger">Delete</button>
@@ -305,16 +417,12 @@ ob_start();
   </div>
 </div>
 
-<?php else: /* staff */ ?>
+<?php else: ?>
 <div class="card border-0 shadow-sm p-4" style="border-radius:12px;">
   <h2 class="h5 mb-1">Staff management</h2>
-  <p class="text-muted small mb-3">
-    <strong>Permanent delete</strong> removes the staff account and <em>all</em> their POS sales, commission sales, and payouts.
-    Type their exact name to confirm. <a href="<?php echo public_path('super/staff/'); ?>">Add staff here</a>.
-    Staff log in with shop code + PIN — no email.
-  </p>
+  <p class="text-muted small mb-3"><a href="<?php echo public_path('super/staff/'); ?>">Add staff</a> · <a href="<?php echo public_path('super/staff/authorization.php'); ?>">User Access</a></p>
   <?php if (!$staff): ?>
-    <p class="text-muted">No staff members.</p>
+    <p class="text-muted">No staff yet.</p>
   <?php else: ?>
   <div class="table-responsive">
     <table class="table align-middle">
@@ -329,11 +437,11 @@ ob_start();
           <td><?php echo htmlspecialchars($roleLabel); ?></td>
           <td><?php echo (int)$s['is_active'] ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Off</span>'; ?></td>
           <td>
-            <form method="post" class="d-flex gap-2 align-items-center" onsubmit="return confirm('This permanently deletes ALL sales data for this person. Continue?');">
+            <form method="post" class="d-flex gap-2 align-items-center" onsubmit="return confirm('Delete ALL sales data for this person?');">
               <input type="hidden" name="action" value="purge_staff">
               <input type="hidden" name="staff_id" value="<?php echo (int)$s['id']; ?>">
-              <input name="confirm_name" class="form-control form-control-sm" placeholder="Type <?php echo htmlspecialchars($s['username']); ?>" required style="max-width:180px;">
-              <button class="btn btn-sm btn-danger text-nowrap">Delete forever</button>
+              <input name="confirm_name" class="form-control form-control-sm" placeholder="Type name" required style="max-width:140px;">
+              <button class="btn btn-sm btn-danger">Delete</button>
             </form>
           </td>
         </tr>

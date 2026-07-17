@@ -1,21 +1,34 @@
 <?php
-// public/components/tenants/sidebar.php — owner sidebar (module-aware)
+// public/components/tenants/sidebar.php — owner sidebar (Settings first, module-aware)
 $__tenant   = $__tenant ?? null;
 $shopName   = $__tenant['name'] ?? 'My Shop';
-$modules    = TenantModules::fromTenant($__tenant);
 $username   = $_SESSION['username'] ?? 'User';
 $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOwner    = TenantContext::role() === 'tenant_owner';
 $isJunior   = TenantContext::role() === 'junior_admin';
 $dashUrl    = $isOwner || $isJunior ? public_path('super/dashboard/') : public_path('staff/dashboard/');
 
+$__locations = $__locations ?? [];
+if ($isOwner && !$__locations) {
+    try {
+        $__locations = (new Models\BranchModel(Database::pdo()))->listWithCounts();
+    } catch (Throwable $e) {
+        $__locations = [];
+    }
+}
+$modules = TenantModules::effectiveForTenant($__tenant, $__locations);
+
 $isOn = function (string $needle) use ($uri): string {
     return strpos($uri, $needle) !== false ? 'active' : '';
 };
 
-$nav = [
-    ['href' => $dashUrl, 'icon' => 'fa-chart-line', 'label' => 'Dashboard', 'active' => $isOn('/dashboard')],
-];
+$nav = [];
+
+if ($isOwner) {
+    $nav[] = ['href' => public_path('super/settings/?tab=locations'), 'icon' => 'fa-gear', 'label' => 'Settings', 'active' => $isOn('/super/settings')];
+}
+
+$nav[] = ['href' => $dashUrl, 'icon' => 'fa-chart-line', 'label' => 'Dashboard', 'active' => $isOn('/dashboard') && !$isOn('/super/settings')];
 
 if ($isOwner || TenantContext::can(Capabilities::SALES_VIEW)) {
     $nav[] = ['href' => public_path('super/sales/'), 'icon' => 'fa-receipt', 'label' => 'Sales', 'active' => $isOn('/super/sales')];
@@ -37,7 +50,7 @@ if ($isOwner && (
     $nav[] = ['href' => public_path('super/commissions/'), 'icon' => 'fa-coins', 'label' => 'Commissions', 'active' => $isOn('/super/commissions')];
 }
 
-if ($isOwner) {
+if ($isOwner && !empty($modules[TenantModules::STAFF])) {
     $nav[] = ['href' => public_path('super/staff/'), 'icon' => 'fa-user-gear', 'label' => 'Staff', 'active' => $isOn('/super/staff') && !$isOn('/authorization')];
     $nav[] = ['href' => public_path('super/staff/authorization.php'), 'icon' => 'fa-user-shield', 'label' => 'User Access', 'active' => $isOn('/authorization')];
     if (!empty($modules[TenantModules::SALES_AGENTS])) {
@@ -49,18 +62,10 @@ if (TenantContext::can(Capabilities::REPORTS_VIEW)) {
     $nav[] = ['href' => public_path('super/reports/'), 'icon' => 'fa-chart-bar', 'label' => 'Reports', 'active' => $isOn('/super/reports')];
 }
 
-if ($isOwner && TenantContext::can(Capabilities::BRANCHES_MANAGE)) {
-    $nav[] = ['href' => public_path('super/branches/'), 'icon' => 'fa-code-branch', 'label' => 'Branches', 'active' => $isOn('/super/branches')];
-}
-
-if ($isOwner) {
-    $nav[] = ['href' => public_path('super/settings/'), 'icon' => 'fa-gear', 'label' => 'Settings', 'active' => $isOn('/super/settings')];
-}
-
 $enabledLabels = [];
 if (!empty($modules[TenantModules::SERVICES])) { $enabledLabels[] = 'Services'; }
 if (!empty($modules[TenantModules::PRODUCTS])) { $enabledLabels[] = 'Products'; }
-$modeLabel = $enabledLabels ? implode(' + ', $enabledLabels) : 'Configure modules';
+$modeLabel = $enabledLabels ? implode(' + ', $enabledLabels) : 'Set up in Settings';
 ?>
 <div class="cd-overlay" id="cdOverlay"></div>
 <aside class="cd-sidebar" id="cdSidebar">
