@@ -8,12 +8,14 @@ SchemaHelper::clearCache();
 GeneralMigrationService::ensureApplied($pdo);
 Schema024Service::ensureApplied($pdo);
 Schema026Service::ensureApplied($pdo);
+Schema028Service::ensureApplied($pdo);
 Schema020Service::ensureApplied($pdo);
 
 $tenantId = (int) TenantContext::tenantId();
 $tenantModel = new Models\TenantModel($pdo);
 $branchModel = new Models\BranchModel($pdo);
 $staffSvc = new StaffService($pdo);
+$ownerAuthSvc = new OwnerAuthService($pdo);
 $custSvc = new CustomerService($pdo);
 $tab = $_GET['tab'] ?? 'locations';
 
@@ -176,6 +178,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             : ($res['errors']['name'] ?? $res['errors']['pin'] ?? $res['errors']['_'] ?? 'Could not save changes.');
         header('Location: ' . public_path('super/settings/?tab=staff' . ($res['ok'] ? '' : '&edit_staff=' . $staffId))); exit;
     }
+
+    if ($action === 'login_settings') {
+        $res = $ownerAuthSvc->saveLoginSettings($tenantId, $_POST);
+        $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+            ? 'Login settings saved.'
+            : ($res['errors']['owner_pin'] ?? $res['errors']['current_password'] ?? $res['errors']['_'] ?? 'Could not save login settings.');
+        header('Location: ' . public_path('super/settings/?tab=login')); exit;
+    }
 }
 
 $__tenant = $tenantModel->find($tenantId);
@@ -201,6 +211,9 @@ $editStaffId = (int) ($_GET['edit_staff'] ?? 0);
 $editStaffRow = $editStaffId ? $staffSvc->findStaff($tenantId, $editStaffId) : null;
 $modules = TenantModules::effectiveForTenant($__tenant, $locations);
 $staffTypes = StaffRoles::availableStaffTypes($modules);
+$ownerUser = $ownerAuthSvc->ownerUser($tenantId);
+$ownerLoginMethod = $ownerAuthSvc->loginMethod($tenantId);
+$ownerPinLoginUrl = public_path('auth/login.php') . '?mode=admin&method=pin';
 
 $page_title = 'Settings';
 ob_start();
@@ -215,6 +228,7 @@ ob_start();
 <ul class="nav nav-tabs mb-4">
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'locations' ? 'active' : ''; ?>" href="?tab=locations">Branches &amp; Shops</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'modules' ? 'active' : ''; ?>" href="?tab=modules">Modules</a></li>
+  <li class="nav-item"><a class="nav-link <?php echo $tab === 'login' ? 'active' : ''; ?>" href="?tab=login">Login</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'receipts' ? 'active' : ''; ?>" href="?tab=receipts">Receipts</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'customers' ? 'active' : ''; ?>" href="?tab=customers">Customers</a></li>
   <li class="nav-item"><a class="nav-link <?php echo $tab === 'staff' ? 'active' : ''; ?>" href="?tab=staff">Staff</a></li>
@@ -401,6 +415,90 @@ ob_start();
     </div>
   </div>
 </div>
+
+<?php elseif ($tab === 'login'): ?>
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm" style="border-radius:12px;">
+      <div class="card-body p-4">
+        <h2 class="h5 mb-1">Your login</h2>
+        <p class="text-muted small mb-4">
+          Choose how <strong>you</strong> sign in as owner. Staff always use a PIN on the phone-style keypad — only you can change staff PINs here or on the Staff page.
+        </p>
+        <form method="post">
+          <input type="hidden" name="action" value="login_settings">
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Owner sign-in method</label>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="owner_login_method" id="loginPin" value="pin"
+                <?php echo $ownerLoginMethod === 'pin' ? 'checked' : ''; ?>>
+              <label class="form-check-label" for="loginPin">
+                <strong>PIN keypad</strong> — phone lockscreen style (recommended for POS)
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="owner_login_method" id="loginPass" value="password"
+                <?php echo $ownerLoginMethod !== 'pin' ? 'checked' : ''; ?>>
+              <label class="form-check-label" for="loginPass">
+                <strong>Email &amp; password</strong>
+              </label>
+            </div>
+          </div>
+
+          <div id="ownerPinFields" class="mb-4" style="<?php echo $ownerLoginMethod === 'pin' ? '' : 'display:none;'; ?>">
+            <label class="form-label fw-semibold">Owner PIN (4–5 digits)</label>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <input name="owner_pin" type="password" inputmode="numeric" maxlength="5" class="form-control" placeholder="<?php echo !empty($ownerUser['login_pin_hash']) ? 'Leave blank to keep current PIN' : 'Set your PIN'; ?>" autocomplete="new-password">
+              </div>
+              <div class="col-md-6">
+                <input name="owner_pin_confirm" type="password" inputmode="numeric" maxlength="5" class="form-control" placeholder="Confirm PIN" autocomplete="new-password">
+              </div>
+            </div>
+            <small class="text-muted">Must not match any staff PIN. Staff cannot change their own PIN.</small>
+          </div>
+
+          <div id="ownerPassFields" class="mb-4" style="<?php echo $ownerLoginMethod !== 'pin' ? '' : 'display:none;'; ?>">
+            <p class="small text-muted">Change your password below. Staff passwords are not used — staff sign in with PIN only.</p>
+            <div class="mb-3">
+              <label class="form-label">Current password</label>
+              <input name="current_password" type="password" class="form-control" autocomplete="current-password">
+            </div>
+            <div class="row g-2">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">New password</label>
+                <input name="new_password" type="password" class="form-control" autocomplete="new-password">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Confirm new password</label>
+                <input name="new_password_confirm" type="password" class="form-control" autocomplete="new-password">
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary">Save login settings</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm p-4 small" style="border-radius:12px;">
+      <strong>Staff login</strong>
+      <p class="text-muted mb-2 mt-2">Staff tap <em>Staff</em> on the home screen and enter their PIN — no shop code, no password reset.</p>
+      <strong>Your PIN login link</strong>
+      <p class="text-muted mb-0 mt-2">If you use PIN sign-in, bookmark this on your POS device:</p>
+      <code class="d-block mt-2 small text-break"><?php echo htmlspecialchars($ownerPinLoginUrl); ?></code>
+    </div>
+  </div>
+</div>
+<script>
+document.querySelectorAll('input[name="owner_login_method"]').forEach(function(r){
+  r.addEventListener('change', function(){
+    document.getElementById('ownerPinFields').style.display = this.value === 'pin' ? '' : 'none';
+    document.getElementById('ownerPassFields').style.display = this.value === 'password' ? '' : 'none';
+  });
+});
+</script>
 
 <?php elseif ($tab === 'receipts'): ?>
 <div class="row g-4">

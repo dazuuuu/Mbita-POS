@@ -132,7 +132,7 @@ ob_start();
             <input name="new_pin" type="password" inputmode="numeric" pattern="\d{4,5}" maxlength="5" class="form-control" placeholder="Leave blank to keep current" autocomplete="off">
           </div>
           <div class="col-md-8">
-            <p class="small text-muted mb-0">Staff sign in at the login page → <strong>Staff PIN</strong> tab using shop code <code><?php echo htmlspecialchars($__tenant['slug'] ?? ''); ?></code>.</p>
+            <p class="small text-muted mb-0">Staff sign in on the home screen → <strong>Staff</strong> and enter their PIN on the phone-style keypad. Only you can reset PINs here.</p>
           </div>
         </div>
       </div>

@@ -20,6 +20,7 @@ class GeneralMigrationService
             '025 pin auth'        => fn () => Schema025Service::ensureApplied($db),
             '026 modules'         => fn () => Schema026Service::ensureApplied($db),
             '027 wholesale'       => fn () => self::ensure027Wholesale($db, $log),
+            '028 owner login'     => fn () => Schema028Service::ensureApplied($db),
         ];
 
         foreach ($steps as $label => $fn) {
@@ -59,6 +60,7 @@ class GeneralMigrationService
             ['label' => 'users.login_pin_hash', 'ok' => SchemaHelper::columnExists($db, 'users', 'login_pin_hash')],
             ['label' => 'branches.branch_type', 'ok' => !SchemaHelper::tableExists($db, 'branches') || SchemaHelper::columnExists($db, 'branches', 'branch_type')],
             ['label' => 'branches.modules', 'ok' => !SchemaHelper::tableExists($db, 'branches') || SchemaHelper::columnExists($db, 'branches', 'modules')],
+            ['label' => 'tenants.owner_login_method', 'ok' => !SchemaHelper::tableExists($db, 'tenants') || SchemaHelper::columnExists($db, 'tenants', 'owner_login_method')],
         ];
 
         if (SchemaHelper::tableExists($db, 'commission_sales')) {

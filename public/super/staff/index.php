@@ -76,8 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $res = $svc->create((int) $tenantId, $old);
 
         if ($res['ok']) {
-            $_SESSION['flash']['success'] = 'Staff account created. They can log in with shop code '
-                . htmlspecialchars($__tenant['slug'] ?? '') . ' and their PIN.';
+            $_SESSION['flash']['success'] = 'Staff account created. They can sign in with their PIN on the Staff login screen.';
             header('Location: ' . public_path('super/staff/authorization.php') . '?staff=' . (int) $res['user_id']);
             exit;
         }
@@ -104,10 +103,9 @@ ob_start();
         <h2 class="h5 mb-1"><?php echo $editRow ? 'Edit staff' : 'Add staff'; ?></h2>
         <p class="text-muted small mb-3">
           <?php if ($editRow): ?>
-            Update name, role, or branch. Leave PIN blank to keep the current one.
+            Update name, role, or branch. Leave PIN blank to keep the current one. Staff cannot change their own PIN.
           <?php else: ?>
-            Staff log in with your shop code <strong><?php echo htmlspecialchars($__tenant['slug'] ?? ''); ?></strong>
-            and a 4–5 digit PIN — no email required.
+            Staff tap <strong>Staff</strong> on the login screen and enter their PIN — no shop code needed.
           <?php endif; ?>
         </p>
         <?php if (!empty($errors['_'])): ?><div class="alert alert-danger py-2"><?php echo htmlspecialchars($errors['_']); ?></div><?php endif; ?>

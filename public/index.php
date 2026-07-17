@@ -194,12 +194,12 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
             <div class="lede">Sign in to continue</div>
             <a class="portal owner" href="<?php echo $h($LOGIN); ?>?mode=admin">
               <span class="ic"><i class="fa-solid fa-user-shield"></i></span>
-              <span class="tx"><b>Admin / Owner</b><span>Email login — manage shop, staff &amp; settings</span></span>
+              <span class="tx"><b>Admin / Owner</b><span>PIN or email — manage shop, staff &amp; settings</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
             <a class="portal staff" href="<?php echo $h($LOGIN); ?>?mode=staff">
               <span class="ic"><i class="fa-solid fa-key"></i></span>
-              <span class="tx"><b>Staff</b><span>Shop code + PIN — cashier, reception, sales &amp; more</span></span>
+              <span class="tx"><b>Staff</b><span>PIN only — like unlocking your phone</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
           <?php endif; ?>
