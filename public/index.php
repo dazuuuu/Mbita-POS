@@ -31,97 +31,68 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root{
-    --lux-black:#0a0a0a;
-    --lux-black-soft:#141414;
-    --lux-white:#ffffff;
-    --lux-off:#f5f5f5;
-    --lux-gold:#c9a227;
-    --lux-gold-light:#e8c547;
-    --lux-gold-dark:#9a7b1a;
-    --lux-muted:#666666;
-    --lux-border:#e5e5e5;
+    --text:#222222;
+    --muted:#888888;
+    --gold:#b8956b;
+    --gold-soft:rgba(184,149,107,.12);
+    --line:#eeeeee;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
   body{
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
-    min-height:100svh; color:var(--lux-black);
+    min-height:100svh; color:var(--text);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     padding:24px; padding-top:max(24px,env(safe-area-inset-top)); padding-bottom:max(24px,env(safe-area-inset-bottom));
-    background:var(--lux-black);
-    overflow-x:hidden;
-  }
-  body::before{
-    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(201,162,39,.12), transparent 55%),
-      linear-gradient(180deg, var(--lux-black-soft) 0%, var(--lux-black) 100%);
+    background:#ffffff;
   }
 
-  .wrap{ width:440px; max-width:100%; position:relative; z-index:1; }
-  .card{
-    background:var(--lux-white); border:1px solid var(--lux-border); border-radius:16px;
-    overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.45); position:relative;
-  }
-  .card::before{
-    content:''; position:absolute; top:0; left:0; right:0; height:4px;
-    background:linear-gradient(90deg, var(--lux-gold-dark), var(--lux-gold), var(--lux-gold-light));
-  }
-  .inner{ position:relative; padding:32px; }
+  .wrap{ width:400px; max-width:100%; }
+  .inner{ padding:8px 0; }
 
-  .brand{ text-align:center; margin-bottom:24px; }
-  .logo-box{
-    width:72px; height:72px; border-radius:14px; margin:0 auto 14px;
-    background:var(--lux-off); border:2px solid var(--lux-gold);
-    display:flex; align-items:center; justify-content:center; overflow:hidden;
-  }
-  .logo-box img{ width:100%; height:100%; object-fit:contain; padding:10px; }
-  .logo-box .logo-fallback{ color:var(--lux-gold); font-size:1.6rem; }
-  .brand h1{ font-size:1.4rem; font-weight:800; color:var(--lux-black); letter-spacing:-.02em; margin-bottom:4px; }
-  .brand p{ color:var(--lux-muted); font-size:.85rem; }
+  .brand{ text-align:center; margin-bottom:28px; }
+  .logo-box{ margin:0 auto 12px; max-width:120px; }
+  .logo-box img{ max-height:56px; max-width:100%; object-fit:contain; }
+  .brand h1{ font-size:1.3rem; font-weight:600; color:var(--text); margin-bottom:4px; }
+  .brand p{ color:var(--muted); font-size:.85rem; }
 
   .lede{
-    font-size:.7rem; text-transform:uppercase; letter-spacing:.14em; color:var(--lux-gold-dark);
-    text-align:center; margin-bottom:16px; font-weight:700;
+    font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);
+    text-align:center; margin-bottom:14px;
   }
   .portal{
-    display:flex; align-items:center; gap:14px; text-decoration:none; color:var(--lux-black);
-    background:var(--lux-off); border:1px solid var(--lux-border);
-    border-radius:12px; padding:16px 18px; margin-bottom:10px; transition:all .2s;
+    display:flex; align-items:center; gap:14px; text-decoration:none; color:var(--text);
+    padding:14px 0; margin-bottom:4px; border-bottom:1px solid var(--line);
+    transition:color .2s;
   }
-  .portal:last-of-type{ margin-bottom:0; }
-  .portal:hover, .portal:focus-visible{
-    transform:translateY(-2px); outline:none;
-    border-color:var(--lux-gold); box-shadow:0 8px 24px rgba(201,162,39,.2);
-  }
+  .portal:last-of-type{ border-bottom:none; margin-bottom:0; }
+  .portal:hover, .portal:focus-visible{ color:var(--gold); outline:none; }
   .portal .ic{
-    width:46px; height:46px; border-radius:10px; display:flex; align-items:center;
-    justify-content:center; font-size:1.2rem; flex-shrink:0;
-    background:var(--lux-black); color:var(--lux-gold); border:1px solid var(--lux-gold-dark);
+    width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+    font-size:1rem; flex-shrink:0; color:var(--gold);
   }
   .portal .tx{ flex:1; }
-  .portal .tx b{ display:block; font-size:.98rem; font-weight:700; margin-bottom:2px; }
-  .portal .tx span{ font-size:.8rem; color:var(--lux-muted); }
-  .portal .go{ color:var(--lux-gold-dark); font-size:.9rem; transition:transform .2s,color .2s; }
-  .portal:hover .go{ transform:translateX(3px); color:var(--lux-gold); }
+  .portal .tx b{ display:block; font-size:.95rem; font-weight:600; margin-bottom:2px; }
+  .portal .tx span{ font-size:.8rem; color:var(--muted); }
+  .portal:hover .tx span{ color:var(--muted); }
+  .portal .go{ color:var(--line); font-size:.85rem; transition:color .2s; }
+  .portal:hover .go{ color:var(--gold); }
 
   .install-btn{
-    display:none; width:100%; margin-top:14px; align-items:center; justify-content:center;
-    gap:10px; background:var(--lux-gold); color:var(--lux-black);
-    border:1px solid var(--lux-gold-dark); border-radius:12px; padding:14px;
-    font-size:.95rem; font-weight:800; cursor:pointer; transition:all .2s;
+    display:none; width:100%; margin-top:18px; align-items:center; justify-content:center;
+    gap:8px; background:#fff; color:var(--gold);
+    border:1px solid var(--gold); border-radius:8px; padding:12px;
+    font-size:.9rem; font-weight:600; cursor:pointer;
   }
-  .install-btn:hover{ background:var(--lux-gold-light); box-shadow:0 8px 24px rgba(201,162,39,.35); }
+  .install-btn:hover{ background:var(--gold-soft); }
 
-  .hint{ text-align:center; color:rgba(255,255,255,.55); font-size:.76rem; margin-top:14px; line-height:1.5; }
-  .hint b{ color:var(--lux-gold-light); font-weight:600; }
-  .foot{ text-align:center; color:rgba(255,255,255,.35); font-size:.72rem; margin-top:18px; }
+  .hint{ text-align:center; color:var(--muted); font-size:.76rem; margin-top:14px; line-height:1.5; }
+  .foot{ text-align:center; color:#bbb; font-size:.72rem; margin-top:16px; }
 
-  @media(max-width:480px){ .inner{ padding:24px; } }
+  @media(max-width:480px){ .inner{ padding:4px 0; } }
 </style>
 </head>
 <body>
   <div class="wrap">
-      <div class="card">
         <div class="inner">
           <div class="brand">
             <?php if ($brandHasLogo && $brandLogo): ?>
@@ -163,7 +134,6 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
             <i class="fa-solid fa-circle-down"></i> Install app
           </button>
         </div>
-      </div>
   </div>
 
   <p class="hint" id="iosHint" style="display:none;">

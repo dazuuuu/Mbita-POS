@@ -138,18 +138,19 @@ $page_title = 'Log in';
 ob_start();
 ?>
 <style>
-  .auth-switch { display:flex; gap:8px; margin-bottom:20px; }
+  .auth-switch { display:flex; gap:24px; justify-content:center; margin-bottom:22px; }
   .auth-switch a {
-    flex:1; text-align:center; padding:10px; border-radius:10px; font-size:.85rem; font-weight:600;
-    text-decoration:none; color:#666; background:#f5f5f5; border:1px solid #e5e5e5;
+    padding:4px 2px; font-size:.9rem; font-weight:500;
+    text-decoration:none; color:var(--muted, #888);
+    border-bottom:2px solid transparent;
   }
-  .auth-switch a.active { color:#0a0a0a; background:rgba(201,162,39,.15); border-color:#c9a227; }
-  .lock-time { text-align:center; font-size:2.4rem; font-weight:300; color:#0a0a0a; letter-spacing:-.02em; margin:4px 0 2px; line-height:1.1; }
-  .lock-date { text-align:center; color:#666; font-size:.82rem; margin-bottom:18px; }
-  .lock-hint { text-align:center; color:#888; font-size:.88rem; margin-bottom:6px; }
+  .auth-switch a.active { color:var(--text, #222); border-bottom-color:var(--gold, #b8956b); }
+  .lock-time { text-align:center; font-size:2.1rem; font-weight:300; color:var(--text, #222); letter-spacing:-.02em; margin:0 0 2px; line-height:1.1; }
+  .lock-date { text-align:center; color:var(--muted, #888); font-size:.82rem; margin-bottom:16px; }
+  .lock-hint { text-align:center; color:var(--muted, #888); font-size:.85rem; margin-bottom:4px; }
   .auth-foot { text-align:center; margin-top:18px; font-size:.82rem; }
-  .auth-foot a { color:#9a7b1a; text-decoration:none; }
-  .auth-foot a:hover { color:#c9a227; }
+  .auth-foot a { color:var(--gold, #b8956b); text-decoration:none; }
+  .auth-foot a:hover { text-decoration:underline; }
 </style>
 
 <div class="auth-switch">

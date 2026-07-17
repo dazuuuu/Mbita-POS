@@ -24,64 +24,52 @@ $pinPadId = 'pinPad_' . bin2hex(random_bytes(3));
   </div>
 </div>
 <style>
-  .phone-lock { max-width: 280px; margin: 0 auto 8px; user-select: none; -webkit-user-select: none; }
-  .phone-lock-dots { display: flex; justify-content: center; gap: 14px; margin: 8px 0 28px; min-height: 16px; }
+  .phone-lock { max-width: 260px; margin: 0 auto 8px; user-select: none; -webkit-user-select: none; }
+  .phone-lock-dots { display: flex; justify-content: center; gap: 12px; margin: 6px 0 24px; min-height: 12px; }
   .phone-lock-dot {
-    width: 14px; height: 14px; border-radius: 50%;
-    border: 2px solid #c9a227; background: transparent;
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 1.5px solid #ddd; background: transparent;
     transition: all .15s ease;
   }
-  .phone-lock-dot.filled { background: #c9a227; border-color: #c9a227; transform: scale(1.05); box-shadow: 0 0 8px rgba(201,162,39,.45); }
-  .phone-lock-dot.error { border-color: #f87171; background: rgba(248,113,113,.3); animation: pinShake .35s ease; }
+  .phone-lock-dot.filled { background: #b8956b; border-color: #b8956b; }
+  .phone-lock-dot.error { border-color: #e57373; animation: pinShake .35s ease; }
   @keyframes pinShake {
     0%,100%{ transform: translateX(0); }
     25%{ transform: translateX(-6px); }
     75%{ transform: translateX(6px); }
   }
   .phone-lock-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
   }
   .phone-lock-key {
     aspect-ratio: 1; border-radius: 50%;
-    background: #0a0a0a !important;
-    color: #c9a227 !important;
-    border: 2px solid #c9a227 !important;
-    font-size: 1.55rem; font-weight: 700; line-height: 1;
+    background: #fff !important;
+    color: #333 !important;
+    border: 1px solid #eee !important;
+    font-size: 1.45rem; font-weight: 500; line-height: 1;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,.25);
-    transition: background .12s, color .12s, border-color .12s, transform .08s, box-shadow .12s;
+    transition: color .12s, border-color .12s, background .12s, transform .08s;
     -webkit-tap-highlight-color: transparent;
   }
   .phone-lock-key:hover {
-    background: #141414 !important;
-    color: #e8c547 !important;
-    border-color: #e8c547 !important;
+    color: #b8956b !important;
+    border-color: #d4c4a8 !important;
   }
   .phone-lock-key:active {
-    background: #c9a227 !important;
-    color: #0a0a0a !important;
-    border-color: #9a7b1a !important;
-    transform: scale(.94);
-    box-shadow: 0 2px 6px rgba(0,0,0,.2);
+    color: #b8956b !important;
+    background: rgba(184,149,107,.08) !important;
+    border-color: #b8956b !important;
+    transform: scale(.96);
   }
-  .phone-lock-key-spacer { visibility: hidden; pointer-events: none; border: none !important; background: none !important; box-shadow: none !important; }
+  .phone-lock-key-spacer { visibility: hidden; pointer-events: none; border: none !important; }
   .phone-lock-key-del {
-    font-size: 1.1rem;
-    background: #fff !important;
-    color: #0a0a0a !important;
-    border: 2px solid #0a0a0a !important;
+    font-size: 1rem;
+    color: #999 !important;
+    border-color: transparent !important;
+    background: transparent !important;
   }
-  .phone-lock-key-del:hover {
-    background: #f5f5f5 !important;
-    color: #c9a227 !important;
-    border-color: #c9a227 !important;
-  }
-  .phone-lock-key-del:active {
-    background: #0a0a0a !important;
-    color: #c9a227 !important;
-    border-color: #c9a227 !important;
-  }
+  .phone-lock-key-del:hover { color: #b8956b !important; }
 </style>
 <script>
 (function(){
