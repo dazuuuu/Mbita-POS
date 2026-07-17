@@ -28,10 +28,10 @@ $pinPadId = 'pinPad_' . bin2hex(random_bytes(3));
   .phone-lock-dots { display: flex; justify-content: center; gap: 14px; margin: 8px 0 28px; min-height: 16px; }
   .phone-lock-dot {
     width: 14px; height: 14px; border-radius: 50%;
-    border: 2px solid #ccc; background: transparent;
+    border: 2px solid #c9a227; background: transparent;
     transition: all .15s ease;
   }
-  .phone-lock-dot.filled { background: #c9a227; border-color: #c9a227; transform: scale(1.05); }
+  .phone-lock-dot.filled { background: #c9a227; border-color: #c9a227; transform: scale(1.05); box-shadow: 0 0 8px rgba(201,162,39,.45); }
   .phone-lock-dot.error { border-color: #f87171; background: rgba(248,113,113,.3); animation: pinShake .35s ease; }
   @keyframes pinShake {
     0%,100%{ transform: translateX(0); }
@@ -42,17 +42,46 @@ $pinPadId = 'pinPad_' . bin2hex(random_bytes(3));
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
   }
   .phone-lock-key {
-    aspect-ratio: 1; border: none; border-radius: 50%;
-    background: rgba(255,255,255,.08); color: #fff;
-    font-size: 1.55rem; font-weight: 400; line-height: 1;
+    aspect-ratio: 1; border-radius: 50%;
+    background: #0a0a0a !important;
+    color: #c9a227 !important;
+    border: 2px solid #c9a227 !important;
+    font-size: 1.55rem; font-weight: 700; line-height: 1;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: background .12s, transform .08s;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    transition: background .12s, color .12s, border-color .12s, transform .08s, box-shadow .12s;
     -webkit-tap-highlight-color: transparent;
   }
-  .phone-lock-key:active { background: rgba(255,255,255,.22); transform: scale(.94); }
-  .phone-lock-key-spacer { visibility: hidden; pointer-events: none; }
-  .phone-lock-key-del { font-size: 1.1rem; color: #94a3b8; background: transparent; }
-  .phone-lock-key-del:active { background: rgba(255,255,255,.08); }
+  .phone-lock-key:hover {
+    background: #141414 !important;
+    color: #e8c547 !important;
+    border-color: #e8c547 !important;
+  }
+  .phone-lock-key:active {
+    background: #c9a227 !important;
+    color: #0a0a0a !important;
+    border-color: #9a7b1a !important;
+    transform: scale(.94);
+    box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  }
+  .phone-lock-key-spacer { visibility: hidden; pointer-events: none; border: none !important; background: none !important; box-shadow: none !important; }
+  .phone-lock-key-del {
+    font-size: 1.1rem;
+    background: #fff !important;
+    color: #0a0a0a !important;
+    border: 2px solid #0a0a0a !important;
+  }
+  .phone-lock-key-del:hover {
+    background: #f5f5f5 !important;
+    color: #c9a227 !important;
+    border-color: #c9a227 !important;
+  }
+  .phone-lock-key-del:active {
+    background: #0a0a0a !important;
+    color: #c9a227 !important;
+    border-color: #c9a227 !important;
+  }
 </style>
 <script>
 (function(){

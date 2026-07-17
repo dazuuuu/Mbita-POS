@@ -64,7 +64,8 @@ $__authTenant = $__authBrand['tenant'];
         }
         .logo-icon i{color:var(--lux-gold);font-size:18px}
 
-        .auth-body{padding:8px 32px 32px}
+        .auth-body{padding:8px 32px 32px;color:var(--lux-black)}
+        .auth-body button{color:inherit}
         .badge-wrap{text-align:center;margin:18px 0 6px}
         .badge-secure{
             display:inline-flex;align-items:center;gap:6px;
