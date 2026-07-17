@@ -5,9 +5,21 @@ PageGuard::tenant();
 
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();
+$__tenant = (new Models\TenantModel($pdo))->find($tenantId);
+$__locations = (new Models\BranchModel($pdo))->listWithCounts();
+$modules = TenantModules::effectiveForTenant($__tenant, $__locations);
+if (empty($modules[TenantModules::SERVICES])) {
+    $_SESSION['flash']['error'] = 'Services are not enabled for any of your locations. Turn on Services in Settings → Modules.';
+    header('Location: ' . public_path('super/settings/?tab=modules'));
+    exit;
+}
+
 CommissionService::ensureSchema($pdo);
+Schema029Service::ensureApplied($pdo);
 $svc = new OfferedServiceService($pdo);
-$base = '/Curlz/public/super/services/';
+$base = public_path('super/services/');
+$branchFilter = (int) ($_GET['branch'] ?? 0);
+$defaultBranch = $branchFilter ?: (int) ($__locations[0]['id'] ?? 0);
 
 $editId = (int) ($_GET['edit'] ?? $_POST['id'] ?? 0);
 $editRow = $editId ? $svc->find($tenantId, $editId) : null;
@@ -36,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'commission_type' => $_POST['commission_type'] ?? 'percent',
         'commission_value' => $_POST['commission_value'] ?? 0,
         'status' => $_POST['status'] ?? 'active',
+        'branch_id' => (int) ($_POST['branch_id'] ?? 0),
         'expenses' => $expenses,
     ];
     $old = array_merge($old, $in);
@@ -48,12 +61,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($res['ok']) {
         $_SESSION['flash']['success'] = $editId ? 'Service updated.' : 'Service created.';
-        header('Location: ' . $base); exit;
+        $redirect = $base;
+        if (!empty($in['branch_id'])) {
+            $redirect .= '?branch=' . (int) $in['branch_id'];
+        }
+        header('Location: ' . $redirect);
+        exit;
     }
     $errors = $res['errors'];
 }
 
-$services = $svc->listForTenant($tenantId);
+$services = $svc->listForTenant($tenantId, $branchFilter ?: null);
 $page_title = 'Services';
 ob_start();
 ?>
@@ -62,9 +80,24 @@ ob_start();
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
         <h2 class="h5 mb-3"><?php echo $editId ? 'Edit service' : 'Add service'; ?></h2>
+        <p class="text-muted small">Each service belongs to a branch or shop.</p>
         <?php if (!empty($errors['_'])): ?><div class="alert alert-danger py-2"><?php echo htmlspecialchars($errors['_']); ?></div><?php endif; ?>
         <form method="post">
           <?php if ($editId): ?><input type="hidden" name="id" value="<?php echo $editId; ?>"><?php endif; ?>
+          <?php if ($__locations): ?>
+          <div class="mb-3">
+            <label class="form-label">Branch / shop</label>
+            <select name="branch_id" class="form-select" required>
+              <option value="">— Select location —</option>
+              <?php foreach ($__locations as $loc): ?>
+              <option value="<?php echo (int)$loc['id']; ?>" <?php echo (string)($old['branch_id'] ?? $defaultBranch) === (string)$loc['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($loc['title']); ?> (<?php echo htmlspecialchars(TenantModules::locationLabel($loc)); ?>)
+              </option>
+              <?php endforeach; ?>
+            </select>
+            <?php if (!empty($errors['branch_id'])): ?><small class="text-danger"><?php echo htmlspecialchars($errors['branch_id']); ?></small><?php endif; ?>
+          </div>
+          <?php endif; ?>
           <div class="mb-3">
             <label class="form-label">Service name</label>
             <input name="name" class="form-control" required value="<?php echo htmlspecialchars($old['name']); ?>">
@@ -116,13 +149,28 @@ ob_start();
   <div class="col-12 col-lg-7">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
-        <h2 class="h5 mb-3">Your services</h2>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h2 class="h5 mb-0">Your services <span class="badge bg-light text-dark"><?php echo count($services); ?></span></h2>
+          <?php if ($__locations): ?>
+          <form method="get" class="d-flex gap-2 align-items-center">
+            <label class="small text-muted mb-0">Location</label>
+            <select name="branch" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+              <option value="">All locations</option>
+              <?php foreach ($__locations as $loc): ?>
+              <option value="<?php echo (int)$loc['id']; ?>" <?php echo $branchFilter === (int)$loc['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($loc['title']); ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+          </form>
+          <?php endif; ?>
+        </div>
         <?php if (!$services): ?>
           <p class="text-muted mb-0">No services yet. Define what you offer and how agents earn commission.</p>
         <?php else: ?>
         <div class="table-responsive">
           <table class="table align-middle">
-            <thead><tr class="text-muted small text-uppercase"><th>Service</th><th>Charge</th><th>Commission</th><th>Expenses</th><th></th></tr></thead>
+            <thead><tr class="text-muted small text-uppercase"><th>Service</th><th>Location</th><th>Charge</th><th>Commission</th><th>Expenses</th><th></th></tr></thead>
             <tbody>
               <?php foreach ($services as $s):
                 $expSum = array_sum(array_column($s['expenses'], 'cost'));
@@ -135,6 +183,7 @@ ob_start();
                   <div class="fw-semibold"><?php echo htmlspecialchars($s['name']); ?></div>
                   <?php if ($s['description']): ?><small class="text-muted"><?php echo htmlspecialchars($s['description']); ?></small><?php endif; ?>
                 </td>
+                <td class="small"><?php echo htmlspecialchars($s['branch_title'] ?? '—'); ?></td>
                 <td>KES <?php echo number_format((float)$s['charge_amount'], 2); ?></td>
                 <td><?php echo htmlspecialchars($commLabel); ?></td>
                 <td><?php echo $expSum > 0 ? 'KES ' . number_format($expSum, 2) : '—'; ?></td>

@@ -13,7 +13,7 @@ class Middleware {
         SessionModel::start();
         
         if (!SessionModel::has('logged_in') || SessionModel::get('logged_in') !== true) {
-            header('Location: /Curlz/public/auth/login.php');
+            header('Location: ' . public_path('auth/login.php'));
             exit();
         }
     }
@@ -27,9 +27,9 @@ class Middleware {
         if (SessionModel::has('logged_in') && SessionModel::get('logged_in') === true) {
             $role = SessionModel::get('role');
             if ($role === 'admin' || $role === 'superadmin') {
-                header('Location: /Curlz/public/admin/dashboard.php');
+                header('Location: ' . public_path('admin/dashboard.php'));
             } else {
-                header('Location: /Curlz/public/profile/');
+                header('Location: ' . public_path('profile/'));
             }
             exit();
         }
@@ -45,7 +45,7 @@ class Middleware {
         
         // role_id 1 = superadmin, 2 = admin, 3 = user
         if ($roleId > 2) {
-            header('Location: /Curlz/public/auth/login.php?error=access_denied');
+            header('Location: ' . public_path('auth/login.php?error=access_denied'));
             exit();
         }
     }
@@ -59,7 +59,7 @@ class Middleware {
         $roleId = SessionModel::get('role_id');
         
         if ($roleId !== 1) {
-            header('Location: /Curlz/public/admin/dashboard.php?error=unauthorized');
+            header('Location: ' . public_path('admin/dashboard.php?error=unauthorized'));
             exit();
         }
     }

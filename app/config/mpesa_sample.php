@@ -15,7 +15,7 @@ return [
     'passkey'   => '',
     // 'CustomerPayBillOnline' for Paybill, 'CustomerBuyGoodsOnline' for Till.
     'transaction_type' => 'CustomerPayBillOnline',
-    'callback_url' => 'https://monkhood-outnumber-swept.ngrok-free.dev/Modern/public/api/billing/mpesa_callback.php',
+    'callback_url' => 'https://monkhood-outnumber-swept.ngrok-free.dev/public/api/billing/mpesa_callback.php',
 
     
         'cacert_path' => '',

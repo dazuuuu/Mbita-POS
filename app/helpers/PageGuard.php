@@ -1,23 +1,41 @@
 <?php
 // app/helpers/PageGuard.php
 // Per-request gate for protected pages.
-// SINGLE-TENANT BUILD: subscription gating is disabled (no plans to pay for).
-// Authentication (password + OTP) and role/capability checks still apply.
 
 class PageGuard
 {
-    const LOGIN_URL = '/Curlz/public/auth/login.php';
-    const STAFF_RESET_URL = '/Curlz/public/staff/reset-password.php';
-    const AGENT_RESET_URL = '/Curlz/public/sales-agent/reset-password.php';
+    public static function loginUrl(): string
+    {
+        return public_path('auth/login.php');
+    }
 
-    /** Any fully-authenticated user (owner or staff). No role/subscription gate. */
+    public static function staffResetUrl(): string
+    {
+        return public_path('staff/reset-password.php');
+    }
+
+    public static function agentResetUrl(): string
+    {
+        return public_path('sales-agent/reset-password.php');
+    }
+
+    /** Any fully-authenticated user (owner or staff). */
     public static function auth(): void
     {
         self::requireFullAuth();
         self::enforcePasswordReset();
     }
 
-    /** Require a fully-authenticated tenant OWNER. */
+    /** Require a fully-authenticated platform admin (system-wide). */
+    public static function platform(): void
+    {
+        self::requireFullAuth();
+        if (TenantContext::role() !== 'platform_admin') {
+            self::deny();
+        }
+    }
+
+    /** Require a fully-authenticated tenant OWNER (email login). */
     public static function tenant(): void
     {
         self::requireFullAuth();
@@ -26,14 +44,34 @@ class PageGuard
         }
     }
 
-    /** Require a fully-authenticated STAFF member. */
+    /** Require any employee role (PIN login: cashier, reception, sales, barber, etc.). */
     public static function staff(): void
     {
         self::requireFullAuth();
-        if (TenantContext::role() !== 'staff') {
+        if (!StaffRoles::isEmployeeRole(TenantContext::role())) {
             self::deny();
         }
         self::enforcePasswordReset();
+    }
+
+    /** Alias for staff — any non-owner employee. */
+    public static function employee(): void
+    {
+        self::staff();
+    }
+
+    /** Junior admin may access limited owner pages (inventory, reports). */
+    public static function juniorAdminOrOwner(): void
+    {
+        self::requireFullAuth();
+        $role = TenantContext::role();
+        if ($role === 'tenant_owner') {
+            return;
+        }
+        if ($role === 'junior_admin') {
+            return;
+        }
+        self::deny();
     }
 
     /** Require a fully-authenticated SALES AGENT. */
@@ -57,7 +95,7 @@ class PageGuard
             CommissionService::ensureSchema(Database::pdo());
             return;
         }
-        if ($role === 'staff' && TenantContext::can(Capabilities::COMMISSION_RECORD)) {
+        if (StaffRoles::isEmployeeRole($role) && TenantContext::can(Capabilities::COMMISSION_RECORD)) {
             self::enforcePasswordReset();
             CommissionService::ensureSchema(Database::pdo());
             return;
@@ -65,7 +103,7 @@ class PageGuard
         self::deny();
     }
 
-    /** Require a fully-authenticated user (owner or staff) who holds a capability. */
+    /** Require a fully-authenticated user who holds a capability. */
     public static function capability(string $cap): void
     {
         self::requireFullAuth();
@@ -77,8 +115,8 @@ class PageGuard
 
     private static function enforcePasswordReset(): void
     {
-        if (TenantContext::role() === 'staff' && !empty($_SESSION['must_reset'])) {
-            header('Location: ' . self::STAFF_RESET_URL);
+        if (StaffRoles::isEmployeeRole(TenantContext::role()) && !empty($_SESSION['must_reset'])) {
+            header('Location: ' . self::staffResetUrl());
             exit;
         }
     }
@@ -86,7 +124,7 @@ class PageGuard
     private static function enforceAgentPasswordReset(): void
     {
         if (TenantContext::role() === 'sales_agent' && !empty($_SESSION['must_reset'])) {
-            header('Location: ' . self::AGENT_RESET_URL);
+            header('Location: ' . self::agentResetUrl());
             exit;
         }
     }
@@ -95,12 +133,11 @@ class PageGuard
     {
         $authed = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']) && TenantContext::check();
         if (!$authed) {
-            header('Location: ' . self::LOGIN_URL);
+            header('Location: ' . self::loginUrl());
             exit;
         }
     }
 
-    /** Kept as a no-op so any remaining callers are harmless in the single-tenant build. */
     private static function requireActiveSubscription(): void
     {
         return;
@@ -108,7 +145,7 @@ class PageGuard
 
     private static function deny(): void
     {
-        header('Location: ' . self::LOGIN_URL . '?denied=1');
+        header('Location: ' . self::loginUrl() . '?denied=1');
         exit;
     }
 }

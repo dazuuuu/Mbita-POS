@@ -148,7 +148,7 @@
                         </div>
                         <!-- <span class="logo-name">Modern<span>POS</span></span> -->
                         <?php
-                        $logoPath = '/Curlz/public/assets/images/logo/logo.png';
+                        $logoPath = public_path('assets/images/logo/logo.png');
                         if (file_exists($_SERVER['DOCUMENT_ROOT'] . $logoPath)):
                         ?>
                         <img src="<?php echo htmlspecialchars($logoPath); ?>" alt="Modern POS"

@@ -1,4 +1,5 @@
 <?php
+/** @deprecated Legacy CMS product controller — incompatible with Models\ProductModel. Not used by POS pages. */
 require_once __DIR__ . '/../models/ProductModel.php';
 
 class ProductController {

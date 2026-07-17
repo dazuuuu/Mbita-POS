@@ -123,6 +123,9 @@ class CommissionService
         if ($isCredit && $customerName === '') {
             return ['ok' => false, 'errors' => ['customer_name' => 'Customer name is required for credit sales.']];
         }
+        if ($isCredit && !$this->creditsEnabled($tenantId)) {
+            return ['ok' => false, 'errors' => ['_' => 'Credit sales are disabled for this shop.']];
+        }
 
         $quantity = max(0.01, (float) ($in['quantity'] ?? 1));
         $branchId = isset($in['branch_id']) && (int) $in['branch_id'] > 0 ? (int) $in['branch_id'] : null;
@@ -155,14 +158,12 @@ class CommissionService
             }
         } else {
             $productId = (int) ($in['product_id'] ?? 0);
-            $stmt = $this->db->prepare(
-                "SELECT name, selling_price, commission_type, commission_value, credit_allowed
-                   FROM products WHERE id = ? AND tenant_id = ? AND status = 'active' LIMIT 1"
-            );
-            $stmt->execute([$productId, $tenantId]);
-            $prod = $stmt->fetch();
+            $prod = $this->loadProduct($tenantId, $productId);
             if (!$prod) {
                 return ['ok' => false, 'errors' => ['_' => 'Product not found.']];
+            }
+            if ($quantity > (float) $prod['quantity']) {
+                return ['ok' => false, 'errors' => ['_' => "Not enough stock for {$prod['name']}."]];
             }
             $standardPrice = (float) $prod['selling_price'];
             $commType = $prod['commission_type'];
@@ -173,14 +174,25 @@ class CommissionService
             }
         }
 
-        $calc = self::calculateCommission($commType, $commValue, $standardPrice, $charged);
+        [$lineStandard, $lineCharged] = $this->lineAmounts($standardPrice, $charged, $quantity, $itemType);
+        $calc = self::calculateCommission($commType, $commValue, $lineStandard, $lineCharged);
         $customerId = null;
         if ($customerName !== '') {
             $customerId = (new CustomerService($this->db))->resolve($tenantId, $customerName, $customerPhone ?: null);
         }
 
-        $this->db->beginTransaction();
+        $ownsTx = !$this->db->inTransaction();
+        if ($ownsTx) {
+            $this->db->beginTransaction();
+        }
         try {
+            if ($itemType === 'product' && $productId) {
+                if (!$this->decrementProductStock($tenantId, $productId, $quantity)) {
+                    if ($ownsTx && $this->db->inTransaction()) { $this->db->rollBack(); }
+                    return ['ok' => false, 'errors' => ['_' => 'Stock changed while saving. Please try again.']];
+                }
+            }
+
             $stmt = $this->db->prepare(
                 'INSERT INTO commission_sales
                  (tenant_id, receipt_number, agent_user_id, branch_id, customer_id, customer_name, customer_phone,
@@ -192,7 +204,7 @@ class CommissionService
                 $tenantId, 'PENDING', $agentUserId, $branchId, $customerId,
                 $customerName ?: null, $customerPhone ?: null,
                 $itemType, $serviceId, $productId, $itemName, $quantity,
-                $standardPrice, $charged, $paymentMethod, $isCredit ? 1 : 0, $expenseTotal,
+                $standardPrice, $lineCharged, $paymentMethod, $isCredit ? 1 : 0, $expenseTotal,
                 $calc['base_commission'], $calc['overage_commission'], $calc['total_commission'],
                 trim($in['notes'] ?? '') ?: null,
             ]);
@@ -211,16 +223,18 @@ class CommissionService
             }
 
             if ($isCredit && $customerId) {
-                (new CustomerService($this->db))->addCredit($tenantId, $customerId, $charged);
+                (new CustomerService($this->db))->addCredit($tenantId, $customerId, $lineCharged);
             }
 
-            $this->db->commit();
+            if ($ownsTx) {
+                $this->db->commit();
+            }
             return [
                 'ok' => true, 'id' => $saleId, 'receipt_number' => $receipt,
                 'commission' => $calc, 'errors' => [],
             ];
         } catch (\Throwable $e) {
-            if ($this->db->inTransaction()) { $this->db->rollBack(); }
+            if ($ownsTx && $this->db->inTransaction()) { $this->db->rollBack(); }
             return ['ok' => false, 'errors' => ['_' => 'Could not record sale.']];
         }
     }
@@ -249,6 +263,9 @@ class CommissionService
         if ($isCredit && $customerName === '') {
             return ['ok' => false, 'errors' => ['customer_name' => 'Customer name is required for credit sales.']];
         }
+        if ($isCredit && !$this->creditsEnabled($tenantId)) {
+            return ['ok' => false, 'errors' => ['_' => 'Credit sales are disabled for this shop.']];
+        }
 
         $prepared = [];
         $totalCharged = 0.0;
@@ -266,7 +283,10 @@ class CommissionService
             $customerId = (new CustomerService($this->db))->resolve($tenantId, $customerName, $customerPhone ?: null);
         }
 
-        $this->db->beginTransaction();
+        $ownsTx = !$this->db->inTransaction();
+        if ($ownsTx) {
+            $this->db->beginTransaction();
+        }
         try {
             $ids = [];
             $receipts = [];
@@ -282,7 +302,9 @@ class CommissionService
             if ($isCredit && $customerId) {
                 (new CustomerService($this->db))->addCredit($tenantId, $customerId, $totalCharged);
             }
-            $this->db->commit();
+            if ($ownsTx) {
+                $this->db->commit();
+            }
             return [
                 'ok' => true,
                 'ids' => $ids,
@@ -294,7 +316,7 @@ class CommissionService
                 'errors' => [],
             ];
         } catch (Throwable $e) {
-            if ($this->db->inTransaction()) {
+            if ($ownsTx && $this->db->inTransaction()) {
                 $this->db->rollBack();
             }
             return ['ok' => false, 'errors' => ['_' => 'Could not record sale.']];
@@ -342,14 +364,12 @@ class CommissionService
             }
         } else {
             $productId = (int) ($in['product_id'] ?? 0);
-            $stmt = $this->db->prepare(
-                "SELECT name, selling_price, commission_type, commission_value, credit_allowed
-                   FROM products WHERE id = ? AND tenant_id = ? AND status = 'active' LIMIT 1"
-            );
-            $stmt->execute([$productId, $tenantId]);
-            $prod = $stmt->fetch();
+            $prod = $this->loadProduct($tenantId, $productId);
             if (!$prod) {
                 return ['ok' => false, 'errors' => ['_' => 'Product not found.']];
+            }
+            if ($quantity > (float) $prod['quantity']) {
+                return ['ok' => false, 'errors' => ['_' => "Not enough stock for {$prod['name']}."]];
             }
             $standardPrice = (float) $prod['selling_price'];
             $commType = $prod['commission_type'];
@@ -360,7 +380,8 @@ class CommissionService
             }
         }
 
-        $calc = self::calculateCommission($commType, $commValue, $standardPrice, $charged);
+        [$lineStandard, $lineCharged] = $this->lineAmounts($standardPrice, $charged, $quantity, $itemType);
+        $calc = self::calculateCommission($commType, $commValue, $lineStandard, $lineCharged);
         return [
             'ok' => true,
             'data' => [
@@ -370,7 +391,7 @@ class CommissionService
                 'item_name' => $itemName,
                 'quantity' => $quantity,
                 'standard_price' => $standardPrice,
-                'charged' => $charged,
+                'charged' => $lineCharged,
                 'payment_method' => $paymentMethod,
                 'is_credit' => $isCredit,
                 'expense_total' => $expenseTotal,
@@ -390,6 +411,12 @@ class CommissionService
         ?int $branchId,
         ?string $notes
     ): array {
+        if ($row['item_type'] === 'product' && !empty($row['product_id'])) {
+            if (!$this->decrementProductStock($tenantId, (int) $row['product_id'], (float) $row['quantity'])) {
+                throw new RuntimeException('Stock decrement failed');
+            }
+        }
+
         $calc = $row['commission'];
         $stmt = $this->db->prepare(
             'INSERT INTO commission_sales
@@ -447,11 +474,60 @@ class CommissionService
     public function unpaidSales(int $tenantId, int $agentUserId): array
     {
         return $this->rows(
-            'SELECT * FROM commission_sales
-              WHERE tenant_id = ? AND agent_user_id = ? AND payout_id IS NULL
-           ORDER BY created_at DESC',
+            'SELECT cs.*, b.title AS branch_name
+               FROM commission_sales cs
+          LEFT JOIN branches b ON b.id = cs.branch_id
+              WHERE cs.tenant_id = ? AND cs.agent_user_id = ? AND cs.payout_id IS NULL
+           ORDER BY cs.branch_id ASC, cs.created_at DESC',
             [$tenantId, $agentUserId]
         );
+    }
+
+    /** Commission sales for owner view, optionally filtered by branch. */
+    public function commissionSalesForTenant(int $tenantId, string $period = 'all', ?int $branchId = null): array
+    {
+        if (!$this->hasCommissionSales()) {
+            return [];
+        }
+        $periodSql = match ($period) {
+            'today' => 'AND DATE(cs.created_at) = CURDATE()',
+            'week'  => 'AND cs.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)',
+            'month' => 'AND cs.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)',
+            default => '',
+        };
+        $branchSql = '';
+        $params = [$tenantId];
+        if ($branchId !== null && $branchId > 0) {
+            $branchSql = ' AND cs.branch_id = ?';
+            $params[] = $branchId;
+        }
+        return $this->rows(
+            "SELECT cs.*, b.title AS branch_name, u.username AS agent_name
+               FROM commission_sales cs
+          LEFT JOIN branches b ON b.id = cs.branch_id
+          LEFT JOIN users u ON u.id = cs.agent_user_id
+              WHERE cs.tenant_id = ? {$periodSql}{$branchSql}
+           ORDER BY cs.created_at DESC
+              LIMIT 1000",
+            $params
+        );
+    }
+
+    /** Group commission rows by branch title for display. */
+    public static function branchBreakdown(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $r) {
+            $name = ($r['branch_name'] ?? '') !== '' ? $r['branch_name'] : 'No branch';
+            if (!isset($out[$name])) {
+                $out[$name] = ['count' => 0, 'revenue' => 0.0, 'commission' => 0.0];
+            }
+            $out[$name]['count']++;
+            $out[$name]['revenue'] += (float) ($r['charged_amount'] ?? 0);
+            $out[$name]['commission'] += (float) ($r['total_commission'] ?? 0);
+        }
+        uasort($out, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        return $out;
     }
 
     /** Summary per agent for owner payout screen. */
@@ -498,16 +574,20 @@ class CommissionService
         }
     }
 
-    public function expenses(int $saleId): array
+    public function expenses(int $tenantId, int $saleId): array
     {
         if (!SchemaHelper::tableExists($this->db, 'commission_sale_expenses')) {
             return [];
         }
         try {
             $stmt = $this->db->prepare(
-                'SELECT expense_name, cost FROM commission_sale_expenses WHERE commission_sale_id = ? ORDER BY id'
+                'SELECT e.expense_name, e.cost
+                   FROM commission_sale_expenses e
+                   JOIN commission_sales cs ON cs.id = e.commission_sale_id
+                  WHERE e.commission_sale_id = ? AND cs.tenant_id = ?
+               ORDER BY e.id'
             );
-            $stmt->execute([$saleId]);
+            $stmt->execute([$saleId, $tenantId]);
             return $stmt->fetchAll() ?: [];
         } catch (Throwable $e) {
             return [];
@@ -571,5 +651,52 @@ class CommissionService
         } catch (Throwable $e) {
             return [];
         }
+    }
+
+    private function creditsEnabled(int $tenantId): bool
+    {
+        if (!SchemaHelper::columnExists($this->db, 'tenants', 'credits_enabled')) {
+            return true;
+        }
+        $stmt = $this->db->prepare('SELECT credits_enabled FROM tenants WHERE id = ? LIMIT 1');
+        $stmt->execute([$tenantId]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function loadProduct(int $tenantId, int $productId): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT name, selling_price, quantity, commission_type, commission_value, credit_allowed
+               FROM products WHERE id = ? AND tenant_id = ? AND status = 'active' LIMIT 1"
+        );
+        $stmt->execute([$productId, $tenantId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    /** @return array{0: float, 1: float} line standard and line charged totals */
+    private function lineAmounts(float $unitStandard, float $unitCharged, float $quantity, string $itemType): array
+    {
+        if ($itemType === 'product' && $quantity > 1) {
+            return [round($unitStandard * $quantity, 2), round($unitCharged * $quantity, 2)];
+        }
+        return [round($unitStandard, 2), round($unitCharged, 2)];
+    }
+
+    private function decrementProductStock(int $tenantId, int $productId, float $quantity): bool
+    {
+        $lock = $this->db->prepare(
+            "SELECT quantity FROM products WHERE id = ? AND tenant_id = ? AND status = 'active' FOR UPDATE"
+        );
+        $lock->execute([$productId, $tenantId]);
+        $stock = $lock->fetchColumn();
+        if ($stock === false || $quantity > (float) $stock) {
+            return false;
+        }
+        $dec = $this->db->prepare(
+            'UPDATE products SET quantity = quantity - ? WHERE id = ? AND tenant_id = ? AND quantity >= ?'
+        );
+        $dec->execute([$quantity, $productId, $tenantId, $quantity]);
+        return $dec->rowCount() === 1;
     }
 }

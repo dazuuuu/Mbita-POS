@@ -2,7 +2,7 @@
 // public/staff/sales/index.php — logged-in staff's own sales
 // Defaults to TODAY only. Pass ?period=all to see full history.
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth(Capabilities::SALES_VIEW);
+PageGuard::capability(Capabilities::SALES_VIEW);
 
 $pdo = Database::pdo();
 $SA  = new Models\SaleModel($pdo);
@@ -10,26 +10,41 @@ $SA  = new Models\SaleModel($pdo);
 $viewAll = ($_GET['period'] ?? '') === 'all';
 $today   = date('Y-m-d');
 
-// Today's sales (always computed for the stat card)
-$todaySales = $SA->forStaff(TenantContext::userId(), 500, $today);
-$todaySum   = Models\SaleModel::summarize($todaySales);
+$todaySales = $SA->unifiedForStaff(TenantContext::userId(), 500, $today);
+$todaySum   = selfSummarize($todaySales);
 
-// Displayed list
-$sales      = $viewAll ? $SA->forStaff(TenantContext::userId()) : $todaySales;
-$sum        = $viewAll ? Models\SaleModel::summarize($sales) : $todaySum;
+$sales = $viewAll ? $SA->unifiedForStaff(TenantContext::userId()) : $todaySales;
+$sum   = $viewAll ? selfSummarize($sales) : $todaySum;
 
-// Tenant info for catalogue share link
-$__tenant     = (new Models\TenantModel($pdo))->find(TenantContext::tenantId());
-$tenantSlug   = $__tenant['slug'] ?? '';
-$shopName     = $__tenant['name'] ?? 'Our Shop';
-$catalogueUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
-              . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-              . '/Curlz/public/catalogue.php?shop=' . urlencode($tenantSlug);
+function selfSummarize(array $rows): array
+{
+    $sum = ['count' => 0, 'revenue' => 0.0, 'cash' => 0.0, 'mpesa' => 0.0];
+    foreach ($rows as $r) {
+        $sum['count']++;
+        $sum['revenue'] += (float) $r['total'];
+        $method = $r['payment_method'] ?? 'cash';
+        if ($method === 'cash' || $method === 'mpesa') {
+            $sum[$method] = ($sum[$method] ?? 0) + (float) $r['total'];
+        }
+    }
+    $sum['revenue'] = round($sum['revenue'], 2);
+    return $sum;
+}
 
+function groupSalesByBranch(array $rows): array
+{
+    $groups = [];
+    foreach ($rows as $r) {
+        $key = ($r['branch_name'] ?? '') !== '' ? $r['branch_name'] : 'No branch';
+        $groups[$key][] = $r;
+    }
+    return $groups;
+}
+
+$salesByBranch = groupSalesByBranch($sales);
 $page_title = 'My sales';
 ob_start();
 ?>
-<!-- ===== Actions row ===== -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
@@ -50,40 +65,12 @@ ob_start();
     </div>
   </div>
   <div class="col-12 col-md-6 d-flex align-items-center gap-2 flex-wrap">
-    <a href="/Curlz/public/staff/sales/new.php" class="btn btn-primary">
+    <a href="<?php echo public_path('staff/sales/new.php'); ?>" class="btn btn-primary">
       <i class="fas fa-cash-register me-1"></i>Make a sale
     </a>
-    <button type="button" class="btn btn-outline-secondary"
-            data-bs-toggle="modal" data-bs-target="#shareCatalogueModal">
-      <i class="fas fa-share-nodes me-1"></i>Share Catalogue
-    </button>
   </div>
 </div>
 
-<!-- ===== Share Catalogue Banner ===== -->
-<div class="card border-0 mb-4 overflow-hidden" style="border-radius:14px;">
-  <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#1d4ed8 100%);padding:20px 24px;position:relative;">
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 50% 70% at 90% 10%,rgba(251,191,36,.14) 0%,transparent 55%);pointer-events:none;"></div>
-    <div class="d-flex align-items-center gap-4" style="position:relative;">
-      <div style="width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(255,255,255,.15);">
-        <i class="fas fa-store" style="font-size:1.3rem;color:#93c5fd;"></i>
-      </div>
-      <div class="flex-grow-1">
-        <div class="fw-bold text-white mb-1">Share Your Product Catalogue</div>
-        <div style="color:rgba(255,255,255,.65);font-size:.83rem;">
-          Let customers browse all products — share a link, WhatsApp or email. No login needed.
-        </div>
-      </div>
-      <button type="button" class="btn btn-sm flex-shrink-0"
-              data-bs-toggle="modal" data-bs-target="#shareCatalogueModal"
-              style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:10px;padding:9px 16px;backdrop-filter:blur(6px);font-size:.82rem;">
-        <i class="fas fa-share-nodes me-1" style="color:#a5b4fc;"></i>Share Now
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== Sales table ===== -->
 <div class="card border-0 shadow-sm" style="border-radius:12px;">
   <div class="card-body p-4">
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
@@ -103,38 +90,49 @@ ob_start();
         <?php echo $viewAll ? 'No sales recorded yet.' : 'No sales recorded today. Tap "Make a sale" to start.'; ?>
       </div>
     <?php else: ?>
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead><tr class="text-muted small text-uppercase">
-            <th>Receipt</th><th>When</th><th class="text-center">Items</th><th>Pay</th><th class="text-end">Total</th><th></th>
-          </tr></thead>
-          <tbody>
-            <?php foreach ($sales as $s): ?>
-            <tr>
-              <td class="fw-semibold">
-                <?php echo htmlspecialchars($s['receipt_number']); ?>
-                <?php if ($s['customer_name']): ?>
-                  <div class="text-muted small"><?php echo htmlspecialchars($s['customer_name']); ?></div>
-                <?php endif; ?>
-              </td>
-              <td class="small text-nowrap"><?php echo date('g:i a', strtotime($s['created_at'])); ?></td>
-              <td class="text-center"><span class="badge bg-light text-dark"><?php echo (int)$s['item_count']; ?></span></td>
-              <td><?php echo $s['payment_method']==='cash' ? '<span class="badge bg-light text-dark">Cash</span>' : '<span class="badge bg-success text-white">M-Pesa</span>'; ?></td>
-              <td class="text-end fw-semibold">KES <?php echo number_format((float)$s['total'],0); ?></td>
-              <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="/Curlz/public/staff/sales/receipt.php?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
-            </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
+      <?php foreach ($salesByBranch as $branchName => $branchRows): ?>
+      <div class="mb-4">
+        <h3 class="h6 fw-bold mb-2"><i class="fas fa-code-branch me-1 text-primary"></i><?php echo htmlspecialchars($branchName); ?>
+          <span class="badge bg-light text-dark ms-1"><?php echo count($branchRows); ?></span>
+        </h3>
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead><tr class="text-muted small text-uppercase">
+              <th>Receipt</th><th>When</th><th class="text-center">Items</th><th>Pay</th><th class="text-end">Total</th><th></th>
+            </tr></thead>
+            <tbody>
+              <?php foreach ($branchRows as $s): ?>
+              <tr>
+                <td class="fw-semibold">
+                  <?php echo htmlspecialchars($s['receipt_number']); ?>
+                  <?php if ($s['customer_name']): ?>
+                    <div class="text-muted small"><?php echo htmlspecialchars($s['customer_name']); ?></div>
+                  <?php endif; ?>
+                </td>
+                <td class="small text-nowrap"><?php echo date('j M, g:i a', strtotime($s['created_at'])); ?></td>
+                <td class="text-center">
+                  <span class="badge bg-light text-dark">
+                    <?php echo ($s['sale_type'] ?? 'pos') === 'commission' ? htmlspecialchars($s['item_label'] ?? 'Service') : (int) $s['item_count']; ?>
+                  </span>
+                </td>
+                <td><?php
+                  $pay = $s['payment_method'] ?? 'cash';
+                  echo $pay === 'cash' ? '<span class="badge bg-light text-dark">Cash</span>'
+                      : ($pay === 'mpesa' ? '<span class="badge bg-success text-white">M-Pesa</span>'
+                      : '<span class="badge bg-warning text-dark">Credit</span>');
+                ?></td>
+                <td class="text-end fw-semibold">KES <?php echo number_format((float)$s['total'],0); ?></td>
+                <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="<?php echo htmlspecialchars($s['receipt_url'] ?? (public_path('staff/sales/receipt.php') . '?id=' . (int) $s['id'])); ?>">Receipt</a></td>
+              </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
       </div>
+      <?php endforeach; ?>
     <?php endif; ?>
   </div>
 </div>
-
-<?php
-// Share modal (expects $catalogueUrl, $shopName)
-include __DIR__ . '/../../components/tenants/share_modal.php';
-?>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../../templates/staff/layout.php';

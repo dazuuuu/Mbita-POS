@@ -7,5 +7,5 @@ if (ini_get('session.use_cookies')) {
     setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
 }
 session_destroy();
-header('Location: /Curlz/public/auth/login.php');
+header('Location: ' . public_path('auth/login.php'));
 exit;

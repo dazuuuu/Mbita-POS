@@ -4,7 +4,7 @@
 
 return [
     'app_name'     => 'Mbita POS',
-    'app_url'      => 'http://localhost/Mbita',   // change to your domain in production
+    'app_url'      => 'http://localhost:8000',    // Mac: php -S localhost:8000 -t public (auto-detected). Apache: http://localhost/Mbita
     'debug'        => false,                         // set false in production
     'timezone'     => 'UTC',
     'session_name' => 'curlz_session',
@@ -19,4 +19,7 @@ return [
     // Secret token for the web-callable daily report endpoint.
     // Change this to a long random string before going live.
     'cron_token'   => 'change-this-to-a-long-random-secret',
+
+    // One-time bootstrap code for public/devs/register-admin.php (change before production).
+    'admin_registration_code' => 'ADMIN2024',
 ];

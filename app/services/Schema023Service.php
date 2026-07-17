@@ -43,7 +43,7 @@ class Schema023Service
             return;
         }
         try {
-            $db->exec("CREATE TABLE tenant_services (
+            $db->exec("CREATE TABLE IF NOT EXISTS tenant_services (
                 id               INT AUTO_INCREMENT PRIMARY KEY,
                 tenant_id        INT NOT NULL,
                 name             VARCHAR(160) NOT NULL,
@@ -57,14 +57,20 @@ class Schema023Service
                 KEY idx_ts_tenant (tenant_id),
                 UNIQUE KEY uq_ts_tenant_name (tenant_id, name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            $log[] = 'Created tenant_services table';
+            $log[] = 'Created tenant_services table (if not exists)';
+            SchemaHelper::clearCache();
         } catch (Throwable $e) {
-            $log[] = 'Failed tenant_services: ' . $e->getMessage();
+            if (SchemaHelper::isDuplicateSchemaError($e)) {
+                $log[] = 'tenant_services table already exists';
+                SchemaHelper::clearCache();
+            } else {
+                $log[] = 'Failed tenant_services: ' . $e->getMessage();
+            }
         }
 
         if (!SchemaHelper::tableExists($db, 'service_expenses')) {
             try {
-                $db->exec("CREATE TABLE service_expenses (
+                $db->exec("CREATE TABLE IF NOT EXISTS service_expenses (
                     id         INT AUTO_INCREMENT PRIMARY KEY,
                     service_id INT NOT NULL,
                     name       VARCHAR(160) NOT NULL,
@@ -72,21 +78,27 @@ class Schema023Service
                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     KEY idx_se_service (service_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                $log[] = 'Created service_expenses table';
+                $log[] = 'Created service_expenses table (if not exists)';
+                SchemaHelper::clearCache();
             } catch (Throwable $e) {
-                $log[] = 'Failed service_expenses: ' . $e->getMessage();
+                if (SchemaHelper::isDuplicateSchemaError($e)) {
+                    $log[] = 'service_expenses table already exists';
+                    SchemaHelper::clearCache();
+                } else {
+                    $log[] = 'Failed service_expenses: ' . $e->getMessage();
+                }
             }
         }
     }
 
     private static function ensureProductCommissionColumns(PDO $db, array &$log): void
     {
-        if (!SchemaHelper::tableExists($db, 'products')) {
+        if (!SchemaHelper::tableExists($db, 'products') && !SchemaHelper::columnExists($db, 'products', 'id')) {
             return;
         }
         foreach ([
-            'commission_type'  => "ALTER TABLE products ADD COLUMN commission_type ENUM('percent','fixed') NOT NULL DEFAULT 'percent' AFTER selling_price",
-            'commission_value' => 'ALTER TABLE products ADD COLUMN commission_value DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER commission_type',
+            'commission_type'  => "ALTER TABLE products ADD COLUMN commission_type ENUM('percent','fixed') NOT NULL DEFAULT 'percent'",
+            'commission_value' => 'ALTER TABLE products ADD COLUMN commission_value DECIMAL(12,2) NOT NULL DEFAULT 0',
         ] as $col => $sql) {
             if (!SchemaHelper::columnExists($db, 'products', $col)) {
                 try {
@@ -94,7 +106,12 @@ class Schema023Service
                     $log[] = "Added products.{$col}";
                     SchemaHelper::clearCache();
                 } catch (Throwable $e) {
-                    $log[] = "Failed products.{$col}: " . $e->getMessage();
+                    if (SchemaHelper::isDuplicateSchemaError($e)) {
+                        $log[] = "products.{$col} already exists";
+                        SchemaHelper::clearCache();
+                    } else {
+                        $log[] = "Failed products.{$col}: " . $e->getMessage();
+                    }
                 }
             }
         }
@@ -106,7 +123,7 @@ class Schema023Service
             return;
         }
         try {
-            $db->exec("CREATE TABLE commission_sales (
+            $db->exec("CREATE TABLE IF NOT EXISTS commission_sales (
                 id                  INT AUTO_INCREMENT PRIMARY KEY,
                 tenant_id           INT NOT NULL,
                 agent_user_id       INT NOT NULL,
@@ -128,9 +145,15 @@ class Schema023Service
                 KEY idx_cs_payout (payout_id),
                 KEY idx_cs_created (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            $log[] = 'Created commission_sales table';
+            $log[] = 'Created commission_sales table (if not exists)';
+            SchemaHelper::clearCache();
         } catch (Throwable $e) {
-            $log[] = 'Failed commission_sales: ' . $e->getMessage();
+            if (SchemaHelper::isDuplicateSchemaError($e)) {
+                $log[] = 'commission_sales table already exists';
+                SchemaHelper::clearCache();
+            } else {
+                $log[] = 'Failed commission_sales: ' . $e->getMessage();
+            }
         }
     }
 
@@ -140,16 +163,22 @@ class Schema023Service
             return;
         }
         try {
-            $db->exec("CREATE TABLE commission_sale_expenses (
+            $db->exec("CREATE TABLE IF NOT EXISTS commission_sale_expenses (
                 id                 INT AUTO_INCREMENT PRIMARY KEY,
                 commission_sale_id INT NOT NULL,
                 expense_name       VARCHAR(160) NOT NULL,
                 cost               DECIMAL(12,2) NOT NULL DEFAULT 0,
                 KEY idx_cse_sale (commission_sale_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            $log[] = 'Created commission_sale_expenses table';
+            $log[] = 'Created commission_sale_expenses table (if not exists)';
+            SchemaHelper::clearCache();
         } catch (Throwable $e) {
-            $log[] = 'Failed commission_sale_expenses: ' . $e->getMessage();
+            if (SchemaHelper::isDuplicateSchemaError($e)) {
+                $log[] = 'commission_sale_expenses table already exists';
+                SchemaHelper::clearCache();
+            } else {
+                $log[] = 'Failed commission_sale_expenses: ' . $e->getMessage();
+            }
         }
     }
 
@@ -159,7 +188,7 @@ class Schema023Service
             return;
         }
         try {
-            $db->exec("CREATE TABLE commission_payouts (
+            $db->exec("CREATE TABLE IF NOT EXISTS commission_payouts (
                 id            INT AUTO_INCREMENT PRIMARY KEY,
                 tenant_id     INT NOT NULL,
                 agent_user_id INT NOT NULL,
@@ -171,9 +200,15 @@ class Schema023Service
                 KEY idx_cp_tenant (tenant_id),
                 KEY idx_cp_agent (agent_user_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            $log[] = 'Created commission_payouts table';
+            $log[] = 'Created commission_payouts table (if not exists)';
+            SchemaHelper::clearCache();
         } catch (Throwable $e) {
-            $log[] = 'Failed commission_payouts: ' . $e->getMessage();
+            if (SchemaHelper::isDuplicateSchemaError($e)) {
+                $log[] = 'commission_payouts table already exists';
+                SchemaHelper::clearCache();
+            } else {
+                $log[] = 'Failed commission_payouts: ' . $e->getMessage();
+            }
         }
     }
 }
