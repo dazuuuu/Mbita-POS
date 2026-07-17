@@ -46,8 +46,17 @@ class ProductModel extends Model
 
     public function deleteSafe(int $id): array
     {
-        // No sales module yet; once it exists, switch this to a soft delete so
-        // historical sales keep their product reference.
+        if (!$this->find($id)) {
+            return ['ok' => false, 'error' => 'Product not found.'];
+        }
+        $tid = \TenantContext::tenantId();
+        $stmt = $this->db->prepare(
+            'SELECT 1 FROM sale_items WHERE product_id = ? AND tenant_id = ? LIMIT 1'
+        );
+        $stmt->execute([$id, $tid]);
+        if ($stmt->fetchColumn()) {
+            return ['ok' => false, 'error' => 'This product has sales history and cannot be deleted. Set it to draft instead.'];
+        }
         $this->delete($id);
         return ['ok' => true, 'error' => null];
     }
@@ -77,16 +86,22 @@ class ProductModel extends Model
     }
 
     /** Active, in-stock products for the till (selling price only — no cost). */
-    public function sellable(): array
+    public function sellable(?int $branchId = null): array
     {
         $tid = \TenantContext::tenantId();
+        $branchSql = '';
+        $params = [$tid];
+        if ($branchId !== null && $branchId > 0 && \SchemaHelper::columnExists($this->db, $this->table, 'branch_id')) {
+            $branchSql = ' AND (branch_id = ? OR branch_id IS NULL)';
+            $params[] = $branchId;
+        }
         $stmt = $this->db->prepare(
             "SELECT id, name, selling_price, quantity, unit, image_path
                FROM products
-              WHERE tenant_id = ? AND status = 'active' AND quantity > 0
+              WHERE tenant_id = ? AND status = 'active' AND quantity > 0{$branchSql}
            ORDER BY name ASC"
         );
-        $stmt->execute([$tid]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
@@ -97,8 +112,8 @@ class ProductModel extends Model
             "SELECT p.id, p.name, p.selling_price, p.image_path, p.description, p.unit,
                     c.name AS category_name, s.name AS subcategory_name
                FROM products p
-          LEFT JOIN categories c  ON c.id = p.category_id
-          LEFT JOIN subcategories s ON s.id = p.subcategory_id
+          LEFT JOIN categories c  ON c.id = p.category_id AND c.tenant_id = p.tenant_id
+          LEFT JOIN subcategories s ON s.id = p.subcategory_id AND s.tenant_id = p.tenant_id
               WHERE p.tenant_id = ? AND p.status = 'active'
            ORDER BY p.name ASC"
         );
@@ -107,18 +122,31 @@ class ProductModel extends Model
     }
 
     /** Products with category + subcategory names for listing. */
-    public function listWithMeta(): array
+    public function listWithMeta(?int $branchId = null): array
     {
         $tid = \TenantContext::tenantId();
+        $branchSql = '';
+        $params = [$tid];
+        if ($branchId !== null && $branchId > 0 && \SchemaHelper::columnExists($this->db, $this->table, 'branch_id')) {
+            $branchSql = ' AND p.branch_id = ?';
+            $params[] = $branchId;
+        }
+        $branchJoin = \SchemaHelper::columnExists($this->db, $this->table, 'branch_id')
+            ? 'LEFT JOIN branches br ON br.id = p.branch_id'
+            : '';
+        $branchCol = \SchemaHelper::columnExists($this->db, $this->table, 'branch_id')
+            ? ', br.title AS branch_title'
+            : '';
         $stmt = $this->db->prepare(
-            "SELECT p.*, c.name AS category_name, s.name AS subcategory_name
+            "SELECT p.*, c.name AS category_name, s.name AS subcategory_name{$branchCol}
                FROM products p
-          LEFT JOIN categories c ON c.id = p.category_id
-          LEFT JOIN subcategories s ON s.id = p.subcategory_id
-              WHERE p.tenant_id = ?
+          LEFT JOIN categories c ON c.id = p.category_id AND c.tenant_id = p.tenant_id
+          LEFT JOIN subcategories s ON s.id = p.subcategory_id AND s.tenant_id = p.tenant_id
+          {$branchJoin}
+              WHERE p.tenant_id = ?{$branchSql}
            ORDER BY p.name ASC"
         );
-        $stmt->execute([$tid]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
@@ -155,7 +183,21 @@ class ProductModel extends Model
         if (!is_numeric($in['quantity'] ?? null) || (float) $in['quantity'] < 0) {
             $errors['quantity'] = 'Enter a valid quantity.';
         }
+        $branchId = (int) ($in['branch_id'] ?? 0);
+        if (\SchemaHelper::columnExists($this->db, $this->table, 'branch_id') && $branchId <= 0) {
+            $errors['branch_id'] = 'Select which branch or shop this product belongs to.';
+        } elseif ($branchId > 0 && !$this->branchBelongsToTenant($branchId)) {
+            $errors['branch_id'] = 'Choose a valid branch or shop.';
+        }
         return $errors;
+    }
+
+    private function branchBelongsToTenant(int $branchId): bool
+    {
+        $tid = \TenantContext::tenantId();
+        $stmt = $this->db->prepare('SELECT 1 FROM branches WHERE id = ? AND tenant_id = ? LIMIT 1');
+        $stmt->execute([$branchId, $tid]);
+        return (bool) $stmt->fetchColumn();
     }
 
     private function columns(array $in): array
@@ -173,12 +215,15 @@ class ProductModel extends Model
         $row = [
             'category_id'         => $catId > 0 ? $catId : null,
             'subcategory_id'      => $subId > 0 ? $subId : null,
+            'branch_id'           => (int) ($in['branch_id'] ?? 0) > 0 ? (int) $in['branch_id'] : null,
             'name'                => trim($in['name']),
             'description'         => ($in['description'] ?? '') !== '' ? trim($in['description']) : null,
             'quantity'            => (float) ($in['quantity'] ?? 0),
             'unit'                => $in['unit'] ?? 'piece',
             'buying_price'        => (float) ($in['buying_price'] ?? 0),
             'selling_price'       => (float) ($in['selling_price'] ?? 0),
+            'wholesale_price'     => isset($in['wholesale_price']) && $in['wholesale_price'] !== ''
+                ? (float) $in['wholesale_price'] : null,
             'commission_type'     => in_array($in['commission_type'] ?? 'percent', ['percent', 'fixed'], true) ? $in['commission_type'] : 'percent',
             'commission_value'    => (float) ($in['commission_value'] ?? 0),
             'credit_allowed'      => !empty($in['credit_allowed']) ? 1 : 0,

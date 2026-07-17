@@ -2,7 +2,7 @@
 // public/api/cron/daily-report.php
 // Web-callable fallback for the daily report cron.
 // Protected by a secret token: ?token=<cron_token from app/config/app.php>
-// Usage: https://yourdomain.com/Modern/public/api/cron/daily-report.php?token=your-secret
+// Usage: https://yourdomain.com/public/api/cron/daily-report.php?token=your-secret
 
 header('Content-Type: text/plain; charset=utf-8');
 

@@ -32,7 +32,7 @@ $ismanEmail = 'info@isman.co.ke';
 $ismanLoc   = 'Nairobi, Kenya';
 
 // Logo path (falls back to an inline gear mark if the file is missing).
-$logoPath = '/Curlz/public/assets/images/logo/logo.png';
+$logoPath = public_path('assets/images/logo/logo.png');
 $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     && is_file($_SERVER['DOCUMENT_ROOT'] . $logoPath);
 ?>
@@ -58,7 +58,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     <div class="header-inner container">
 
         <!-- Brand -->
-        <a class="header-brand" href="/Curlz/public/" aria-label="Dazutech — Home">
+        <a class="header-brand" href="<?php echo public_path(''); ?>" aria-label="Dazutech — Home">
             <span class="brand-mark" aria-hidden="true">
                 <?php if ($logoExists): ?>
                     <img src="<?php echo $logoPath; ?>" alt="" width="44" height="44">
@@ -66,10 +66,10 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
                     <!-- Inline engineering gear fallback -->
                     <svg width="40" height="40" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M24 4l3.2 4.1 5-1.7 1.1 5.2 5.2 1.1-1.7 5L46 24l-4.1 3.2 1.7 5-5.2 1.1-1.1 5.2-5-1.7L24 44l-3.2-4.1-5 1.7-1.1-5.2-5.2-1.1 1.7-5L2 24l4.1-3.2-1.7-5 5.2-1.1L10.7 9.4l5 1.7L24 4z"
-                              fill="var(--brand-primary,#0D9488)"/>
+                              fill="#c9a227"/>
                         <circle cx="24" cy="24" r="9" fill="#fff"/>
                         <text x="24" y="28.5" text-anchor="middle" font-family="Montserrat, sans-serif"
-                              font-size="11" font-weight="800" fill="var(--brand-primary,#0D9488)">C</text>
+                              font-size="11" font-weight="800" fill="#0a0a0a">C</text>
                     </svg>
                 <?php endif; ?>
             </span>
@@ -82,30 +82,30 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
         <!-- Desktop nav -->
         <nav class="header-nav" aria-label="Primary navigation">
             <ul class="nav-list" role="list">
-                <li><a class="nav-link <?php echo navIsActive('home'); ?>" href="/Curlz/public/">Home</a></li>
-                <li><a class="nav-link <?php echo navIsActive('services'); ?>" href="/Curlz/public/services">Our Services</a></li>
-                <li><a class="nav-link <?php echo navIsActive('about'); ?>" href="/Curlz/public/about">About Us</a></li>
-                <li><a class="nav-link <?php echo navIsActive('gallery'); ?>" href="/Curlz/public/gallery">Gallery</a></li>
-                <li><a class="nav-link <?php echo navIsActive('blogs'); ?>" href="/Curlz/public/blogs/">Blog <span class="nav-pill">New</span></a></li>
+                <li><a class="nav-link <?php echo navIsActive('home'); ?>" href="<?php echo public_path(''); ?>">Home</a></li>
+                <li><a class="nav-link <?php echo navIsActive('services'); ?>" href="<?php echo public_path('services'); ?>">Our Services</a></li>
+                <li><a class="nav-link <?php echo navIsActive('about'); ?>" href="<?php echo public_path('about'); ?>">About Us</a></li>
+                <li><a class="nav-link <?php echo navIsActive('gallery'); ?>" href="<?php echo public_path('gallery'); ?>">Gallery</a></li>
+                <li><a class="nav-link <?php echo navIsActive('blogs'); ?>" href="<?php echo public_path('blogs/'); ?>">Blog <span class="nav-pill">New</span></a></li>
 
                 <!-- Store Dropdown -->
                 <!--li class="nav-item-dropdown">
-                    <a class="nav-link <?php echo navIsActive('store'); ?>" href="/Curlz/public/store/">
+                    <a class="nav-link <?php echo navIsActive('store'); ?>" href="<?php echo public_path('store/'); ?>">
                         <i class="fas fa-store nav-ic" aria-hidden="true"></i> Store
                         <i class="fas fa-chevron-down dropdown-arrow" aria-hidden="true"></i>
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-link" href="/Curlz/public/store/"><i class="fas fa-box"></i> All Products</a></li>
-                        <li><a class="dropdown-link" href="/Curlz/public/store/?sort=featured"><i class="fas fa-star"></i> Featured</a></li>
-                        <li><a class="dropdown-link" href="/Curlz/public/store/?sort=price_low"><i class="fas fa-arrow-up-wide-short"></i> Price: Low to High</a></li>
-                        <li><a class="dropdown-link" href="/Curlz/public/store/?sort=price_high"><i class="fas fa-arrow-down-wide-short"></i> Price: High to Low</a></li>
+                        <li><a class="dropdown-link" href="<?php echo public_path('store/'); ?>"><i class="fas fa-box"></i> All Products</a></li>
+                        <li><a class="dropdown-link" href="<?php echo public_path('store/?sort=featured'); ?>"><i class="fas fa-star"></i> Featured</a></li>
+                        <li><a class="dropdown-link" href="<?php echo public_path('store/?sort=price_low'); ?>"><i class="fas fa-arrow-up-wide-short"></i> Price: Low to High</a></li>
+                        <li><a class="dropdown-link" href="<?php echo public_path('store/?sort=price_high'); ?>"><i class="fas fa-arrow-down-wide-short"></i> Price: High to Low</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-link" href="/Curlz/public/client/cart/"><i class="fas fa-shopping-cart"></i> My Cart <span class="cart-badge" id="desktopCartCount"></span></a></li>
+                        <li><a class="dropdown-link" href="<?php echo public_path('client/cart/'); ?>"><i class="fas fa-shopping-cart"></i> My Cart <span class="cart-badge" id="desktopCartCount"></span></a></li>
                     </ul>
                 </li-->
                 
-                <li><a class="nav-link <?php echo navIsActive('contact'); ?>" href="/Curlz/public/contact">Contact Us</a></li>
-                <li><a class="nav-link" href="/Curlz/public/auth/login.php">Login</a></li>
+                <li><a class="nav-link <?php echo navIsActive('contact'); ?>" href="<?php echo public_path('contact'); ?>">Contact Us</a></li>
+                <li><a class="nav-link" href="<?php echo public_path('auth/login.php'); ?>">Login</a></li>
             </ul>
         </nav>
 
@@ -116,7 +116,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
             </button>
 
             <!-- Cart Icon (Mobile/Tablet) -->
-            <!--a href="/Modern/public/client/cart/" class="cart-icon-mobile" id="mobileCartIcon">
+            <!--a href="<?php echo public_path('client/cart/'); ?>" class="cart-icon-mobile" id="mobileCartIcon">
                 <i class="fas fa-shopping-cart"></i>
                 <span class="cart-count-mobile" id="mobileCartCount">0</span>
             </a-->
@@ -130,26 +130,26 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
                         <i class="fas fa-chevron-down user-caret" aria-hidden="true"></i>
                     </button>
                     <div class="user-dropdown" id="userDropdown" role="menu">
-                        <a class="dropdown-item" href="/Curlz/public/profile/" role="menuitem">
+                        <a class="dropdown-item" href="<?php echo public_path('profile/'); ?>" role="menuitem">
                             <i class="fas fa-user" aria-hidden="true"></i> My Profile
                         </a>
                         <?php if (isset($_SESSION['role_id']) && $_SESSION['role_id'] <= 2): ?>
-                        <a class="dropdown-item" href="/Curlz/public/admin/dashboard.php" role="menuitem">
+                        <a class="dropdown-item" href="<?php echo public_path('admin/dashboard.php'); ?>" role="menuitem">
                             <i class="fas fa-gauge-high" aria-hidden="true"></i> Admin Panel
                         </a>
                         <?php endif; ?>
-                        <!--a class="dropdown-item" href="/Curlz/public/client/cart/" role="menuitem">
+                        <!--a class="dropdown-item" href="<?php echo public_path('client/cart/'); ?>" role="menuitem">
                             <i class="fas fa-shopping-cart" aria-hidden="true"></i> My Cart
                             <span class="cart-badge" id="dropdownCartCount"></span>
                         </a-->
                         <hr class="dropdown-divider">
-                        <a class="dropdown-item dropdown-item--danger" href="/Curlz/public/auth/logout.php" role="menuitem">
+                        <a class="dropdown-item dropdown-item--danger" href="<?php echo public_path('auth/logout.php'); ?>" role="menuitem">
                             <i class="fas fa-arrow-right-from-bracket" aria-hidden="true"></i> Logout
                         </a>
                     </div>
                 </div>
             <?php else: ?>
-                <a href="/Curlz/public/#contact" class="btn btn--primary nav-cta">
+                <a href="<?php echo public_path('#contact'); ?>" class="btn btn--primary nav-cta">
                     <i class="far fa-calendar-check" aria-hidden="true"></i> Book Now
                 </a>
             <?php endif; ?>
@@ -168,12 +168,12 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 
 <aside class="mobile-drawer" id="mobileDrawer" aria-hidden="true" aria-label="Mobile navigation">
     <div class="drawer-head">
-        <a class="header-brand drawer-brand" href="/Curlz/public/">
+        <a class="header-brand drawer-brand" href="<?php echo public_path(''); ?>">
             <span class="brand-mark" aria-hidden="true">
                 <svg width="34" height="34" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M24 4l3.2 4.1 5-1.7 1.1 5.2 5.2 1.1-1.7 5L46 24l-4.1 3.2 1.7 5-5.2 1.1-1.1 5.2-5-1.7L24 44l-3.2-4.1-5 1.7-1.1-5.2-5.2-1.1 1.7-5L2 24l4.1-3.2-1.7-5 5.2-1.1L10.7 9.4l5 1.7L24 4z" fill="var(--brand-primary,#0D9488)"/>
+                    <path d="M24 4l3.2 4.1 5-1.7 1.1 5.2 5.2 1.1-1.7 5L46 24l-4.1 3.2 1.7 5-5.2 1.1-1.1 5.2-5-1.7L24 44l-3.2-4.1-5 1.7-1.1-5.2-5.2-1.1 1.7-5L2 24l4.1-3.2-1.7-5 5.2-1.1L10.7 9.4l5 1.7L24 4z" fill="#c9a227"/>
                     <circle cx="24" cy="24" r="9" fill="#fff"/>
-                    <text x="24" y="28.5" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="11" font-weight="800" fill="var(--brand-primary,#0D9488)">C</text>
+                    <text x="24" y="28.5" text-anchor="middle" font-family="Montserrat, sans-serif" font-size="11" font-weight="800" fill="#0a0a0a">C</text>
                 </svg>
             </span>
             <span class="brand-text">
@@ -188,11 +188,11 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 
     <nav class="drawer-nav" aria-label="Mobile navigation">
         <ul class="drawer-list" role="list">
-            <li class="drawer-item" style="--i:0"><a class="drawer-link" href="/Curlz/public/"><span>Home</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
-            <li class="drawer-item" style="--i:1"><a class="drawer-link" href="/Curlz/public/services"><span>Our Services</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
-            <li class="drawer-item" style="--i:2"><a class="drawer-link" href="/Curlz/public/about"><span>About Us</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
-            <li class="drawer-item" style="--i:3"><a class="drawer-link" href="/Curlz/public/gallery"><span>Gallery</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
-            <li class="drawer-item" style="--i:4"><a class="drawer-link" href="/Curlz/public/blogs/"><span>Blog</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
+            <li class="drawer-item" style="--i:0"><a class="drawer-link" href="<?php echo public_path(''); ?>"><span>Home</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
+            <li class="drawer-item" style="--i:1"><a class="drawer-link" href="<?php echo public_path('services'); ?>"><span>Our Services</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
+            <li class="drawer-item" style="--i:2"><a class="drawer-link" href="<?php echo public_path('about'); ?>"><span>About Us</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
+            <li class="drawer-item" style="--i:3"><a class="drawer-link" href="<?php echo public_path('gallery'); ?>"><span>Gallery</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
+            <li class="drawer-item" style="--i:4"><a class="drawer-link" href="<?php echo public_path('blogs/'); ?>"><span>Blog</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
 
             <!-- Store Section in Mobile Drawer -->
             <!--li class="drawer-item drawer-item-parent" style="--i:5">
@@ -201,18 +201,18 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
                     <i class="fas fa-chevron-down drawer-chevron" aria-hidden="true"></i>
                 </button>
                 <ul class="drawer-submenu" id="storeSubmenu">
-                    <li><a class="drawer-sub-link" href="/Curlz/public/store/"><i class="fas fa-box"></i> All Products</a></li>
-                    <li><a class="drawer-sub-link" href="/Curlz/public/store/?sort=featured"><i class="fas fa-star"></i> Featured</a></li>
-                    <li><a class="drawer-sub-link" href="/Curlz/public/store/?sort=price_low"><i class="fas fa-arrow-up-wide-short"></i> Price: Low to High</a></li>
-                    <li><a class="drawer-sub-link" href="/Curlz/public/store/?sort=price_high"><i class="fas fa-arrow-down-wide-short"></i> Price: High to Low</a></li>
+                    <li><a class="drawer-sub-link" href="<?php echo public_path('store/'); ?>"><i class="fas fa-box"></i> All Products</a></li>
+                    <li><a class="drawer-sub-link" href="<?php echo public_path('store/?sort=featured'); ?>"><i class="fas fa-star"></i> Featured</a></li>
+                    <li><a class="drawer-sub-link" href="<?php echo public_path('store/?sort=price_low'); ?>"><i class="fas fa-arrow-up-wide-short"></i> Price: Low to High</a></li>
+                    <li><a class="drawer-sub-link" href="<?php echo public_path('store/?sort=price_high'); ?>"><i class="fas fa-arrow-down-wide-short"></i> Price: High to Low</a></li>
                     <li><hr class="drawer-sub-divider"></li>
-                    <li><a class="drawer-sub-link" href="/Curlz/public/client/cart/"><i class="fas fa-shopping-cart"></i> My Cart <span class="cart-badge" id="mobileDrawerCartCount"></span></a></li>
+                    <li><a class="drawer-sub-link" href="<?php echo public_path('client/cart/'); ?>"><i class="fas fa-shopping-cart"></i> My Cart <span class="cart-badge" id="mobileDrawerCartCount"></span></a></li>
                 </ul>
             </li-->
 
-            <li class="drawer-item" style="--i:6"><a class="drawer-link" href="/Curlz/public/contact"><span>Contact Us</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
-            <li class="drawer-item" style="--i:7"><a class="drawer-link" href="/Curlz/public/auth/login.php"><span>Login</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
-            <li class="drawer-item" style="--i:8"><a class="drawer-link" href="/Curlz/public/feedback/"><span>Feedback</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
+            <li class="drawer-item" style="--i:6"><a class="drawer-link" href="<?php echo public_path('contact'); ?>"><span>Contact Us</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
+            <li class="drawer-item" style="--i:7"><a class="drawer-link" href="<?php echo public_path('auth/login.php'); ?>"><span>Login</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
+            <li class="drawer-item" style="--i:8"><a class="drawer-link" href="<?php echo public_path('feedback/'); ?>"><span>Feedback</span><i class="fas fa-arrow-right drawer-arrow" aria-hidden="true"></i></a></li>
         </ul>
     </nav>
 
@@ -226,16 +226,16 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
                 </div>
             </div>
             <div class="drawer-foot-links">
-                <a href="/Curlz/public/profile/" class="drawer-foot-link"><i class="fas fa-user" aria-hidden="true"></i> My Profile</a>
+                <a href="<?php echo public_path('profile/'); ?>" class="drawer-foot-link"><i class="fas fa-user" aria-hidden="true"></i> My Profile</a>
                 <?php if (isset($_SESSION['role_id']) && $_SESSION['role_id'] <= 2): ?>
-                <a href="/Curlz/public/admin/dashboard.php" class="drawer-foot-link"><i class="fas fa-gauge-high" aria-hidden="true"></i> Admin Panel</a>
+                <a href="<?php echo public_path('admin/dashboard.php'); ?>" class="drawer-foot-link"><i class="fas fa-gauge-high" aria-hidden="true"></i> Admin Panel</a>
                 <?php endif; ?>
-                <a href="/Curlz/public/client/cart/" class="drawer-foot-link"><i class="fas fa-shopping-cart" aria-hidden="true"></i> My Cart</a>
-                <a href="/Curlz/public/auth/logout.php" class="drawer-foot-link drawer-foot-link--danger"><i class="fas fa-arrow-right-from-bracket" aria-hidden="true"></i> Logout</a>
+                <a href="<?php echo public_path('client/cart/'); ?>" class="drawer-foot-link"><i class="fas fa-shopping-cart" aria-hidden="true"></i> My Cart</a>
+                <a href="<?php echo public_path('auth/logout.php'); ?>" class="drawer-foot-link drawer-foot-link--danger"><i class="fas fa-arrow-right-from-bracket" aria-hidden="true"></i> Logout</a>
             </div>
         <?php else: ?>
             <p class="drawer-foot-tagline">Need precision metalwork or a turnkey fit-out?</p>
-            <a href="/Curlz/public/#contact" class="btn btn--primary drawer-cta"><i class="far fa-calendar-check" aria-hidden="true"></i> Book Now</a>
+            <a href="<?php echo public_path('#contact'); ?>" class="btn btn--primary drawer-cta"><i class="far fa-calendar-check" aria-hidden="true"></i> Book Now</a>
             <a href="tel:<?php echo preg_replace('/\s+/', '', $ismanPhone); ?>" class="drawer-call-link"><i class="fas fa-phone-volume"></i> <?php echo htmlspecialchars($ismanPhone); ?></a>
         <?php endif; ?>
     </div>
@@ -243,7 +243,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 
 <style>
 /* ============================================================
-   NAVBAR — ISMAN Engineering. Uses theme.css tokens; fallbacks safe.
+   NAVBAR — Black · White · Gold
 ============================================================ */
 * {
     margin: 0;
@@ -260,10 +260,11 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     height: 36px;
     display: flex;
     align-items: center;
-    background: var(--brand-primary, #0D9488);
+    background: #0a0a0a;
     color: #fff;
     font-family: var(--font-body, sans-serif);
     font-size: 0.8rem;
+    border-bottom: 1px solid #c9a227;
 }
 
 .topbar-inner {
@@ -295,7 +296,8 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .topbar-link:hover {
-    opacity: 0.75;
+    opacity: 1;
+    color: #c9a227;
 }
 
 .topbar-link i {
@@ -320,13 +322,13 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     right: 0;
     z-index: 1000;
     height: 80px;
-    background: var(--color-surface, #fff);
-    border-bottom: 1px solid var(--color-border, #E2EAE8);
+    background: #ffffff;
+    border-bottom: 1px solid #e5e5e5;
     transition: box-shadow 0.3s ease, top 0.3s ease;
 }
 
 .site-header.is-scrolled {
-    box-shadow: 0 4px 24px rgba(10, 52, 47, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
 .header-inner {
@@ -376,7 +378,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     font-size: 1.18rem;
     font-weight: 800;
     letter-spacing: 0.02em;
-    color: var(--color-text-heading, #0A1413);
+    color: #0a0a0a;
 }
 
 .brand-tag {
@@ -385,7 +387,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     font-weight: 600;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--color-text-muted, #7B8987);
+    color: #c9a227;
 }
 
 /* Desktop nav */
@@ -409,7 +411,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     font-family: var(--font-body, sans-serif);
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--color-text-body, #44524F);
+    color: #333333;
     padding: 9px 14px;
     border-radius: var(--radius-md, 12px);
     text-decoration: none;
@@ -419,12 +421,12 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .nav-link:hover {
-    color: var(--brand-primary, #0D9488);
-    background: rgba(13, 148, 136, 0.07);
+    color: #0a0a0a;
+    background: rgba(201, 162, 39, 0.1);
 }
 
 .nav-link.is-active {
-    color: var(--brand-primary, #0D9488);
+    color: #0a0a0a;
     font-weight: 600;
 }
 
@@ -435,7 +437,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     left: 14px;
     right: 14px;
     height: 2px;
-    background: var(--brand-primary, #0D9488);
+    background: #c9a227;
     border-radius: 2px;
 }
 
@@ -448,8 +450,8 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: #fff;
-    background: var(--brand-primary, #0D9488);
+    color: #0a0a0a;
+    background: #c9a227;
     border-radius: var(--radius-full, 9999px);
     padding: 2px 7px;
 }
@@ -506,8 +508,8 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .dropdown-link:hover {
-    background: rgba(13, 148, 136, 0.08);
-    color: var(--brand-primary, #0D9488);
+    background: rgba(201, 162, 39, 0.08);
+    color: #c9a227;
 }
 
 .dropdown-link i {
@@ -517,7 +519,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .dropdown-link:hover i {
-    color: var(--brand-primary, #0D9488);
+    color: #c9a227;
 }
 
 .dropdown-divider {
@@ -528,7 +530,7 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 
 .cart-badge {
     display: inline-block;
-    background: var(--brand-primary, #0D9488);
+    background: #c9a227;
     color: #fff;
     font-size: 0.65rem;
     font-weight: 600;
@@ -557,8 +559,8 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .cart-icon-mobile:hover {
-    color: var(--brand-primary, #0D9488);
-    border-color: var(--brand-primary, #0D9488);
+    color: #c9a227;
+    border-color: #c9a227;
 }
 
 .cart-count-mobile {
@@ -598,17 +600,31 @@ $logoExists = isset($_SERVER['DOCUMENT_ROOT'])
 }
 
 .theme-toggle:hover {
-    color: var(--brand-primary, #0D9488);
-    border-color: var(--brand-primary, #0D9488);
+    color: #c9a227;
+    border-color: #c9a227;
 }
 
 html[data-theme="dark"] .theme-toggle i::before {
     content: "\f185";
 }
 
+.nav-cta,
+.drawer-cta {
+    background: #c9a227 !important;
+    color: #0a0a0a !important;
+    border: 1px solid #9a7b1a !important;
+    font-weight: 700;
+}
+
+.nav-cta:hover,
+.drawer-cta:hover {
+    background: #e8c547 !important;
+    color: #0a0a0a !important;
+}
+
 /* sun */
 .nav-cta {
-    box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25);
+    box-shadow: 0 4px 14px rgba(201, 162, 39, 0.3);
 }
 
 /* User dropdown */
@@ -632,7 +648,7 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .user-trigger:hover {
-    border-color: var(--brand-primary, #0D9488);
+    border-color: #c9a227;
     box-shadow: var(--shadow-sm);
 }
 
@@ -640,7 +656,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: var(--brand-primary, #0D9488);
+    background: #c9a227;
     color: #fff;
     display: flex;
     align-items: center;
@@ -705,8 +721,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .dropdown-item:hover {
-    background: rgba(13, 148, 136, 0.08);
-    color: var(--brand-primary, #0D9488);
+    background: rgba(201, 162, 39, 0.08);
+    color: #c9a227;
 }
 
 .dropdown-item--danger {
@@ -764,7 +780,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease;
-    background: rgba(13, 148, 136, 0.03);
+    background: rgba(201, 162, 39, 0.03);
 }
 
 .drawer-submenu.open {
@@ -784,8 +800,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .drawer-sub-link:hover {
-    background: rgba(13, 148, 136, 0.08);
-    color: var(--brand-primary, #0D9488);
+    background: rgba(201, 162, 39, 0.08);
+    color: #c9a227;
 }
 
 .drawer-sub-link i {
@@ -817,8 +833,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .hamburger:hover {
-    border-color: var(--brand-primary, #0D9488);
-    background: rgba(13, 148, 136, 0.05);
+    border-color: #c9a227;
+    background: rgba(201, 162, 39, 0.05);
 }
 
 .ham-bar {
@@ -848,7 +864,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     position: fixed;
     inset: 0;
     z-index: 1099;
-    background: rgba(6, 52, 47, 0.55);
+    background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
     opacity: 0;
@@ -873,7 +889,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     flex-direction: column;
     transform: translateX(100%);
     transition: transform 0.38s cubic-bezier(0.32, 0, 0.15, 1);
-    box-shadow: -8px 0 40px rgba(6, 52, 47, 0.18);
+    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.18);
     overflow-y: auto;
     overscroll-behavior: contain;
 }
@@ -912,8 +928,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .drawer-close:hover {
-    background: var(--brand-primary, #0D9488);
-    border-color: var(--brand-primary, #0D9488);
+    background: #c9a227;
+    border-color: #c9a227;
     color: #fff;
 }
 
@@ -957,8 +973,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 
 .drawer-link:hover,
 .drawer-link:focus-visible {
-    color: var(--brand-primary, #0D9488);
-    background: rgba(13, 148, 136, 0.05);
+    color: #c9a227;
+    background: rgba(201, 162, 39, 0.05);
 }
 
 .drawer-arrow {
@@ -970,7 +986,7 @@ html[data-theme="dark"] .theme-toggle i::before {
 
 .drawer-link:hover .drawer-arrow {
     transform: translateX(4px);
-    color: var(--brand-primary, #0D9488);
+    color: #c9a227;
 }
 
 .drawer-foot {
@@ -995,7 +1011,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--brand-primary, #0D9488);
+    background: #c9a227;
     color: #fff;
     display: flex;
     align-items: center;
@@ -1044,8 +1060,8 @@ html[data-theme="dark"] .theme-toggle i::before {
 }
 
 .drawer-foot-link:hover {
-    background: rgba(13, 148, 136, 0.08);
-    color: var(--brand-primary, #0D9488);
+    background: rgba(201, 162, 39, 0.08);
+    color: #c9a227;
 }
 
 .drawer-foot-link--danger {
@@ -1076,7 +1092,7 @@ html[data-theme="dark"] .theme-toggle i::before {
     gap: 8px;
     font-size: 0.9rem;
     font-weight: 600;
-    color: var(--brand-primary, #0D9488);
+    color: #c9a227;
     text-decoration: none;
 }
 
@@ -1269,7 +1285,7 @@ body {
 .drawer-link:focus-visible,
 .nav-link:focus-visible,
 .theme-toggle:focus-visible {
-    outline: 2px solid var(--brand-primary, #0D9488);
+    outline: 2px solid #c9a227;
     outline-offset: 2px;
 }
 </style>
@@ -1384,7 +1400,7 @@ body {
 
     /* Update cart count */
    /* function updateCartCount() {
-        fetch('/Modern/public/api/store/cart/count.php')
+        fetch(public_path('api/store/cart/count.php'))
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 var count = data.count || 0;

@@ -3,7 +3,7 @@
 $__tenant = $__tenant ?? (TenantContext::tenantId()
     ? (new Models\TenantModel(Database::pdo()))->find(TenantContext::tenantId())
     : null);
-$shopName = $__tenant['name'] ?? 'My Shop';
+$shopName = Branding::shopName($__tenant);
 $username = $_SESSION['username'] ?? 'User';
 $isDashboard = strpos($_SERVER['REQUEST_URI'] ?? '', '/dashboard') !== false;
 ?>
@@ -15,7 +15,7 @@ $isDashboard = strpos($_SERVER['REQUEST_URI'] ?? '', '/dashboard') !== false;
     <title><?php echo htmlspecialchars($page_title ?? 'Dashboard'); ?> — <?php echo htmlspecialchars($shopName); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="/Curlz/public/assets/css/curlz-dashboard.css">
+    <link rel="stylesheet" href="<?php echo public_path('assets/css/curlz-dashboard.css'); ?>">
     <?php echo $extra_css ?? ''; ?>
 </head>
 <body class="cd-body">
@@ -51,7 +51,7 @@ $isDashboard = strpos($_SERVER['REQUEST_URI'] ?? '', '/dashboard') !== false;
             <?php if (empty($hide_page_header)): ?>
             <h1 class="cd-page-title"><?php echo htmlspecialchars($page_title ?? 'Dashboard'); ?></h1>
             <div class="cd-breadcrumb">
-                <a href="/Curlz/public/super/dashboard/">Home</a> / <?php echo htmlspecialchars($page_title ?? 'Dashboard'); ?> / Data
+                <a href="<?php echo public_path('super/dashboard/'); ?>">Home</a> / <?php echo htmlspecialchars($page_title ?? 'Dashboard'); ?> / Data
             </div>
             <?php endif; ?>
 

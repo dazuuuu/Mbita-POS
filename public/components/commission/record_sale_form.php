@@ -31,8 +31,8 @@ $backUrl = $backUrl ?? '';
           <div class="tab-pane fade show active" id="pane-services" role="tabpanel">
             <?php if (!$services): ?>
               <div class="alert alert-warning mb-0">
-                <strong>No services yet.</strong> Ask your manager to add barber/salon services under
-                <em>Super → Services</em> (e.g. Haircut, Shave, Dreadlocks).
+                <strong>No services yet.</strong> Ask your manager to create services under
+                <em>Super → Services</em> (e.g. Haircut, Shave, Styling).
               </div>
             <?php else: ?>
               <div class="row g-2" id="serviceGrid">

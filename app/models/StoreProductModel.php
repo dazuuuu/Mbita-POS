@@ -1,4 +1,5 @@
 <?php
+/** @deprecated Legacy e-commerce model — not used by the POS. Do not autoload in new code. */
 class StoreProductModel {
     private $db;
     
@@ -89,14 +90,14 @@ class StoreProductModel {
         $stmt = $this->db->prepare($sql);
         foreach ($params as $key => &$val) {
             if ($key == ':limit' || $key == ':offset') {
-                $stmt->bindParam($key, $val, PDO::PARAM_INT);
+                $stmt->bindParam($key, $val, \PDO::PARAM_INT);
             } else {
                 $stmt->bindParam($key, $val);
             }
         }
         
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
     
     public function getById($id) {
@@ -106,7 +107,7 @@ class StoreProductModel {
                 WHERE p.id = :id";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
     
     public function getBySlug($slug) {
@@ -116,7 +117,7 @@ class StoreProductModel {
                 WHERE p.slug = :slug AND p.status = 'active'";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':slug' => $slug]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
     }
     
     public function update($id, $data) {
@@ -172,9 +173,9 @@ class StoreProductModel {
                 ORDER BY p.sort_order ASC, p.created_at DESC
                 LIMIT :limit";
         $stmt = $this->db->prepare($sql);
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindParam(':limit', $limit, \PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
     
     public function incrementViews($id) {
@@ -195,7 +196,7 @@ class StoreProductModel {
         $keyword = "%$keyword%";
         $stmt->bindParam(':keyword', $keyword);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
     
     public function getRelatedProducts($product_id, $category_id, $limit = 4) {
@@ -208,9 +209,9 @@ class StoreProductModel {
         $stmt = $this->db->prepare($sql);
         $stmt->bindParam(':product_id', $product_id);
         $stmt->bindParam(':category_id', $category_id);
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindParam(':limit', $limit, \PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 }
 ?>

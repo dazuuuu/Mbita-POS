@@ -11,22 +11,39 @@ class OfferedServiceService
         $this->db = $db;
     }
 
-    public function listForTenant(int $tenantId): array
+    public function listForTenant(int $tenantId, ?int $branchId = null): array
     {
         if (!$this->ready()) {
             return [];
         }
         try {
+            $branchSql = '';
+            $params = [$tenantId];
+            if ($branchId !== null && $branchId > 0 && SchemaHelper::columnExists($this->db, 'tenant_services', 'branch_id')) {
+                $branchSql = ' AND tenant_services.branch_id = ?';
+                $params[] = $branchId;
+            }
+            $branchJoin = SchemaHelper::columnExists($this->db, 'tenant_services', 'branch_id')
+                ? 'LEFT JOIN branches b ON b.id = tenant_services.branch_id'
+                : '';
+            $branchCol = SchemaHelper::columnExists($this->db, 'tenant_services', 'branch_id')
+                ? ', b.title AS branch_title'
+                : '';
             $stmt = $this->db->prepare(
-                'SELECT * FROM tenant_services WHERE tenant_id = ? ORDER BY name ASC'
+                "SELECT tenant_services.*{$branchCol}
+                   FROM tenant_services
+                   {$branchJoin}
+                  WHERE tenant_services.tenant_id = ?{$branchSql}
+               ORDER BY tenant_services.name ASC"
             );
-            $stmt->execute([$tenantId]);
+            $stmt->execute($params);
             $rows = $stmt->fetchAll() ?: [];
             foreach ($rows as &$row) {
                 $row['expenses'] = $this->expensesForService((int) $row['id']);
             }
             return $rows;
         } catch (Throwable $e) {
+            error_log('OfferedServiceService::listForTenant: ' . $e->getMessage());
             return [];
         }
     }
@@ -57,17 +74,15 @@ class OfferedServiceService
         if (!$this->ready()) {
             return ['ok' => false, 'id' => null, 'errors' => ['_' => 'Services table is not set up. Run database migrations first.']];
         }
-        $errors = $this->validate($in);
+        $errors = $this->validate($in, $tenantId);
         if ($errors) {
             return ['ok' => false, 'id' => null, 'errors' => $errors];
         }
 
         try {
-            $stmt = $this->db->prepare(
-                'INSERT INTO tenant_services (tenant_id, name, description, charge_amount, commission_type, commission_value, status)
-                 VALUES (?,?,?,?,?,?,?)'
-            );
-            $stmt->execute([
+            $cols = 'tenant_id, name, description, charge_amount, commission_type, commission_value, status';
+            $vals = '?,?,?,?,?,?,?';
+            $params = [
                 $tenantId,
                 trim($in['name']),
                 trim($in['description'] ?? '') ?: null,
@@ -75,7 +90,14 @@ class OfferedServiceService
                 $in['commission_type'] ?? 'percent',
                 (float) ($in['commission_value'] ?? 0),
                 ($in['status'] ?? 'active') === 'draft' ? 'draft' : 'active',
-            ]);
+            ];
+            if (SchemaHelper::columnExists($this->db, 'tenant_services', 'branch_id')) {
+                $cols .= ', branch_id';
+                $vals .= ',?';
+                $params[] = (int) ($in['branch_id'] ?? 0) > 0 ? (int) $in['branch_id'] : null;
+            }
+            $stmt = $this->db->prepare("INSERT INTO tenant_services ({$cols}) VALUES ({$vals})");
+            $stmt->execute($params);
             $id = (int) $this->db->lastInsertId();
             $this->saveExpenses($id, $in['expenses'] ?? []);
             return ['ok' => true, 'id' => $id, 'errors' => []];
@@ -89,25 +111,31 @@ class OfferedServiceService
         if (!$this->find($tenantId, $id)) {
             return ['ok' => false, 'errors' => ['_' => 'Service not found.']];
         }
-        $errors = $this->validate($in);
+        $errors = $this->validate($in, $tenantId);
         if ($errors) {
             return ['ok' => false, 'errors' => $errors];
         }
 
         try {
-            $stmt = $this->db->prepare(
-                'UPDATE tenant_services SET name=?, description=?, charge_amount=?, commission_type=?, commission_value=?, status=?
-                  WHERE id=? AND tenant_id=?'
-            );
-            $stmt->execute([
+            $sets = 'name=?, description=?, charge_amount=?, commission_type=?, commission_value=?, status=?';
+            $params = [
                 trim($in['name']),
                 trim($in['description'] ?? '') ?: null,
                 (float) ($in['charge_amount'] ?? 0),
                 $in['commission_type'] ?? 'percent',
                 (float) ($in['commission_value'] ?? 0),
                 ($in['status'] ?? 'active') === 'draft' ? 'draft' : 'active',
-                $id, $tenantId,
-            ]);
+            ];
+            if (SchemaHelper::columnExists($this->db, 'tenant_services', 'branch_id')) {
+                $sets .= ', branch_id=?';
+                $params[] = (int) ($in['branch_id'] ?? 0) > 0 ? (int) $in['branch_id'] : null;
+            }
+            $params[] = $id;
+            $params[] = $tenantId;
+            $stmt = $this->db->prepare(
+                "UPDATE tenant_services SET {$sets} WHERE id=? AND tenant_id=?"
+            );
+            $stmt->execute($params);
             $this->db->prepare('DELETE FROM service_expenses WHERE service_id = ?')->execute([$id]);
             $this->saveExpenses($id, $in['expenses'] ?? []);
             return ['ok' => true, 'errors' => []];
@@ -139,22 +167,31 @@ class OfferedServiceService
         }
     }
 
-    public function activeForTenant(int $tenantId): array
+    public function activeForTenant(int $tenantId, ?int $branchId = null): array
     {
         if (!$this->ready()) {
             return [];
         }
         try {
+            $branchSql = '';
+            $params = [$tenantId];
+            if ($branchId !== null && $branchId > 0 && SchemaHelper::columnExists($this->db, 'tenant_services', 'branch_id')) {
+                $branchSql = ' AND (tenant_services.branch_id = ? OR tenant_services.branch_id IS NULL)';
+                $params[] = $branchId;
+            }
             $stmt = $this->db->prepare(
-                "SELECT * FROM tenant_services WHERE tenant_id = ? AND status = 'active' ORDER BY name ASC"
+                "SELECT tenant_services.* FROM tenant_services
+                  WHERE tenant_services.tenant_id = ? AND tenant_services.status = 'active'{$branchSql}
+               ORDER BY tenant_services.name ASC"
             );
-            $stmt->execute([$tenantId]);
+            $stmt->execute($params);
             $rows = $stmt->fetchAll() ?: [];
             foreach ($rows as &$row) {
                 $row['expenses'] = $this->expensesForService((int) $row['id']);
             }
             return $rows;
         } catch (Throwable $e) {
+            error_log('OfferedServiceService::activeForTenant: ' . $e->getMessage());
             return [];
         }
     }
@@ -164,7 +201,7 @@ class OfferedServiceService
         return SchemaHelper::tableExists($this->db, 'tenant_services');
     }
 
-    private function validate(array $in): array
+    private function validate(array $in, ?int $tenantId = null): array
     {
         $errors = [];
         if (trim($in['name'] ?? '') === '') {
@@ -173,7 +210,24 @@ class OfferedServiceService
         if (!in_array($in['commission_type'] ?? 'percent', ['percent', 'fixed'], true)) {
             $errors['commission_type'] = 'Invalid commission type.';
         }
+        $branchId = (int) ($in['branch_id'] ?? 0);
+        if (SchemaHelper::columnExists($this->db, 'tenant_services', 'branch_id')
+            && $branchId <= 0
+            && $tenantId !== null
+            && $this->tenantHasBranches($tenantId)) {
+            $errors['branch_id'] = 'Select which branch or shop offers this service.';
+        }
         return $errors;
+    }
+
+    private function tenantHasBranches(int $tenantId): bool
+    {
+        if (!SchemaHelper::tableExists($this->db, 'branches')) {
+            return false;
+        }
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM branches WHERE tenant_id = ?');
+        $stmt->execute([$tenantId]);
+        return (int) $stmt->fetchColumn() > 0;
     }
 
     private function expensesForService(int $serviceId): array

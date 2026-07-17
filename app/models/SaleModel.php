@@ -30,8 +30,11 @@ class SaleModel extends Model
         }
 
         $db = $this->db;
+        $ownsTx = !$db->inTransaction();
         try {
-            $db->beginTransaction();
+            if ($ownsTx) {
+                $db->beginTransaction();
+            }
 
             // Lock and price each product from the DB (never trust client prices).
             $sel = $db->prepare("SELECT id, name, selling_price, quantity, unit FROM products WHERE id = ? AND tenant_id = ? AND status = 'active' FOR UPDATE");
@@ -43,11 +46,11 @@ class SaleModel extends Model
                 $sel->execute([$pid, $tid]);
                 $p = $sel->fetch();
                 if (!$p) {
-                    $db->rollBack();
+                    if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
                     return ['ok' => false, 'errors' => ['_' => 'One of the products is no longer available. Refresh and try again.']];
                 }
                 if ($qty > (float) $p['quantity']) {
-                    $db->rollBack();
+                    if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
                     return ['ok' => false, 'errors' => ['_' => "Not enough stock for {$p['name']} — only " . rtrim(rtrim(number_format((float)$p['quantity'], 2), '0'), '.') . " left."]];
                 }
                 $lineTotal = round((float) $p['selling_price'] * $qty, 2);
@@ -68,7 +71,7 @@ class SaleModel extends Model
             if ($method === 'cash') {
                 $amountGiven = (float) ($in['amount_given'] ?? 0);
                 if ($amountGiven + 0.0001 < $total) {
-                    $db->rollBack();
+                    if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
                     return ['ok' => false, 'errors' => ['amount_given' => 'Cash given is less than the total.']];
                 }
                 $change = round($amountGiven - $total, 2);
@@ -93,7 +96,8 @@ class SaleModel extends Model
             ]);
             $saleId  = (int) $db->lastInsertId();
             $receipt = 'RCP-' . str_pad((string) $saleId, 6, '0', STR_PAD_LEFT);
-            $db->prepare("UPDATE sales SET receipt_number = ? WHERE id = ?")->execute([$receipt, $saleId]);
+            $db->prepare("UPDATE sales SET receipt_number = ? WHERE id = ? AND tenant_id = ?")
+                ->execute([$receipt, $saleId, $tid]);
 
             $insItem = $db->prepare(
                 "INSERT INTO sale_items (tenant_id, sale_id, product_id, product_name, unit, unit_price, quantity, line_total)
@@ -104,15 +108,17 @@ class SaleModel extends Model
                 $insItem->execute([$tid, $saleId, $l['product_id'], $l['product_name'], $l['unit'], $l['unit_price'], $l['quantity'], $l['line_total']]);
                 $dec->execute([$l['quantity'], $l['product_id'], $tid, $l['quantity']]);
                 if ($dec->rowCount() !== 1) {
-                    $db->rollBack();
+                    if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
                     return ['ok' => false, 'errors' => ['_' => "Stock changed for {$l['product_name']} while saving. Please redo the sale."]];
                 }
             }
 
-            $db->commit();
+            if ($ownsTx) {
+                $db->commit();
+            }
             return ['ok' => true, 'sale_id' => $saleId, 'receipt_number' => $receipt, 'errors' => []];
         } catch (\Throwable $e) {
-            if ($db->inTransaction()) { $db->rollBack(); }
+            if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
             return ['ok' => false, 'errors' => ['_' => 'Could not complete the sale. Please try again.']];
         }
     }
@@ -125,6 +131,9 @@ class SaleModel extends Model
     public function items(int $saleId): array
     {
         $tid = \TenantContext::tenantId();
+        if ($tid === null) {
+            return [];
+        }
         $stmt = $this->db->prepare("SELECT * FROM sale_items WHERE sale_id = ? AND tenant_id = ? ORDER BY id ASC");
         $stmt->execute([$saleId, $tid]);
         return $stmt->fetchAll();
@@ -137,9 +146,11 @@ class SaleModel extends Model
         $tid = \TenantContext::tenantId();
         $dateSql = $date ? "AND DATE(s.created_at) = '" . preg_replace('/[^0-9-]/', '', $date) . "'" : '';
         $stmt = $this->db->prepare(
-            "SELECT s.*, (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
+            "SELECT s.*, b.title AS branch_name,
+                    (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
                FROM sales s
-              WHERE s.tenant_id = ? AND s.staff_id = ? {$dateSql}
+          LEFT JOIN branches b ON b.id = s.branch_id
+              WHERE s.tenant_id = ? AND s.staff_id = ? AND s.status = 'completed' {$dateSql}
            ORDER BY s.created_at DESC, s.id DESC
               LIMIT ?"
         );
@@ -152,7 +163,7 @@ class SaleModel extends Model
 
     /** All sales for the tenant with staff + branch names (admin view).
      *  $period: 'today' | 'week' | 'month' | 'all' (default 'all') */
-    public function forTenant(int $limit = 1000, string $period = 'all'): array
+    public function forTenant(int $limit = 1000, string $period = 'all', ?int $branchId = null): array
     {
         $tid = \TenantContext::tenantId();
         $periodSql = match ($period) {
@@ -161,20 +172,102 @@ class SaleModel extends Model
             'month' => "AND s.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)",
             default => '',
         };
+        $branchSql = '';
+        $params = [$tid];
+        if ($branchId !== null && $branchId > 0) {
+            $branchSql = ' AND s.branch_id = ?';
+            $params[] = $branchId;
+        }
+        $params[] = $limit;
         $stmt = $this->db->prepare(
             "SELECT s.*, u.username AS staff_name, b.title AS branch_name,
                     (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
                FROM sales s
           LEFT JOIN users u ON u.id = s.staff_id
           LEFT JOIN branches b ON b.id = s.branch_id
-              WHERE s.tenant_id = ? {$periodSql}
+              WHERE s.tenant_id = ? AND s.status = 'completed' {$periodSql}{$branchSql}
            ORDER BY s.created_at DESC, s.id DESC
               LIMIT ?"
         );
-        $stmt->bindValue(1, $tid, \PDO::PARAM_INT);
-        $stmt->bindValue(2, $limit, \PDO::PARAM_INT);
+        foreach ($params as $i => $val) {
+            $stmt->bindValue($i + 1, $val, is_int($val) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
+        }
         $stmt->execute();
         return $stmt->fetchAll();
+    }
+
+    /**
+     * POS + commission/service sales for tenant owner view (unified sales list).
+     * @return list<array> normalized rows with sale_type, staff_name, total, receipt_url, etc.
+     */
+    public function unifiedForTenant(int $limit = 1000, string $period = 'all', ?int $branchId = null, bool $includePending = true): array
+    {
+        $pos = $this->forTenant($limit, $period, $branchId);
+        foreach ($pos as &$row) {
+            $row['sale_type'] = 'pos';
+            $row['item_label'] = null;
+            $row['payment_status'] = 'paid';
+            $row['receipt_url'] = \ReceiptUrl::forPos((int) $row['id']);
+        }
+        unset($row);
+
+        $comm = [];
+        if (\SchemaHelper::tableExists($this->db, 'commission_sales')) {
+            $tid = \TenantContext::tenantId();
+            $periodSql = match ($period) {
+                'today' => 'AND DATE(cs.created_at) = CURDATE()',
+                'week'  => 'AND cs.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)',
+                'month' => 'AND cs.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)',
+                default => '',
+            };
+            $branchSql = '';
+            $params = [$tid];
+            if ($branchId !== null && $branchId > 0) {
+                $branchSql = ' AND cs.branch_id = ?';
+                $params[] = $branchId;
+            }
+            $pendingSql = '';
+            if (!$includePending && \SchemaHelper::columnExists($this->db, 'commission_sales', 'payment_status')) {
+                $pendingSql = " AND cs.payment_status = 'paid'";
+            }
+            $params[] = $limit;
+            $stmt = $this->db->prepare(
+                "SELECT cs.*, u.username AS agent_name, b.title AS branch_name
+                   FROM commission_sales cs
+              LEFT JOIN users u ON u.id = cs.agent_user_id
+              LEFT JOIN branches b ON b.id = cs.branch_id
+                  WHERE cs.tenant_id = ? {$periodSql}{$branchSql}{$pendingSql}
+               ORDER BY cs.created_at DESC, cs.id DESC
+                  LIMIT ?"
+            );
+            foreach ($params as $i => $val) {
+                $stmt->bindValue($i + 1, $val, \PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            foreach ($stmt->fetchAll() ?: [] as $row) {
+                $status = $row['payment_status'] ?? 'paid';
+                $comm[] = [
+                    'id'              => (int) $row['id'],
+                    'receipt_number'  => $row['receipt_number'],
+                    'created_at'      => $row['created_at'],
+                    'total'           => (float) $row['charged_amount'],
+                    'payment_method'  => $row['payment_method'] ?? 'cash',
+                    'payment_status'  => $status,
+                    'customer_name'   => $row['customer_name'],
+                    'staff_name'      => $row['agent_name'] ?? '—',
+                    'branch_name'     => $row['branch_name'] ?? null,
+                    'item_count'      => 1,
+                    'sale_type'       => 'commission',
+                    'item_label'      => ($row['item_name'] ?? '') . ' (' . ($row['item_type'] ?? 'service') . ')',
+                    'total_commission'=> (float) ($row['total_commission'] ?? 0),
+                    'receipt_url'     => \ReceiptUrl::forCommission((int) $row['id']),
+                ];
+            }
+        }
+
+        $merged = array_merge($pos, $comm);
+        usort($merged, fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
+        return array_slice($merged, 0, $limit);
     }
 
     /** All sales for a specific tenant ID (for CLI cron — no TenantContext). */
@@ -185,11 +278,70 @@ class SaleModel extends Model
                FROM sales s
           LEFT JOIN users u ON u.id = s.staff_id
           LEFT JOIN branches b ON b.id = s.branch_id
-              WHERE s.tenant_id = ? AND DATE(s.created_at) = ?
+              WHERE s.tenant_id = ? AND s.status = 'completed' AND DATE(s.created_at) = ?
            ORDER BY s.created_at ASC"
         );
         $stmt->execute([$tenantId, $date]);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * POS sales + commission/service sales for one staff member (unified "My sales" view).
+     * @return list<array> rows with keys: id, receipt_number, created_at, total, payment_method,
+     *                     customer_name, item_count, sale_type ('pos'|'commission'), receipt_url
+     */
+    public function unifiedForStaff(int $staffId, int $limit = 500, ?string $date = null): array
+    {
+        $pos = $this->forStaff($staffId, $limit, $date);
+        foreach ($pos as &$row) {
+            $row['sale_type'] = 'pos';
+            $row['receipt_url'] = \ReceiptUrl::forPos((int) $row['id']);
+            if (!isset($row['branch_name'])) {
+                $row['branch_name'] = null;
+            }
+        }
+        unset($row);
+
+        $comm = [];
+        if (\SchemaHelper::tableExists($this->db, 'commission_sales')) {
+            $tid = \TenantContext::tenantId();
+            $dateSql = $date ? 'AND DATE(cs.created_at) = ?' : '';
+            $params = [$tid, $staffId];
+            if ($date) {
+                $params[] = preg_replace('/[^0-9-]/', '', $date);
+            }
+            $params[] = $limit;
+            $stmt = $this->db->prepare(
+                "SELECT cs.id, cs.receipt_number, cs.created_at, cs.charged_amount AS total,
+                        cs.payment_method, cs.customer_name, cs.item_type, cs.item_name, cs.quantity,
+                        b.title AS branch_name
+                   FROM commission_sales cs
+              LEFT JOIN branches b ON b.id = cs.branch_id
+                  WHERE cs.tenant_id = ? AND cs.agent_user_id = ? {$dateSql}
+               ORDER BY cs.created_at DESC, cs.id DESC
+                  LIMIT ?"
+            );
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() ?: [] as $row) {
+                $comm[] = [
+                    'id'             => (int) $row['id'],
+                    'receipt_number' => $row['receipt_number'],
+                    'created_at'     => $row['created_at'],
+                    'total'          => (float) $row['total'],
+                    'payment_method' => $row['payment_method'],
+                    'customer_name'  => $row['customer_name'],
+                    'item_count'     => 1,
+                    'sale_type'      => 'commission',
+                    'item_label'     => $row['item_name'] . ' (' . $row['item_type'] . ')',
+                    'branch_name'    => $row['branch_name'] ?? null,
+                    'receipt_url'    => \ReceiptUrl::forCommission((int) $row['id']),
+                ];
+            }
+        }
+
+        $merged = array_merge($pos, $comm);
+        usort($merged, fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
+        return array_slice($merged, 0, $limit);
     }
 
     /** Per-staff revenue breakdown from an already-fetched sales array. */
@@ -220,16 +372,188 @@ class SaleModel extends Model
         return $out;
     }
 
-    /** Totals for a set of sales rows (revenue, count, by method). */
+    /**
+     * Void a completed sale and restore product stock.
+     * @return array ['ok'=>bool, 'error'=>?string]
+     */
+    public function voidSale(int $saleId): array
+    {
+        $tid = \TenantContext::tenantId();
+        if ($tid === null) {
+            return ['ok' => false, 'error' => 'No shop in context.'];
+        }
+
+        $db = $this->db;
+        $ownsTx = !$db->inTransaction();
+        try {
+            if ($ownsTx) {
+                $db->beginTransaction();
+            }
+
+            $stmt = $db->prepare(
+                "SELECT id, status FROM sales WHERE id = ? AND tenant_id = ? FOR UPDATE"
+            );
+            $stmt->execute([$saleId, $tid]);
+            $sale = $stmt->fetch();
+            if (!$sale) {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'Sale not found.'];
+            }
+            if (($sale['status'] ?? '') !== 'completed') {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'This sale is already voided or cannot be cancelled.'];
+            }
+
+            $items = $this->items($saleId);
+            $restore = $db->prepare(
+                'UPDATE products SET quantity = quantity + ? WHERE id = ? AND tenant_id = ?'
+            );
+            foreach ($items as $item) {
+                if ((int) ($item['product_id'] ?? 0) <= 0) {
+                    continue;
+                }
+                $restore->execute([(float) $item['quantity'], (int) $item['product_id'], $tid]);
+            }
+
+            $upd = $db->prepare(
+                "UPDATE sales SET status = 'voided' WHERE id = ? AND tenant_id = ? AND status = 'completed'"
+            );
+            $upd->execute([$saleId, $tid]);
+            if ($upd->rowCount() !== 1) {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'Could not void this sale.'];
+            }
+
+            if ($ownsTx) {
+                $db->commit();
+            }
+            return ['ok' => true, 'error' => null];
+        } catch (\Throwable $e) {
+            if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+            return ['ok' => false, 'error' => 'Could not void this sale. Please try again.'];
+        }
+    }
+
+    /**
+     * Owner backfill: record a past POS sale without changing stock.
+     * @param array $in staff_id, item_name, amount, sale_date (Y-m-d or Y-m-d H:i), payment_method, branch_id?, customer_name?
+     */
+    public function recordManual(array $in): array
+    {
+        $tid = \TenantContext::tenantId();
+        if ($tid === null) {
+            return ['ok' => false, 'errors' => ['_' => 'No shop in context.']];
+        }
+
+        $staffId = (int) ($in['staff_id'] ?? 0);
+        $itemName = trim($in['item_name'] ?? '');
+        $amount = round((float) ($in['amount'] ?? 0), 2);
+        $saleAt = trim($in['sale_date'] ?? '');
+        $method = in_array($in['payment_method'] ?? '', ['cash', 'mpesa'], true) ? $in['payment_method'] : null;
+
+        $errors = [];
+        if ($staffId <= 0) {
+            $errors['staff_id'] = 'Choose who made this sale.';
+        }
+        if ($itemName === '') {
+            $errors['item_name'] = 'Enter what was sold.';
+        }
+        if ($amount <= 0) {
+            $errors['amount'] = 'Enter a valid amount.';
+        }
+        if (!$method) {
+            $errors['payment_method'] = 'Choose how it was paid.';
+        }
+        $ts = strtotime($saleAt);
+        if ($saleAt === '' || $ts === false) {
+            $errors['sale_date'] = 'Enter a valid date and time.';
+        }
+        if ($errors) {
+            return ['ok' => false, 'errors' => $errors];
+        }
+
+        $staffOk = $this->db->prepare(
+            'SELECT id FROM users WHERE id = ? AND tenant_id = ? AND is_active = 1 LIMIT 1'
+        );
+        $staffOk->execute([$staffId, $tid]);
+        if (!$staffOk->fetch()) {
+            return ['ok' => false, 'errors' => ['staff_id' => 'Staff member not found.']];
+        }
+
+        $branchId = isset($in['branch_id']) && (int) $in['branch_id'] > 0 ? (int) $in['branch_id'] : null;
+        $createdAt = date('Y-m-d H:i:s', $ts);
+
+        try {
+            $ins = $this->db->prepare(
+                "INSERT INTO sales (tenant_id, branch_id, staff_id, receipt_number, payment_method, total, amount_given, change_given, customer_name, status, created_at)
+                 VALUES (?,?,?,?,?,?,?,?,?, 'completed', ?)"
+            );
+            $ins->execute([
+                $tid,
+                $branchId,
+                $staffId,
+                'PENDING',
+                $method,
+                $amount,
+                $amount,
+                0.0,
+                ($in['customer_name'] ?? '') !== '' ? trim($in['customer_name']) : null,
+                $createdAt,
+            ]);
+            $saleId = (int) $this->db->lastInsertId();
+            $receipt = 'RCP-' . str_pad((string) $saleId, 6, '0', STR_PAD_LEFT);
+            $this->db->prepare('UPDATE sales SET receipt_number = ? WHERE id = ? AND tenant_id = ?')
+                ->execute([$receipt, $saleId, $tid]);
+
+            $this->db->prepare(
+                'INSERT INTO sale_items (tenant_id, sale_id, product_id, product_name, unit, unit_price, quantity, line_total)
+                 VALUES (?,?,NULL,?,?,?,?,?)'
+            )->execute([$tid, $saleId, $itemName, 'piece', $amount, 1, $amount]);
+
+            return ['ok' => true, 'sale_id' => $saleId, 'receipt_number' => $receipt, 'errors' => []];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'errors' => ['_' => 'Could not save this sale. Please try again.']];
+        }
+    }
+
+    /** Totals for a set of sales rows (revenue, count, by method). Includes commission rows. */
     public static function summarize(array $rows): array
     {
-        $sum = ['count' => 0, 'revenue' => 0.0, 'cash' => 0.0, 'mpesa' => 0.0];
+        $sum = ['count' => 0, 'revenue' => 0.0, 'cash' => 0.0, 'mpesa' => 0.0, 'pending' => 0];
         foreach ($rows as $r) {
+            if (($r['payment_status'] ?? 'paid') === 'pending') {
+                $sum['pending']++;
+                continue;
+            }
             $sum['count']++;
-            $sum['revenue'] += (float) $r['total'];
-            $sum[$r['payment_method']] = ($sum[$r['payment_method']] ?? 0) + (float) $r['total'];
+            $amount = (float) ($r['total'] ?? $r['charged_amount'] ?? 0);
+            $sum['revenue'] += $amount;
+            $method = $r['payment_method'] ?? 'cash';
+            if (isset($sum[$method])) {
+                $sum[$method] += $amount;
+            }
         }
         $sum['revenue'] = round($sum['revenue'], 2);
         return $sum;
+    }
+
+    /** Per-staff breakdown including commission agent names. */
+    public static function unifiedStaffBreakdown(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $r) {
+            if (($r['payment_status'] ?? 'paid') === 'pending') {
+                continue;
+            }
+            $name = $r['staff_name'] ?? $r['agent_name'] ?? 'Unknown';
+            if (!isset($out[$name])) {
+                $out[$name] = ['count' => 0, 'revenue' => 0.0, 'commission' => 0.0];
+            }
+            $out[$name]['count']++;
+            $out[$name]['revenue'] += (float) ($r['total'] ?? 0);
+            $out[$name]['commission'] += (float) ($r['total_commission'] ?? 0);
+        }
+        uasort($out, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        return $out;
     }
 }

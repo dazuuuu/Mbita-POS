@@ -7,11 +7,12 @@
 
 class TenantContext
 {
-    private static bool $booted   = false;
-    private static ?int $userId   = null;
-    private static ?int $tenantId = null;
-    private static ?string $role  = null;
-    private static array $caps    = [];
+    private static bool $booted        = false;
+    private static bool $capsRefreshed = false;
+    private static ?int $userId        = null;
+    private static ?int $tenantId      = null;
+    private static ?string $role        = null;
+    private static array $caps          = [];
 
     /** Rehydrate context from the session. Call once early in each request. */
     public static function boot(): void
@@ -29,14 +30,49 @@ class TenantContext
      */
     public static function establish(PDO $db, array $user): void
     {
-        $caps = Capabilities::effective($db, (int) $user['id'], (int) $user['role_id']);
+        $userId = (int) $user['id'];
+        $roleId = (int) $user['role_id'];
+        $caps = Capabilities::effective($db, $userId, $roleId);
 
-        $_SESSION['user_id']      = (int) $user['id'];
+        $_SESSION['user_id']      = $userId;
+        $_SESSION['role_id']      = $roleId;
         $_SESSION['tenant_id']    = isset($user['tenant_id']) ? ($user['tenant_id'] !== null ? (int) $user['tenant_id'] : null) : null;
         $_SESSION['role']         = $user['role_name'] ?? null;
+        $_SESSION['staff_type']   = $user['staff_type'] ?? null;
         $_SESSION['capabilities'] = $caps;
 
+        self::$capsRefreshed = true;
         self::boot();
+    }
+
+    /** Reload delegated permissions from DB (role defaults + user_permissions). */
+    public static function refreshCapabilities(?PDO $db = null): void
+    {
+        if (!self::$userId) {
+            return;
+        }
+
+        try {
+            $db = $db ?? Database::pdo();
+            $roleId = (int) ($_SESSION['role_id'] ?? 0);
+            if ($roleId <= 0) {
+                $stmt = $db->prepare('SELECT role_id FROM users WHERE id = ? LIMIT 1');
+                $stmt->execute([self::$userId]);
+                $roleId = (int) ($stmt->fetchColumn() ?: 0);
+                if ($roleId > 0) {
+                    $_SESSION['role_id'] = $roleId;
+                }
+            }
+            if ($roleId <= 0) {
+                return;
+            }
+
+            $caps = Capabilities::effective($db, self::$userId, $roleId);
+            $_SESSION['capabilities'] = $caps;
+            self::$caps = $caps;
+        } catch (\Throwable $e) {
+            // Keep session capabilities when DB is unavailable.
+        }
     }
 
     public static function check(): bool    { self::ensure(); return self::$userId !== null; }
@@ -58,19 +94,39 @@ class TenantContext
             || in_array($cap, self::$caps, true);
     }
 
+    /** True when the user holds at least one of the given capabilities. */
+    public static function canAny(array $caps): bool
+    {
+        self::ensure();
+        if (in_array(Capabilities::ALL, self::$caps, true)) {
+            return true;
+        }
+        foreach ($caps as $cap) {
+            if (in_array($cap, self::$caps, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static function ensure(): void
     {
         if (!self::$booted) {
             self::boot();
+        }
+        if (!self::$capsRefreshed && self::$userId) {
+            self::$capsRefreshed = true;
+            self::refreshCapabilities();
         }
     }
 
     /** Test/maintenance helper — reset between requests in a long-running process. */
     public static function reset(): void
     {
-        self::$booted   = false;
-        self::$userId   = self::$tenantId = null;
-        self::$role     = null;
-        self::$caps     = [];
+        self::$booted        = false;
+        self::$capsRefreshed = false;
+        self::$userId        = self::$tenantId = null;
+        self::$role          = null;
+        self::$caps          = [];
     }
 }

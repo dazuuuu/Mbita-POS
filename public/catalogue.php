@@ -1,7 +1,7 @@
 <?php
 // public/catalogue.php
 // Public-facing product catalogue. No login required.
-// URL: /Modern/public/catalogue.php?shop=<slug>[&branch=<branch_id>]
+// URL: /public/catalogue.php?shop=<slug>[&branch=<branch_id>]
 
 if (!defined('ROOT_PATH')) {
     define('ROOT_PATH', dirname(__DIR__));
@@ -66,14 +66,13 @@ $P = new Models\ProductModel($pdo);
 $products = $P->catalogueForTenant($tenantId);
 
 // ---- Branding ----
-$shopName   = $tenant['name'] ?? 'Our Shop';
+$shopName   = Branding::shopName($tenant);
 $shopPhone  = $tenant['phone'] ?? '';
 $shopAddr   = $tenant['address'] ?? '';
 $currency   = $tenant['currency'] ?? 'KES';
-$logoPath   = $tenant['logo_path'] ?? null;
-$logoUrl    = $logoPath ? '/Curlz' . ltrim($logoPath, '/Curlz') : '/Curlz/public/assets/images/logo/logo.png';
+$logoUrl    = Branding::tenantLogoUrl($tenant);
 
-$baseUrl    = '/Curlz/public/catalogue.php?shop=' . urlencode($shopSlug);
+$baseUrl    = public_path('catalogue.php?shop=') . urlencode($shopSlug);
 $shareUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
             . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
             . $baseUrl;
@@ -219,7 +218,9 @@ $shareUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' 
 <!-- Hero -->
 <div class="cat-hero">
     <div class="cat-hero-inner">
+        <?php if ($logoUrl): ?>
         <img class="cat-logo" src="<?php echo htmlspecialchars($logoUrl); ?>" alt="<?php echo htmlspecialchars($shopName); ?>">
+        <?php endif; ?>
         <div>
             <div class="cat-shop-name"><?php echo htmlspecialchars($shopName); ?></div>
             <div class="cat-shop-meta">
