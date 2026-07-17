@@ -30,8 +30,11 @@ class SaleModel extends Model
         }
 
         $db = $this->db;
+        $ownsTx = !$db->inTransaction();
         try {
-            $db->beginTransaction();
+            if ($ownsTx) {
+                $db->beginTransaction();
+            }
 
             // Lock and price each product from the DB (never trust client prices).
             $sel = $db->prepare("SELECT id, name, selling_price, quantity, unit FROM products WHERE id = ? AND tenant_id = ? AND status = 'active' FOR UPDATE");
@@ -43,11 +46,11 @@ class SaleModel extends Model
                 $sel->execute([$pid, $tid]);
                 $p = $sel->fetch();
                 if (!$p) {
-                    $db->rollBack();
+                    if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
                     return ['ok' => false, 'errors' => ['_' => 'One of the products is no longer available. Refresh and try again.']];
                 }
                 if ($qty > (float) $p['quantity']) {
-                    $db->rollBack();
+                    if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
                     return ['ok' => false, 'errors' => ['_' => "Not enough stock for {$p['name']} — only " . rtrim(rtrim(number_format((float)$p['quantity'], 2), '0'), '.') . " left."]];
                 }
                 $lineTotal = round((float) $p['selling_price'] * $qty, 2);
@@ -68,7 +71,7 @@ class SaleModel extends Model
             if ($method === 'cash') {
                 $amountGiven = (float) ($in['amount_given'] ?? 0);
                 if ($amountGiven + 0.0001 < $total) {
-                    $db->rollBack();
+                    if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
                     return ['ok' => false, 'errors' => ['amount_given' => 'Cash given is less than the total.']];
                 }
                 $change = round($amountGiven - $total, 2);
@@ -93,7 +96,8 @@ class SaleModel extends Model
             ]);
             $saleId  = (int) $db->lastInsertId();
             $receipt = 'RCP-' . str_pad((string) $saleId, 6, '0', STR_PAD_LEFT);
-            $db->prepare("UPDATE sales SET receipt_number = ? WHERE id = ?")->execute([$receipt, $saleId]);
+            $db->prepare("UPDATE sales SET receipt_number = ? WHERE id = ? AND tenant_id = ?")
+                ->execute([$receipt, $saleId, $tid]);
 
             $insItem = $db->prepare(
                 "INSERT INTO sale_items (tenant_id, sale_id, product_id, product_name, unit, unit_price, quantity, line_total)
@@ -104,15 +108,17 @@ class SaleModel extends Model
                 $insItem->execute([$tid, $saleId, $l['product_id'], $l['product_name'], $l['unit'], $l['unit_price'], $l['quantity'], $l['line_total']]);
                 $dec->execute([$l['quantity'], $l['product_id'], $tid, $l['quantity']]);
                 if ($dec->rowCount() !== 1) {
-                    $db->rollBack();
+                    if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
                     return ['ok' => false, 'errors' => ['_' => "Stock changed for {$l['product_name']} while saving. Please redo the sale."]];
                 }
             }
 
-            $db->commit();
+            if ($ownsTx) {
+                $db->commit();
+            }
             return ['ok' => true, 'sale_id' => $saleId, 'receipt_number' => $receipt, 'errors' => []];
         } catch (\Throwable $e) {
-            if ($db->inTransaction()) { $db->rollBack(); }
+            if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
             return ['ok' => false, 'errors' => ['_' => 'Could not complete the sale. Please try again.']];
         }
     }
@@ -125,6 +131,9 @@ class SaleModel extends Model
     public function items(int $saleId): array
     {
         $tid = \TenantContext::tenantId();
+        if ($tid === null) {
+            return [];
+        }
         $stmt = $this->db->prepare("SELECT * FROM sale_items WHERE sale_id = ? AND tenant_id = ? ORDER BY id ASC");
         $stmt->execute([$saleId, $tid]);
         return $stmt->fetchAll();
@@ -139,7 +148,7 @@ class SaleModel extends Model
         $stmt = $this->db->prepare(
             "SELECT s.*, (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
                FROM sales s
-              WHERE s.tenant_id = ? AND s.staff_id = ? {$dateSql}
+              WHERE s.tenant_id = ? AND s.staff_id = ? AND s.status = 'completed' {$dateSql}
            ORDER BY s.created_at DESC, s.id DESC
               LIMIT ?"
         );
@@ -167,7 +176,7 @@ class SaleModel extends Model
                FROM sales s
           LEFT JOIN users u ON u.id = s.staff_id
           LEFT JOIN branches b ON b.id = s.branch_id
-              WHERE s.tenant_id = ? {$periodSql}
+              WHERE s.tenant_id = ? AND s.status = 'completed' {$periodSql}
            ORDER BY s.created_at DESC, s.id DESC
               LIMIT ?"
         );
@@ -185,11 +194,64 @@ class SaleModel extends Model
                FROM sales s
           LEFT JOIN users u ON u.id = s.staff_id
           LEFT JOIN branches b ON b.id = s.branch_id
-              WHERE s.tenant_id = ? AND DATE(s.created_at) = ?
+              WHERE s.tenant_id = ? AND s.status = 'completed' AND DATE(s.created_at) = ?
            ORDER BY s.created_at ASC"
         );
         $stmt->execute([$tenantId, $date]);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * POS sales + commission/service sales for one staff member (unified "My sales" view).
+     * @return list<array> rows with keys: id, receipt_number, created_at, total, payment_method,
+     *                     customer_name, item_count, sale_type ('pos'|'commission'), receipt_url
+     */
+    public function unifiedForStaff(int $staffId, int $limit = 500, ?string $date = null): array
+    {
+        $pos = $this->forStaff($staffId, $limit, $date);
+        foreach ($pos as &$row) {
+            $row['sale_type'] = 'pos';
+            $row['receipt_url'] = public_path('staff/sales/receipt.php') . '?id=' . (int) $row['id'];
+        }
+        unset($row);
+
+        $comm = [];
+        if (\SchemaHelper::tableExists($this->db, 'commission_sales')) {
+            $tid = \TenantContext::tenantId();
+            $dateSql = $date ? 'AND DATE(cs.created_at) = ?' : '';
+            $params = [$tid, $staffId];
+            if ($date) {
+                $params[] = preg_replace('/[^0-9-]/', '', $date);
+            }
+            $params[] = $limit;
+            $stmt = $this->db->prepare(
+                "SELECT cs.id, cs.receipt_number, cs.created_at, cs.charged_amount AS total,
+                        cs.payment_method, cs.customer_name, cs.item_type, cs.item_name, cs.quantity
+                   FROM commission_sales cs
+                  WHERE cs.tenant_id = ? AND cs.agent_user_id = ? {$dateSql}
+               ORDER BY cs.created_at DESC, cs.id DESC
+                  LIMIT ?"
+            );
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() ?: [] as $row) {
+                $comm[] = [
+                    'id'             => (int) $row['id'],
+                    'receipt_number' => $row['receipt_number'],
+                    'created_at'     => $row['created_at'],
+                    'total'          => (float) $row['total'],
+                    'payment_method' => $row['payment_method'],
+                    'customer_name'  => $row['customer_name'],
+                    'item_count'     => 1,
+                    'sale_type'      => 'commission',
+                    'item_label'     => $row['item_name'] . ' (' . $row['item_type'] . ')',
+                    'receipt_url'    => public_path('commission/receipt.php') . '?id=' . (int) $row['id'],
+                ];
+            }
+        }
+
+        $merged = array_merge($pos, $comm);
+        usort($merged, fn($a, $b) => strcmp($b['created_at'] ?? '', $a['created_at'] ?? ''));
+        return array_slice($merged, 0, $limit);
     }
 
     /** Per-staff revenue breakdown from an already-fetched sales array. */
@@ -218,6 +280,68 @@ class SaleModel extends Model
         }
         uasort($out, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
         return $out;
+    }
+
+    /**
+     * Void a completed sale and restore product stock.
+     * @return array ['ok'=>bool, 'error'=>?string]
+     */
+    public function voidSale(int $saleId): array
+    {
+        $tid = \TenantContext::tenantId();
+        if ($tid === null) {
+            return ['ok' => false, 'error' => 'No shop in context.'];
+        }
+
+        $db = $this->db;
+        $ownsTx = !$db->inTransaction();
+        try {
+            if ($ownsTx) {
+                $db->beginTransaction();
+            }
+
+            $stmt = $db->prepare(
+                "SELECT id, status FROM sales WHERE id = ? AND tenant_id = ? FOR UPDATE"
+            );
+            $stmt->execute([$saleId, $tid]);
+            $sale = $stmt->fetch();
+            if (!$sale) {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'Sale not found.'];
+            }
+            if (($sale['status'] ?? '') !== 'completed') {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'This sale is already voided or cannot be cancelled.'];
+            }
+
+            $items = $this->items($saleId);
+            $restore = $db->prepare(
+                'UPDATE products SET quantity = quantity + ? WHERE id = ? AND tenant_id = ?'
+            );
+            foreach ($items as $item) {
+                if ((int) ($item['product_id'] ?? 0) <= 0) {
+                    continue;
+                }
+                $restore->execute([(float) $item['quantity'], (int) $item['product_id'], $tid]);
+            }
+
+            $upd = $db->prepare(
+                "UPDATE sales SET status = 'voided' WHERE id = ? AND tenant_id = ? AND status = 'completed'"
+            );
+            $upd->execute([$saleId, $tid]);
+            if ($upd->rowCount() !== 1) {
+                if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+                return ['ok' => false, 'error' => 'Could not void this sale.'];
+            }
+
+            if ($ownsTx) {
+                $db->commit();
+            }
+            return ['ok' => true, 'error' => null];
+        } catch (\Throwable $e) {
+            if ($ownsTx && $db->inTransaction()) { $db->rollBack(); }
+            return ['ok' => false, 'error' => 'Could not void this sale. Please try again.'];
+        }
     }
 
     /** Totals for a set of sales rows (revenue, count, by method). */

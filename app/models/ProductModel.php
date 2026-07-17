@@ -46,8 +46,17 @@ class ProductModel extends Model
 
     public function deleteSafe(int $id): array
     {
-        // No sales module yet; once it exists, switch this to a soft delete so
-        // historical sales keep their product reference.
+        if (!$this->find($id)) {
+            return ['ok' => false, 'error' => 'Product not found.'];
+        }
+        $tid = \TenantContext::tenantId();
+        $stmt = $this->db->prepare(
+            'SELECT 1 FROM sale_items WHERE product_id = ? AND tenant_id = ? LIMIT 1'
+        );
+        $stmt->execute([$id, $tid]);
+        if ($stmt->fetchColumn()) {
+            return ['ok' => false, 'error' => 'This product has sales history and cannot be deleted. Set it to draft instead.'];
+        }
         $this->delete($id);
         return ['ok' => true, 'error' => null];
     }
@@ -97,8 +106,8 @@ class ProductModel extends Model
             "SELECT p.id, p.name, p.selling_price, p.image_path, p.description, p.unit,
                     c.name AS category_name, s.name AS subcategory_name
                FROM products p
-          LEFT JOIN categories c  ON c.id = p.category_id
-          LEFT JOIN subcategories s ON s.id = p.subcategory_id
+          LEFT JOIN categories c  ON c.id = p.category_id AND c.tenant_id = p.tenant_id
+          LEFT JOIN subcategories s ON s.id = p.subcategory_id AND s.tenant_id = p.tenant_id
               WHERE p.tenant_id = ? AND p.status = 'active'
            ORDER BY p.name ASC"
         );
@@ -113,8 +122,8 @@ class ProductModel extends Model
         $stmt = $this->db->prepare(
             "SELECT p.*, c.name AS category_name, s.name AS subcategory_name
                FROM products p
-          LEFT JOIN categories c ON c.id = p.category_id
-          LEFT JOIN subcategories s ON s.id = p.subcategory_id
+          LEFT JOIN categories c ON c.id = p.category_id AND c.tenant_id = p.tenant_id
+          LEFT JOIN subcategories s ON s.id = p.subcategory_id AND s.tenant_id = p.tenant_id
               WHERE p.tenant_id = ?
            ORDER BY p.name ASC"
         );
@@ -179,6 +188,8 @@ class ProductModel extends Model
             'unit'                => $in['unit'] ?? 'piece',
             'buying_price'        => (float) ($in['buying_price'] ?? 0),
             'selling_price'       => (float) ($in['selling_price'] ?? 0),
+            'wholesale_price'     => isset($in['wholesale_price']) && $in['wholesale_price'] !== ''
+                ? (float) $in['wholesale_price'] : null,
             'commission_type'     => in_array($in['commission_type'] ?? 'percent', ['percent', 'fixed'], true) ? $in['commission_type'] : 'percent',
             'commission_value'    => (float) ($in['commission_value'] ?? 0),
             'credit_allowed'      => !empty($in['credit_allowed']) ? 1 : 0,

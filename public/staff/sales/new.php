@@ -1,7 +1,7 @@
 <?php
 // public/staff/sales/new.php  — point-of-sale: record a sale (services + products)
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth(Capabilities::SALES_RECORD);
+PageGuard::capability(Capabilities::SALES_RECORD);
 
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();
@@ -20,7 +20,7 @@ $tenantSlug = $__tenant['slug'] ?? '';
 $shopName   = $__tenant['name'] ?? 'Our Shop';
 $catalogueUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
               . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-              . '/Curlz/public/catalogue.php?shop=' . urlencode($tenantSlug);
+              . public_path('catalogue.php?shop=') . urlencode($tenantSlug);
 
 $P = new Models\ProductModel($pdo);
 $products = $P->sellable();
@@ -91,37 +91,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $productRes = null;
             $serviceRes = null;
             $commSvc = new CommissionService($pdo);
+            $mixedSale = $productItems && $serviceItems;
+            $productCashGiven = $paymentMethod === 'cash'
+                ? ($mixedSale ? $productTotal : $amountGiven)
+                : $grandTotal;
 
-            if ($productItems) {
-                $productRes = (new Models\SaleModel($pdo))->record([
-                    'payment_method' => $paymentMethod,
-                    'amount_given'   => $paymentMethod === 'cash' ? $amountGiven : $grandTotal,
-                    'staff_id'       => $userId,
-                    'branch_id'      => $branchId,
-                    'customer_name'  => $_POST['customer_name'] ?? '',
-                    'customer_phone' => $_POST['customer_phone'] ?? '',
-                    'customer_email' => $_POST['customer_email'] ?? '',
-                    'items'          => $productItems,
-                ]);
-                if (!$productRes['ok']) {
-                    $error = $productRes['errors']['_'] ?? ($productRes['errors']['payment_method'] ?? ($productRes['errors']['amount_given'] ?? 'Could not record product sale.'));
+            $pdo->beginTransaction();
+            try {
+                if ($productItems) {
+                    $productRes = (new Models\SaleModel($pdo))->record([
+                        'payment_method' => $paymentMethod,
+                        'amount_given'   => $productCashGiven,
+                        'staff_id'       => $userId,
+                        'branch_id'      => $branchId,
+                        'customer_name'  => $_POST['customer_name'] ?? '',
+                        'customer_phone' => $_POST['customer_phone'] ?? '',
+                        'customer_email' => $_POST['customer_email'] ?? '',
+                        'items'          => $productItems,
+                    ]);
+                    if (!$productRes['ok']) {
+                        $error = $productRes['errors']['_'] ?? ($productRes['errors']['payment_method'] ?? ($productRes['errors']['amount_given'] ?? 'Could not record product sale.'));
+                    }
                 }
-            }
 
-            if (!$error && $serviceItems) {
-                $svcCommon = [
-                    'payment_method' => $paymentMethod,
-                    'customer_name'  => $_POST['customer_name'] ?? '',
-                    'customer_phone' => $_POST['customer_phone'] ?? '',
-                    'branch_id'      => $branchId,
-                    'notes'          => '',
-                ];
-                $serviceRes = count($serviceItems) === 1
-                    ? $commSvc->recordSale($tenantId, $userId, array_merge($svcCommon, $serviceItems[0]))
-                    : $commSvc->recordSaleBatch($tenantId, $userId, $svcCommon, $serviceItems);
-                if (!$serviceRes['ok']) {
-                    $error = $serviceRes['errors']['_'] ?? ($serviceRes['errors']['customer_name'] ?? 'Could not record service sale.');
+                if (!$error && $serviceItems) {
+                    $svcCommon = [
+                        'payment_method' => $paymentMethod,
+                        'customer_name'  => $_POST['customer_name'] ?? '',
+                        'customer_phone' => $_POST['customer_phone'] ?? '',
+                        'branch_id'      => $branchId,
+                        'notes'          => '',
+                    ];
+                    $serviceRes = count($serviceItems) === 1
+                        ? $commSvc->recordSale($tenantId, $userId, array_merge($svcCommon, $serviceItems[0]))
+                        : $commSvc->recordSaleBatch($tenantId, $userId, $svcCommon, $serviceItems);
+                    if (!$serviceRes['ok']) {
+                        $error = $serviceRes['errors']['_'] ?? ($serviceRes['errors']['customer_name'] ?? 'Could not record service sale.');
+                    }
                 }
+
+                if ($error) {
+                    $pdo->rollBack();
+                } else {
+                    $pdo->commit();
+                }
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                $error = 'Could not complete the sale. Please try again.';
             }
 
             if (!$error) {
@@ -130,17 +148,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ? count($serviceRes['receipt_numbers']) . ' service receipts'
                         : $serviceRes['receipt_number'];
                     $_SESSION['flash']['success'] = 'Sale recorded — products: ' . $productRes['receipt_number'] . ', services: ' . $svcNote . '.';
-                    header('Location: /Curlz/public/staff/sales/receipt.php?id=' . $productRes['sale_id']);
+                    header('Location: ' . public_path('staff/sales/receipt.php') . '?id=' . (int) $productRes['sale_id']);
                     exit;
                 }
                 if ($productRes) {
                     $_SESSION['flash']['success'] = 'Sale recorded — ' . $productRes['receipt_number'] . '.';
-                    header('Location: /Curlz/public/staff/sales/receipt.php?id=' . $productRes['sale_id']);
+                    header('Location: ' . public_path('staff/sales/receipt.php') . '?id=' . (int) $productRes['sale_id']);
                     exit;
                 }
                 if ($serviceRes) {
                     $_SESSION['flash']['success'] = 'Service sale recorded — ' . $serviceRes['receipt_number'] . '.';
-                    header('Location: /Curlz/public/commission/receipt.php?id=' . $serviceRes['id']);
+                    header('Location: ' . public_path('commission/receipt.php') . '?id=' . (int) $serviceRes['id']);
                     exit;
                 }
             }

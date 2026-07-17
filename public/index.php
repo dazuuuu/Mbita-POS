@@ -1,16 +1,18 @@
 <?php
 // public/index.php — Curlz POS · login portal (installable PWA)
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+require_once __DIR__ . '/../app/app.php';
 
-$LOGIN    = '/Curlz/public/auth/login.php';
+$LOGIN    = public_path('auth/login.php');
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']);
 $role     = $_SESSION['role'] ?? '';
-if ($role === 'staff') {
-    $dashUrl = '/Curlz/public/staff/dashboard/';
+if ($role === 'tenant_owner') {
+    $dashUrl = public_path('super/settings/?tab=locations');
 } elseif ($role === 'sales_agent') {
-    $dashUrl = '/Curlz/public/sales-agent/dashboard/';
+    $dashUrl = public_path('sales-agent/dashboard/');
+} elseif (StaffRoles::isEmployeeRole($role)) {
+    $dashUrl = public_path('staff/dashboard/');
 } else {
-    $dashUrl = '/Curlz/public/super/dashboard/';
+    $dashUrl = public_path('auth/login.php');
 }
 $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 ?>
@@ -169,7 +171,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
         <div class="inner">
           <div class="brand">
             <div class="logo-box">
-              <img src="/Curlz/public/assets/images/logo/logo.png" alt="Curlz POS"
+              <img src="<?php echo htmlspecialchars(asset_path('images/logo/logo.png')); ?>" alt="Curlz POS"
                    onerror="this.style.display='none';this.parentNode.innerHTML+='<i class=\'fa-solid fa-layer-group logo-fallback\'></i>'">
             </div>
             <h1>Curlz POS</h1>
@@ -183,21 +185,21 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
               <span class="tx"><b>Open the POS</b><span>Continue to your dashboard</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
-            <a class="portal staff" href="/Curlz/public/auth/logout.php">
+            <a class="portal staff" href="<?php echo public_path('auth/logout.php'); ?>">
               <span class="ic"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
               <span class="tx"><b>Switch account</b><span>Log out and sign in as someone else</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
           <?php else: ?>
             <div class="lede">Sign in to continue</div>
-            <a class="portal owner" href="<?php echo $h($LOGIN); ?>?as=owner">
+            <a class="portal owner" href="<?php echo $h($LOGIN); ?>?mode=admin">
               <span class="ic"><i class="fa-solid fa-user-shield"></i></span>
-              <span class="tx"><b>Owner / Manager</b><span>Sales, stock, staff &amp; reports</span></span>
+              <span class="tx"><b>Admin / Owner</b><span>PIN or email — manage shop, staff &amp; settings</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
-            <a class="portal staff" href="<?php echo $h($LOGIN); ?>?as=staff">
-              <span class="ic"><i class="fa-solid fa-cash-register"></i></span>
-              <span class="tx"><b>Staff / Cashier</b><span>Make sales &amp; print receipts</span></span>
+            <a class="portal staff" href="<?php echo $h($LOGIN); ?>?mode=staff">
+              <span class="ic"><i class="fa-solid fa-key"></i></span>
+              <span class="tx"><b>Staff</b><span>PIN only — like unlocking your phone</span></span>
               <span class="go"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
           <?php endif; ?>

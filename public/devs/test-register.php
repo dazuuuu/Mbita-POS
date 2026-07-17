@@ -25,7 +25,7 @@ if (!$test) {
     echo '<div class="auth-alert err">No active <strong>Test (2 weeks)</strong> plan found. Run migration 017 first.</div>';
 } else {
     // Test plan only offers the 2-week interval (KES 10).
-    $url = '/Modern/public/auth/register.php?plan_id=' . (int) $test['id'] . '&interval=biweekly';
+    $url = public_path('auth/register.php?plan_id=') . (int) $test['id'] . '&interval=biweekly';
     ?>
     <div class="auth-alert err" style="background:#fef3c7;color:#92400e;">⚠ Dev/test only — delete <code>public/devs/test-register.php</code> before launch.</div>
     <div class="auth-title">Test on the 10-bob plan</div>

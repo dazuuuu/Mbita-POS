@@ -30,6 +30,8 @@ spl_autoload_register(function ($class) {
 
 // Global helpers loaded on every request (not autoloaded by class name alone in all setups).
 require_once ROOT_PATH . '/app/helpers/SchemaHelper.php';
+require_once ROOT_PATH . '/app/helpers/AppUrl.php';
+require_once ROOT_PATH . '/app/helpers/TenantModules.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -37,3 +39,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Rehydrate the current tenant/user/capabilities for this request.
 TenantContext::boot();
+
+// Do NOT open a DB connection or run migrations here — every page loads this file.
+// Pages that need the database call Database::pdo() themselves.
+// Pages that need schema 025 call Schema025Service::ensureApplied() themselves.
