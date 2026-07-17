@@ -1,7 +1,7 @@
 <?php
 // public/staff/payments/index.php — process pending service invoices at till
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth();
+PageGuard::payments();
 
 $pdo = Database::pdo();
 GeneralMigrationService::ensureApplied($pdo);
@@ -12,11 +12,6 @@ $userId = (int) TenantContext::userId();
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
 $commSvc = new CommissionService($pdo);
 $custSvc = new CustomerService($pdo);
-
-if (!TenantContext::can(Capabilities::PAYMENTS_RECEIVE)) {
-    header('Location: ' . public_path('auth/login.php?denied=1'));
-    exit;
-}
 
 $serviceCreditsOn = !empty($__tenant['service_credits_enabled']) || !empty($__tenant['credits_enabled']);
 $defaultCreditDays = (int) ($__tenant['default_credit_days'] ?? 30);

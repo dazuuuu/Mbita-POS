@@ -3,7 +3,7 @@
 
 class StaffNav
 {
-    /** Branch-scoped modules for the logged-in staff member. */
+    /** Branch-scoped modules for the logged-in staff member (union with tenant modules). */
     public static function staffModules(?PDO $db = null, ?array $tenant = null, ?int $userId = null): array
     {
         $db = $db ?? Database::pdo();
@@ -18,7 +18,10 @@ class StaffNav
             $stmt->execute([$uid]);
             $branch = $stmt->fetch();
             if ($branch && !empty($branch['id'])) {
-                $modules = TenantModules::fromBranch($branch);
+                $branchMods = TenantModules::fromBranch($branch);
+                foreach ($branchMods as $key => $on) {
+                    $modules[$key] = !empty($modules[$key]) || $on;
+                }
             }
         }
         return $modules;
@@ -39,16 +42,20 @@ class StaffNav
         return !empty($modules[TenantModules::APPOINTMENTS]);
     }
 
+    /** Capabilities that unlock the service check-in workflow. */
+    public static function checkInCapabilities(): array
+    {
+        return [
+            Capabilities::CUSTOMERS_CHECKIN,
+            Capabilities::INVOICES_MANAGE,
+            Capabilities::COMMISSION_RECORD,
+        ];
+    }
+
     /** Official service check-in (reception / delegated service staff). */
     public static function canCheckIn(?array $modules = null): bool
     {
-        $modules = $modules ?? self::staffModules();
-        if (!self::hasServices($modules)) {
-            return false;
-        }
-        return TenantContext::can(Capabilities::CUSTOMERS_CHECKIN)
-            || TenantContext::can(Capabilities::INVOICES_MANAGE)
-            || TenantContext::can(Capabilities::COMMISSION_RECORD);
+        return TenantContext::canAny(self::checkInCapabilities());
     }
 
     /** Product till only — never services (services = check-in, pay later). */
@@ -58,11 +65,7 @@ class StaffNav
         if (!self::hasProducts($modules)) {
             return false;
         }
-        if (!TenantContext::can(Capabilities::SALES_RECORD)) {
-            return false;
-        }
-        // On service branches, product till is separate — only if products module on
-        return true;
+        return TenantContext::can(Capabilities::SALES_RECORD);
     }
 
     /** Services are NEVER sold at till — check-in records customer, payment is later. */
@@ -85,19 +88,25 @@ class StaffNav
 
     public static function canViewCommission(): bool
     {
-        return TenantContext::can(Capabilities::COMMISSION_VIEW);
+        return TenantContext::canAny([
+            Capabilities::COMMISSION_VIEW,
+            Capabilities::COMMISSION_RECORD,
+        ]);
+    }
+
+    public static function paymentCapabilities(): array
+    {
+        return [Capabilities::PAYMENTS_RECEIVE, Capabilities::PAYMENTS_UPDATE];
     }
 
     public static function canProcessPayments(): bool
     {
-        return TenantContext::can(Capabilities::PAYMENTS_RECEIVE)
-            || TenantContext::can(Capabilities::PAYMENTS_UPDATE);
+        return TenantContext::canAny(self::paymentCapabilities());
     }
 
     public static function canManageAppointments(?array $modules = null): bool
     {
-        $modules = $modules ?? self::staffModules();
-        return self::hasAppointments($modules) && TenantContext::can(Capabilities::APPOINTMENTS_MANAGE);
+        return TenantContext::can(Capabilities::APPOINTMENTS_MANAGE);
     }
 
     public static function canViewSalesHistory(): bool

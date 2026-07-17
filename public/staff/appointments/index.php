@@ -1,17 +1,11 @@
 <?php
 // public/staff/appointments/index.php
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth();
+PageGuard::appointments();
 
 $pdo = Database::pdo();
 GeneralMigrationService::ensureApplied($pdo);
 $__tenant = (new Models\TenantModel($pdo))->find((int) TenantContext::tenantId());
-
-if (!TenantModules::enabled($__tenant, TenantModules::APPOINTMENTS)
-    || !TenantContext::can(Capabilities::APPOINTMENTS_MANAGE)) {
-    header('Location: ' . public_path('auth/login.php?denied=1'));
-    exit;
-}
 
 $tenantId = (int) TenantContext::tenantId();
 $userId = (int) TenantContext::userId();

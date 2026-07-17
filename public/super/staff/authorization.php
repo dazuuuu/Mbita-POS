@@ -118,7 +118,7 @@ ob_start();
     <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/staff/authorization.php'); ?>"><i class="fas fa-arrow-left me-1"></i>All staff</a>
   </div>
 
-  <div class="alert alert-info py-2 small"><i class="fas fa-circle-info me-1"></i> Changes take effect the next time this staff member logs in with their PIN.</div>
+  <div class="alert alert-info py-2 small"><i class="fas fa-circle-info me-1"></i> Permission changes apply immediately — staff menus update on their next page load.</div>
 
   <form method="post">
     <input type="hidden" name="staff_id" value="<?php echo (int) $staff['id']; ?>">

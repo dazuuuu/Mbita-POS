@@ -36,11 +36,21 @@ $adminUsesPin = ($ownerLoginMethod === 'pin') || ($mode === 'admin' && ($_GET['m
 if (($_GET['reset'] ?? '') === '1') {
     $notice = 'Your password has been set. Please sign in with your new password.';
 } elseif (($_GET['denied'] ?? '') === '1') {
+    if (!empty($_SESSION['logged_in']) && StaffRoles::isEmployeeRole($_SESSION['role'] ?? '')) {
+        $_SESSION['flash']['error'] = 'You don\'t have access to that page.';
+        header('Location: ' . public_path('staff/dashboard/'));
+        exit;
+    }
+    if (!empty($_SESSION['logged_in']) && ($_SESSION['role'] ?? '') === 'sales_agent') {
+        $_SESSION['flash']['error'] = 'You don\'t have access to that page.';
+        header('Location: ' . public_path('sales-agent/dashboard/'));
+        exit;
+    }
     $error = 'You don\'t have access to that page. Please sign in with the right account.';
     unset(
         $_SESSION['logged_in'], $_SESSION['otp_verified'], $_SESSION['user_id'],
-        $_SESSION['tenant_id'], $_SESSION['role'], $_SESSION['staff_type'], $_SESSION['capabilities'],
-        $_SESSION['username'], $_SESSION['must_reset']
+        $_SESSION['tenant_id'], $_SESSION['role'], $_SESSION['role_id'], $_SESSION['staff_type'],
+        $_SESSION['capabilities'], $_SESSION['username'], $_SESSION['must_reset']
     );
     TenantContext::reset();
 } elseif (($_GET['locked'] ?? '') === '1') {

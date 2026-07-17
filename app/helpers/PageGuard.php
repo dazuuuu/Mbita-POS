@@ -100,7 +100,25 @@ class PageGuard
             CommissionService::ensureSchema(Database::pdo());
             return;
         }
-        self::deny();
+        self::denyAccess('You don\'t have permission to record commission sales.');
+    }
+
+    /** Staff or sales agent who can view commission earnings. */
+    public static function commissionViewer(): void
+    {
+        self::requireFullAuth();
+        $role = TenantContext::role();
+        if ($role === 'sales_agent') {
+            self::enforceAgentPasswordReset();
+            CommissionService::ensureSchema(Database::pdo());
+            return;
+        }
+        if (StaffRoles::isEmployeeRole($role) && StaffNav::canViewCommission()) {
+            self::enforcePasswordReset();
+            CommissionService::ensureSchema(Database::pdo());
+            return;
+        }
+        self::denyAccess('You don\'t have permission to view commission.');
     }
 
     /** Require a fully-authenticated user who holds a capability. */
@@ -108,9 +126,46 @@ class PageGuard
     {
         self::requireFullAuth();
         if (!TenantContext::can($cap)) {
-            self::deny();
+            self::denyAccess('You don\'t have permission for this action.');
         }
         self::enforcePasswordReset();
+    }
+
+    /** Require at least one of the given capabilities. */
+    public static function anyCapability(array $caps): void
+    {
+        self::requireFullAuth();
+        if (!TenantContext::canAny($caps)) {
+            self::denyAccess('You don\'t have permission for this action.');
+        }
+        self::enforcePasswordReset();
+    }
+
+    /** Service check-in / invoice workflow. */
+    public static function checkIn(): void
+    {
+        self::auth();
+        if (!StaffNav::canCheckIn()) {
+            self::denyAccess('You don\'t have permission to check in customers.');
+        }
+    }
+
+    /** Till payment processing. */
+    public static function payments(): void
+    {
+        self::auth();
+        if (!StaffNav::canProcessPayments()) {
+            self::denyAccess('You don\'t have permission to process payments.');
+        }
+    }
+
+    /** Appointments booking. */
+    public static function appointments(): void
+    {
+        self::auth();
+        if (!StaffNav::canManageAppointments()) {
+            self::denyAccess('You don\'t have permission to manage appointments.');
+        }
     }
 
     private static function enforcePasswordReset(): void
@@ -141,6 +196,22 @@ class PageGuard
     private static function requireActiveSubscription(): void
     {
         return;
+    }
+
+    /** Authenticated users go to dashboard with a message; others to login. */
+    private static function denyAccess(string $message): void
+    {
+        if (StaffRoles::isEmployeeRole(TenantContext::role())) {
+            $_SESSION['flash']['error'] = $message;
+            header('Location: ' . public_path('staff/dashboard/'));
+            exit;
+        }
+        if (TenantContext::role() === 'sales_agent') {
+            $_SESSION['flash']['error'] = $message;
+            header('Location: ' . public_path('sales-agent/dashboard/'));
+            exit;
+        }
+        self::deny();
     }
 
     private static function deny(): void

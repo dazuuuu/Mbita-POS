@@ -1,11 +1,7 @@
 <?php
 // public/staff/commissions/index.php
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::commissionAgent();
-if (!StaffRoles::isEmployeeRole(TenantContext::role())) {
-    header('Location: ' . public_path('sales-agent/sales/'));
-    exit;
-}
+PageGuard::commissionViewer();
 
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();

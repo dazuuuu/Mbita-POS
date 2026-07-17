@@ -11,7 +11,8 @@ if (!StaffNav::canSellProducts($modules)) {
         header('Location: ' . public_path('staff/checkin/'));
         exit;
     }
-    header('Location: ' . public_path('auth/login.php?denied=1'));
+    $_SESSION['flash']['error'] = 'Product sales are not enabled for your branch.';
+    header('Location: ' . public_path('staff/dashboard/'));
     exit;
 }
 

@@ -1,14 +1,7 @@
 <?php
 // public/staff/checkin/index.php — official customer check-in for services
 require_once __DIR__ . '/../../../app/app.php';
-PageGuard::auth();
-
-if (!TenantContext::can(Capabilities::CUSTOMERS_CHECKIN)
-    && !TenantContext::can(Capabilities::INVOICES_MANAGE)
-    && !TenantContext::can(Capabilities::COMMISSION_RECORD)) {
-    header('Location: ' . public_path('auth/login.php?denied=1'));
-    exit;
-}
+PageGuard::checkIn();
 
 $pdo = Database::pdo();
 GeneralMigrationService::ensureApplied($pdo);
@@ -191,7 +184,7 @@ ob_start();
           <?php if (!empty($errors['_'])): ?><div class="alert alert-danger py-2"><?php echo htmlspecialchars($errors['_']); ?></div><?php endif; ?>
 
           <button type="submit" class="btn btn-primary btn-lg w-100">
-            <i class="fas fa-user-check me-1"></i> Check in &amp; generate receipt
+            <i class="fas fa-user-check me-1"></i> Check in customer (no payment yet)
           </button>
         </form>
         <?php endif; ?>
@@ -210,7 +203,7 @@ ob_start();
           <span id="cartTotal">KES 0</span>
         </div>
         <p class="text-muted small mt-3 mb-0">
-          Receipt goes to <strong>Payments</strong> at till. Reception processes cash, M-Pesa<?php echo $serviceCreditsOn ? ', or credit' : ''; ?>.
+          After check-in, the customer goes to <strong>Process payments</strong> at till — cash, M-Pesa, or credit.
         </p>
         <?php if (TenantContext::can(Capabilities::APPOINTMENTS_MANAGE) && TenantModules::enabled($__tenant, TenantModules::APPOINTMENTS)): ?>
         <a href="<?php echo public_path('staff/appointments/'); ?>" class="btn btn-outline-secondary btn-sm w-100 mt-3">
