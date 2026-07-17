@@ -32,7 +32,7 @@ ob_start();
 <div class="alert alert-warning border-0 shadow-sm mb-4" style="border-radius:12px;">
   <strong>Database setup needed.</strong> Commission tables are missing on this database.
   If you are the shop owner, visit
-  <a href="/Curlz/public/devs/run-migrations.php">run migrations</a>
+  <a href="<?php echo public_path('devs/run-migrations.php'); ?>">run migrations</a>
   once, then reload this page.
 </div>
 <?php endif; ?>
@@ -51,7 +51,7 @@ ob_start();
       <div class="card-body p-4">
         <div class="text-muted small text-uppercase">Total unpaid commission</div>
         <div class="h3 fw-bold mt-1">KES <?php echo number_format($unpaid, 2); ?></div>
-        <a class="btn btn-sm btn-primary mt-2" href="/Curlz/public/sales-agent/sales/new.php">Record a sale</a>
+        <a class="btn btn-sm btn-primary mt-2" href="<?php echo public_path('sales-agent/sales/new.php'); ?>">Record a sale</a>
       </div>
     </div>
   </div>
@@ -64,7 +64,7 @@ ob_start();
         <h2 class="h6 mb-1"><i class="fas fa-scissors text-primary me-2"></i>Services to sell</h2>
         <p class="text-muted small mb-0">Most of your commission comes from services. Tap to start a sale.</p>
       </div>
-      <a class="btn btn-sm btn-primary" href="/Curlz/public/sales-agent/sales/new.php">Service + product sale</a>
+      <a class="btn btn-sm btn-primary" href="<?php echo public_path('sales-agent/sales/new.php'); ?>">Service + product sale</a>
     </div>
     <?php if (!$services): ?>
       <div class="alert alert-warning mb-0">
@@ -75,7 +75,7 @@ ob_start();
     <div class="row g-2">
       <?php foreach ($services as $s): ?>
       <div class="col-6 col-md-4 col-lg-3">
-        <a href="/Curlz/public/sales-agent/sales/new.php?service_id=<?php echo (int)$s['id']; ?>"
+        <a href="<?php echo public_path('sales-agent/sales/new.php'); ?>?service_id=<?php echo (int)$s['id']; ?>"
            class="d-block text-decoration-none border rounded p-3 h-100 bg-white hover-shadow"
            style="border-radius:10px!important;transition:box-shadow .15s;">
           <div class="fw-semibold text-dark"><?php echo htmlspecialchars($s['name']); ?></div>
@@ -98,7 +98,7 @@ ob_start();
     <div class="row g-2">
       <?php foreach ($products as $p): ?>
       <div class="col-6 col-md-4 col-lg-3">
-        <a href="/Curlz/public/sales-agent/sales/new.php?product_id=<?php echo (int)$p['id']; ?>"
+        <a href="<?php echo public_path('sales-agent/sales/new.php'); ?>?product_id=<?php echo (int)$p['id']; ?>"
            class="d-block text-decoration-none border rounded p-3 h-100 bg-white"
            style="border-radius:10px!important;">
           <div class="fw-semibold text-dark"><?php echo htmlspecialchars($p['name']); ?></div>
@@ -107,7 +107,7 @@ ob_start();
       </div>
       <?php endforeach; ?>
     </div>
-    <a class="btn btn-sm btn-outline-secondary mt-3" href="/Curlz/public/sales-agent/sales/new.php">View all in sale form</a>
+    <a class="btn btn-sm btn-outline-secondary mt-3" href="<?php echo public_path('sales-agent/sales/new.php'); ?>">View all in sale form</a>
   </div>
 </div>
 <?php endif; ?>
@@ -116,7 +116,7 @@ ob_start();
   <div class="card-body p-4">
     <h2 class="h6 mb-3">Recent unpaid sales</h2>
     <?php if (!$recent): ?>
-      <p class="text-muted mb-0">No sales recorded yet. <a href="/Curlz/public/sales-agent/sales/new.php">Record your first sale</a>.</p>
+      <p class="text-muted mb-0">No sales recorded yet. <a href="<?php echo public_path('sales-agent/sales/new.php'); ?>">Record your first sale</a>.</p>
     <?php else: ?>
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0">
@@ -133,7 +133,7 @@ ob_start();
         </tbody>
       </table>
     </div>
-    <a class="btn btn-sm btn-outline-secondary mt-2" href="/Curlz/public/sales-agent/sales/">View all</a>
+    <a class="btn btn-sm btn-outline-secondary mt-2" href="<?php echo public_path('sales-agent/sales/'); ?>">View all</a>
     <?php endif; ?>
   </div>
 </div>

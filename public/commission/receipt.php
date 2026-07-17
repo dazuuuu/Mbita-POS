@@ -20,14 +20,14 @@ $role = TenantContext::role();
 $uid = (int) TenantContext::userId();
 $allowed = $role === 'tenant_owner'
     || (int) $sale['agent_user_id'] === $uid
-    || ($role === 'staff' && TenantContext::can(Capabilities::COMMISSION_VIEW));
+    || (StaffRoles::isEmployeeRole($role) && TenantContext::can(Capabilities::COMMISSION_VIEW));
 if (!$allowed) {
-    header('Location: /Curlz/public/auth/login.php?denied=1');
+    header('Location: ' . public_path('auth/login.php?denied=1'));
     exit;
 }
 
 $tenant = (new Models\TenantModel($pdo))->find($tenantId);
-$expenses = $commSvc->expenses($id);
+$expenses = $commSvc->expenses($tenantId, $id);
 
 $branch = '';
 if (!empty($sale['branch_id'])) {
@@ -75,11 +75,11 @@ $waText = rawurlencode("Receipt {$sale['receipt_number']} from {$shop}\nTotal: {
 $waLink = $waNum ? 'https://wa.me/' . $waNum . '?text=' . $waText : 'https://wa.me/?text=' . $waText;
 
 $backUrl = $role === 'sales_agent'
-    ? '/Curlz/public/sales-agent/sales/'
-    : ($role === 'staff' ? '/Curlz/public/staff/commissions/' : '/Curlz/public/super/commissions/');
+    ? public_path('sales-agent/sales/')
+    : (StaffRoles::isEmployeeRole($role) ? public_path('staff/commissions/') : public_path('super/commissions/'));
 $newUrl = $role === 'sales_agent'
-    ? '/Curlz/public/sales-agent/sales/new.php'
-    : '/Curlz/public/staff/commissions/new.php';
+    ? public_path('sales-agent/sales/new.php')
+    : public_path('staff/commissions/new.php');
 ?>
 <!DOCTYPE html>
 <html lang="en">

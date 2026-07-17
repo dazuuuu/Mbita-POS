@@ -5,9 +5,18 @@ PageGuard::tenant();
 
 $pdo = Database::pdo();
 $tenantId = (int) TenantContext::tenantId();
+$__tenant = (new Models\TenantModel($pdo))->find($tenantId);
+$__locations = (new Models\BranchModel($pdo))->listWithCounts();
+$modules = TenantModules::effectiveForTenant($__tenant, $__locations);
+if (empty($modules[TenantModules::SERVICES])) {
+    $_SESSION['flash']['error'] = 'Services are not enabled for any of your locations. Turn on Services in Settings → Modules.';
+    header('Location: ' . public_path('super/settings/?tab=modules'));
+    exit;
+}
+
 CommissionService::ensureSchema($pdo);
 $svc = new OfferedServiceService($pdo);
-$base = '/Curlz/public/super/services/';
+$base = public_path('super/services/');
 
 $editId = (int) ($_GET['edit'] ?? $_POST['id'] ?? 0);
 $editRow = $editId ? $svc->find($tenantId, $editId) : null;

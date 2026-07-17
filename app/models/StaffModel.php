@@ -208,7 +208,7 @@ class StaffModel extends Model
             $body .= "Your staff account has been created.\n\n";
             $body .= "Email: $email\n";
             $body .= "Password: $password\n\n";
-            $body .= "Please login at: " . $_SERVER['HTTP_HOST'] . "/Modern/public/auth/login.php\n\n";
+            $body .= "Please login at: " . ($_SERVER['HTTP_HOST'] ?? 'localhost') . public_path('auth/login.php') . "\n\n";
             $body .= "Regards,\nModern POS Team";
             
             $mailService->send($email, $subject, $body);

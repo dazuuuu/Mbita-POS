@@ -4,11 +4,15 @@ require_once __DIR__ . '/../../../app/app.php';
 PageGuard::capability(Capabilities::INVENTORY_EDIT);
 
 $pdo = Database::pdo();
+Schema020Service::ensureApplied($pdo);
+if (!SchemaHelper::inventoryReady($pdo)) {
+    $_SESSION['flash']['error'] = 'Products database needs an update. Open fix-schema-020.php once.';
+}
 $C = new Models\CategoryModel($pdo);
 $S = new Models\SubcategoryModel($pdo);
 $P = new Models\ProductModel($pdo);
 
-$base = '/Curlz/public/super/products/';
+$base = public_path('super/products/');
 
 $categories = $C->all([], 'name ASC');
 $allSubs    = $S->all([], 'name ASC');
@@ -44,7 +48,7 @@ function product_handle_image(array $file): array
     if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) {
         return ['ok' => false, 'error' => 'Could not save the image. Check folder permissions.'];
     }
-    return ['ok' => true, 'path' => '/Curlz/public/assets/uploads/products/' . $name];
+    return ['ok' => true, 'path' => public_path('assets/uploads/products/') . $name];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -62,8 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . $base); exit;
     }
     if ($action === 'delete') {
-        $P->deleteSafe((int) ($_POST['id'] ?? 0));
-        $_SESSION['flash']['success'] = 'Product deleted.';
+        $res = $P->deleteSafe((int) ($_POST['id'] ?? 0));
+        $_SESSION['flash'][$res['ok'] ? 'success' : 'error'] = $res['ok']
+            ? 'Product deleted.'
+            : ($res['error'] ?? 'Could not delete product.');
         header('Location: ' . $base); exit;
     }
 
@@ -77,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'unit'                => $_POST['unit'] ?? 'piece',
         'buying_price'        => $_POST['buying_price'] ?? '',
         'selling_price'       => $_POST['selling_price'] ?? '',
+        'wholesale_price'     => $_POST['wholesale_price'] ?? '',
         'commission_type'     => $_POST['commission_type'] ?? 'percent',
         'commission_value'    => $_POST['commission_value'] ?? 0,
         'credit_allowed'      => !empty($_POST['credit_allowed']) ? 1 : 0,
@@ -120,7 +127,10 @@ $colorsVal = !empty($old) ? implode(', ', (array) ($old['colors'] ?? [])) : $csv
 $sizesVal  = !empty($old) ? implode(', ', (array) ($old['sizes'] ?? []))  : $csv($editRow['sizes'] ?? null);
 $curImage  = $editRow['image_path'] ?? ($old['image_path'] ?? null);
 
-$products = $P->listWithMeta();
+$products = SchemaHelper::inventoryReady($pdo) ? $P->listWithMeta() : [];
+$__tenant = (new Models\TenantModel($pdo))->find((int) TenantContext::tenantId());
+$__locations = (new Models\BranchModel($pdo))->listWithCounts();
+$showWholesale = !empty(TenantModules::effectiveForTenant($__tenant, $__locations)[TenantModules::WHOLESALE]);
 $page_title = 'Products';
 
 // subcategories grouped by category for the dependent dropdown
@@ -130,6 +140,12 @@ foreach ($allSubs as $s) { $subsByCat[(int) $s['category_id']][] = ['id' => (int
 ob_start();
 $unitLabels = ['piece' => 'Piece(s)', 'g' => 'Grams (g)', 'kg' => 'Kilograms (kg)', 'tonne' => 'Tonnes', 'ml' => 'Millilitres (ml)', 'litre' => 'Litres'];
 ?>
+<?php if (!SchemaHelper::inventoryReady($pdo)): ?>
+<div class="alert alert-danger">
+  <strong>Database update needed.</strong> Your products table is missing <code>tenant_id</code>.
+  Open <a href="<?php echo public_path('devs/fix-schema-020.php'); ?>" class="alert-link">fix-schema-020.php</a> once, then refresh.
+</div>
+<?php endif; ?>
 <div class="row g-4">
   <!-- form -->
   <div class="col-12 col-lg-5">
@@ -197,11 +213,18 @@ $unitLabels = ['piece' => 'Piece(s)', 'g' => 'Grams (g)', 'kg' => 'Kilograms (kg
               <?php if (!empty($errors['buying_price'])): ?><small class="text-danger"><?php echo htmlspecialchars($errors['buying_price']); ?></small><?php endif; ?>
             </div>
             <div class="col-6 mb-3">
-              <label class="form-label">Selling price (KES)</label>
+              <label class="form-label"><?php echo $showWholesale ? 'Retail price (KES)' : 'Selling price (KES)'; ?></label>
               <input name="selling_price" id="sellP" type="number" step="0.01" min="0" class="form-control" value="<?php echo htmlspecialchars($val('selling_price')); ?>" placeholder="0">
               <?php if (!empty($errors['selling_price'])): ?><small class="text-danger"><?php echo htmlspecialchars($errors['selling_price']); ?></small><?php endif; ?>
             </div>
           </div>
+          <?php if ($showWholesale): ?>
+          <div class="mb-3">
+            <label class="form-label">Wholesale price (KES)</label>
+            <input name="wholesale_price" type="number" step="0.01" min="0" class="form-control" value="<?php echo htmlspecialchars($val('wholesale_price')); ?>" placeholder="Optional — for bulk buyers">
+            <small class="text-muted">Leave blank if this product is retail-only.</small>
+          </div>
+          <?php endif; ?>
 
           <div class="row g-2 mb-3">
             <div class="col-6">

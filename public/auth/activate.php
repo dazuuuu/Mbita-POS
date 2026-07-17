@@ -18,11 +18,11 @@ ob_start();
 if ($res['ok']): ?>
     <div class="auth-title">You're all set 🎉</div>
     <div class="auth-sub">Your account is active. Log in to reach your dashboard.</div>
-    <a class="btn-auth d-block text-center text-decoration-none" href="/Curlz/public/auth/login.php">Log in</a>
+    <a class="btn-auth d-block text-center text-decoration-none" href="<?php echo public_path('auth/login.php'); ?>">Log in</a>
 <?php else: ?>
     <div class="auth-title">Activation problem</div>
     <div class="auth-alert err"><?php echo htmlspecialchars($messages[$res['reason']] ?? 'Activation failed.'); ?></div>
-    <div class="auth-foot"><a href="/Curlz/public/auth/login.php">Go to login</a></div>
+    <div class="auth-foot"><a href="<?php echo public_path('auth/login.php'); ?>">Go to login</a></div>
 <?php endif;
 $content = ob_get_clean();
 include ROOT_PATH . '/public/templates/auth/layout.php';
