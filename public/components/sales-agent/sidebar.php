@@ -1,8 +1,11 @@
 <?php
 // public/components/sales-agent/sidebar.php
 $__tenant   = $__tenant ?? null;
-$shopName   = Branding::shopName($__tenant);
-$logo       = Branding::tenantLogoUrl($__tenant);
+$pdoSidebar = Database::pdo();
+if ($__tenant === null && TenantContext::tenantId()) {
+    $__tenant = (new Models\TenantModel($pdoSidebar))->find(TenantContext::tenantId());
+}
+$__tenant = Branding::tenantOrPortal($__tenant, $pdoSidebar);
 $username   = $_SESSION['username'] ?? 'User';
 $uri        = $_SERVER['REQUEST_URI'] ?? '';
 $isOn = function (string $needle) use ($uri): string {
@@ -14,8 +17,7 @@ $isOn = function (string $needle) use ($uri): string {
 <aside class="t-sidebar" id="tSidebar">
     <div class="t-brand">
         <button class="t-close" id="tSidebarClose" aria-label="Close"><i class="fas fa-times"></i></button>
-        <img class="t-logo" src="<?php echo htmlspecialchars($logo); ?>" alt="<?php echo htmlspecialchars($shopName); ?>">
-        <div class="t-shop"><?php echo htmlspecialchars($shopName); ?></div>
+        <?php include __DIR__ . '/../branding/logo_block.php'; ?>
         <div class="t-user">
             <?php echo htmlspecialchars($username); ?>
             <span class="t-role">Sales agent</span>

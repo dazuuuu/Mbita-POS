@@ -8,6 +8,11 @@ class Branding
 
     private static ?array $portalCache = null;
 
+    public static function resetCache(): void
+    {
+        self::$portalCache = null;
+    }
+
     public static function appName(): string
     {
         $file = ROOT_PATH . '/app/config/app.php';
@@ -21,36 +26,70 @@ class Branding
         return 'POS';
     }
 
-    /** Stored path (DB value or default). */
-    public static function tenantLogo(?array $tenant): string
+    /** Stored path in DB (may be /public/uploads/... or uploads/...). */
+    public static function tenantLogo(?array $tenant): ?string
     {
         if ($tenant && !empty($tenant['logo_path'])) {
-            return (string) $tenant['logo_path'];
+            return trim((string) $tenant['logo_path']);
         }
-        return self::DEFAULT_LOGO;
+        return null;
     }
 
-    /** Web URL for img src — works on subfolder and built-in server. */
-    public static function resolveLogoUrl(?string $path): string
+    /** Relative path under public/ when the file exists on disk. */
+    public static function publicRelativePath(?string $storedPath): ?string
     {
-        if ($path === null || $path === '') {
-            return asset_path('images/logo/logo.png');
+        if ($storedPath === null || $storedPath === '') {
+            return null;
         }
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
+
+        $candidates = [];
+        $storedPath = str_replace('\\', '/', $storedPath);
+
+        if (str_starts_with($storedPath, '/public/')) {
+            $candidates[] = ltrim(substr($storedPath, 8), '/');
         }
-        if (str_starts_with($path, '/public/')) {
-            return AppUrl::public(ltrim(substr($path, 8), '/'));
+        $candidates[] = ltrim($storedPath, '/');
+        if (str_starts_with($storedPath, 'public/')) {
+            $candidates[] = ltrim(substr($storedPath, 7), '/');
         }
-        if (str_starts_with($path, '/assets/')) {
-            return AppUrl::public(ltrim($path, '/'));
+
+        foreach (array_unique($candidates) as $rel) {
+            if ($rel === '') {
+                continue;
+            }
+            $disk = ROOT_PATH . '/public/' . $rel;
+            if (is_file($disk)) {
+                return $rel;
+            }
         }
-        return asset_path(ltrim($path, '/'));
+
+        return null;
     }
 
-    public static function tenantLogoUrl(?array $tenant): string
+    public static function hasCustomLogo(?array $tenant): bool
     {
-        return self::resolveLogoUrl(self::tenantLogo($tenant));
+        return self::publicRelativePath(self::tenantLogo($tenant)) !== null;
+    }
+
+    /** Web URL for img src. Returns null when no custom logo uploaded (never show platform default on tenant UI). */
+    public static function tenantLogoUrl(?array $tenant, bool $absolute = false): ?string
+    {
+        $rel = self::publicRelativePath(self::tenantLogo($tenant));
+        if ($rel === null) {
+            return null;
+        }
+
+        $url = AppUrl::public($rel);
+        if ($absolute) {
+            return AppUrl::url($rel);
+        }
+
+        $disk = ROOT_PATH . '/public/' . $rel;
+        if (is_file($disk)) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . 'v=' . filemtime($disk);
+        }
+
+        return $url;
     }
 
     public static function shopName(?array $tenant): string
@@ -59,11 +98,36 @@ class Branding
         return $name !== '' ? $name : 'My Shop';
     }
 
+    /** Active tenant for this install (logged-in tenant, else first active row). */
+    public static function activeTenant(?PDO $db = null): ?array
+    {
+        try {
+            $db = $db ?? Database::pdo();
+            if (!SchemaHelper::tableExists($db, 'tenants')) {
+                return null;
+            }
+
+            $tenantId = TenantContext::tenantId();
+            if ($tenantId) {
+                $stmt = $db->prepare('SELECT * FROM tenants WHERE id = ? AND status = ? LIMIT 1');
+                $stmt->execute([(int) $tenantId, 'active']);
+                $row = $stmt->fetch();
+                if ($row) {
+                    return $row;
+                }
+            }
+
+            $row = $db->query("SELECT * FROM tenants WHERE status = 'active' ORDER BY id ASC LIMIT 1")->fetch();
+            return $row ?: null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
     /**
      * Branding for login portal / auth screens.
-     * Uses logged-in tenant, else the only active tenant, else app config.
      *
-     * @return array{name:string,logo_url:string,tenant:?array}
+     * @return array{name:string,logo_url:?string,tenant:?array,has_logo:bool}
      */
     public static function portalBranding(?PDO $db = null): array
     {
@@ -71,58 +135,32 @@ class Branding
             return self::$portalCache;
         }
 
-        $tenant = null;
-        $tenantId = TenantContext::tenantId();
-        if ($tenantId) {
-            try {
-                $db = $db ?? Database::pdo();
-                $tenant = (new Models\TenantModel($db))->find((int) $tenantId);
-            } catch (Throwable $e) {
-                $tenant = null;
-            }
-        }
-
-        if (!$tenant) {
-            $tenant = self::singleActiveTenant($db);
-        }
-
+        $tenant = self::activeTenant($db);
         if ($tenant) {
             self::$portalCache = [
                 'name'     => self::shopName($tenant),
                 'logo_url' => self::tenantLogoUrl($tenant),
                 'tenant'   => $tenant,
+                'has_logo' => self::hasCustomLogo($tenant),
             ];
             return self::$portalCache;
         }
 
         self::$portalCache = [
             'name'     => self::appName(),
-            'logo_url' => self::resolveLogoUrl(self::DEFAULT_LOGO),
+            'logo_url' => null,
             'tenant'   => null,
+            'has_logo' => false,
         ];
         return self::$portalCache;
     }
 
-    /** @deprecated Use tenantLogoUrl() on auth when tenant is known. */
-    public static function loginLogo(): string
+    /** Ensure layout/sidebar always has tenant row when possible. */
+    public static function tenantOrPortal(?array $tenant, ?PDO $db = null): ?array
     {
-        return self::DEFAULT_LOGO;
-    }
-
-    private static function singleActiveTenant(?PDO $db): ?array
-    {
-        try {
-            $db = $db ?? Database::pdo();
-            if (!SchemaHelper::tableExists($db, 'tenants')) {
-                return null;
-            }
-            $rows = $db->query("SELECT * FROM tenants WHERE status = 'active' ORDER BY id ASC LIMIT 2")->fetchAll();
-            if (count($rows) === 1) {
-                return $rows[0];
-            }
-        } catch (Throwable $e) {
-            return null;
+        if ($tenant && !empty($tenant['id'])) {
+            return $tenant;
         }
-        return null;
+        return self::portalBranding($db)['tenant'];
     }
 }

@@ -66,7 +66,7 @@ $P = new Models\ProductModel($pdo);
 $products = $P->catalogueForTenant($tenantId);
 
 // ---- Branding ----
-$shopName   = $tenant['name'] ?? 'Our Shop';
+$shopName   = Branding::shopName($tenant);
 $shopPhone  = $tenant['phone'] ?? '';
 $shopAddr   = $tenant['address'] ?? '';
 $currency   = $tenant['currency'] ?? 'KES';
@@ -218,7 +218,9 @@ $shareUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' 
 <!-- Hero -->
 <div class="cat-hero">
     <div class="cat-hero-inner">
+        <?php if ($logoUrl): ?>
         <img class="cat-logo" src="<?php echo htmlspecialchars($logoUrl); ?>" alt="<?php echo htmlspecialchars($shopName); ?>">
+        <?php endif; ?>
         <div>
             <div class="cat-shop-name"><?php echo htmlspecialchars($shopName); ?></div>
             <div class="cat-shop-meta">

@@ -25,7 +25,7 @@ if ($type === '') {
 
 $tenant = (new Models\TenantModel($pdo))->find($tenantId);
 $shop   = Branding::shopName($tenant);
-$logoUrl = Branding::tenantLogoUrl($tenant);
+$logoUrl = Branding::tenantLogoUrl($tenant, true);
 
 $loadBranch = function (?int $branchId) use ($pdo, $tenantId): ?array {
     if (!$branchId) {

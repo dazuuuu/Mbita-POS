@@ -3,9 +3,10 @@
 require_once __DIR__ . '/../app/app.php';
 
 $LOGIN    = public_path('auth/login.php');
-$portal   = Branding::portalBranding();
+$portal   = Branding::portalBranding(Database::pdo());
 $brandName = $portal['name'];
 $brandLogo = $portal['logo_url'];
+$brandHasLogo = !empty($portal['has_logo']);
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']);
 $role     = $_SESSION['role'] ?? '';
 if ($role === 'tenant_owner') {
@@ -173,10 +174,11 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
         <div class="sheen" id="sheen"></div>
         <div class="inner">
           <div class="brand">
+            <?php if ($brandHasLogo && $brandLogo): ?>
             <div class="logo-box">
-              <img src="<?php echo htmlspecialchars($brandLogo); ?>" alt="<?php echo htmlspecialchars($brandName); ?>"
-                   onerror="this.style.display='none';this.parentNode.innerHTML+='<i class=\'fa-solid fa-layer-group logo-fallback\'></i>'">
+              <img src="<?php echo htmlspecialchars($brandLogo); ?>" alt="<?php echo htmlspecialchars($brandName); ?>">
             </div>
+            <?php endif; ?>
             <h1><?php echo htmlspecialchars($brandName); ?></h1>
             <p>Run your shop from your phone</p>
           </div>

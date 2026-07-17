@@ -1,18 +1,20 @@
 <?php
 // public/templates/auth/layout.php
 // Centered card used by register / login / otp-verify / activate.
-$__authBrand = Branding::portalBranding();
+$__authBrand = Branding::portalBranding(Database::pdo());
 $__authName  = $__authBrand['name'];
 $__authLogo  = $__authBrand['logo_url'];
+$__authTenant = $__authBrand['tenant'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($page_title ?? $__authName); ?></title>
+    <title><?php echo htmlspecialchars(($page_title ?? 'Sign in') . ' — ' . $__authName); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars(public_path('assets/css/branding.css')); ?>">
     <style>
         *{box-sizing:border-box;margin:0;padding:0}
         body{min-height:100vh;display:flex;align-items:center;justify-content:center;
@@ -145,10 +147,11 @@ $__authLogo  = $__authBrand['logo_url'];
                 <div class="card-sheen" id="sheen"></div>
                 <div class="card-inner">
                     <div class="auth-head">
-                        <img src="<?php echo htmlspecialchars($__authLogo); ?>" alt="<?php echo htmlspecialchars($__authName); ?>"
-                             style="max-height:52px;max-width:180px;object-fit:contain;display:block;margin:0 auto 6px;"
-                             onerror="this.style.display='none';this.nextElementSibling&&this.nextElementSibling.classList.remove('d-none');">
-                        <span class="logo-name d-none"><?php echo htmlspecialchars($__authName); ?></span>
+                        <?php
+                        $__brandTenant = $__authTenant;
+                        $__brandVariant = 'auth';
+                        include ROOT_PATH . '/public/components/branding/logo_block.php';
+                        ?>
                     </div>
                     <div class="auth-body">
                         <div class="badge-wrap">

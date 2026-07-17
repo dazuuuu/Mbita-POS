@@ -121,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['flash']['error'] = 'Business name is required.';
         } else {
             $tenantModel->updateSettings($tenantId, $data);
+            Branding::resetCache();
             if (empty($_SESSION['flash']['error'])) {
                 $_SESSION['flash']['success'] = 'Receipt settings saved.';
             }
@@ -583,8 +584,14 @@ document.querySelectorAll('input[name="owner_login_method"]').forEach(function(r
   </div>
   <div class="col-lg-4">
     <div class="card border-0 shadow-sm text-center p-4" style="border-radius:12px;">
-      <div class="text-muted small mb-2">Receipt preview logo</div>
-      <img src="<?php echo htmlspecialchars(Branding::tenantLogoUrl($__tenant)); ?>" alt="<?php echo htmlspecialchars(Branding::shopName($__tenant)); ?>" style="max-height:80px;">
+      <div class="text-muted small mb-2">Receipt preview</div>
+      <?php $previewLogo = Branding::tenantLogoUrl($__tenant); ?>
+      <?php if ($previewLogo): ?>
+      <img src="<?php echo htmlspecialchars($previewLogo); ?>" alt="<?php echo htmlspecialchars(Branding::shopName($__tenant)); ?>" style="max-height:80px;">
+      <?php else: ?>
+      <div class="text-muted small py-3">Upload a logo above to show it on receipts and login.</div>
+      <?php endif; ?>
+      <div class="fw-semibold mt-2"><?php echo htmlspecialchars(Branding::shopName($__tenant)); ?></div>
     </div>
   </div>
 </div>

@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['flash']['error'] = 'Business name is required.';
     } else {
         $tenantModel->updateSettings($tenantId, $data);
+        Branding::resetCache();
         if (empty($_SESSION['flash']['error'])) {
             $_SESSION['flash']['success'] = 'Business profile updated.';
         }
@@ -108,8 +109,8 @@ ob_start();
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body text-center p-4">
         <div class="text-muted small text-uppercase mb-2">Current logo</div>
-        <img src="<?php echo htmlspecialchars(Branding::tenantLogo($__tenant)); ?>"
-             alt="Logo" style="max-height:90px;max-width:100%;object-fit:contain;">
+        <img src="<?php echo htmlspecialchars(Branding::tenantLogoUrl($__tenant) ?? ''); ?>"
+             alt="<?php echo htmlspecialchars(Branding::shopName($__tenant)); ?>" style="max-height:90px;max-width:100%;object-fit:contain;">
         <div class="text-muted small mt-3">Your logo appears on menus, login screens, and printed receipts after you upload it here.</div>
       </div>
     </div>

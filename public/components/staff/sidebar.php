@@ -6,10 +6,9 @@ $tenantIdSidebar = TenantContext::tenantId();
 if ($__tenant === null && $tenantIdSidebar) {
     $__tenant = (new Models\TenantModel($pdoSidebar))->find($tenantIdSidebar);
 }
+$__tenant = Branding::tenantOrPortal($__tenant, $pdoSidebar);
 
 $modules = StaffNav::staffModules($pdoSidebar, $__tenant);
-$shopName   = Branding::shopName($__tenant);
-$logo       = Branding::tenantLogoUrl($__tenant);
 $username   = $_SESSION['username'] ?? 'User';
 $staffType  = $_SESSION['staff_type'] ?? null;
 $roleLabel  = StaffRoles::typeLabels()[$staffType] ?? 'Staff';
@@ -24,8 +23,7 @@ $isOn = function (string $needle) use ($uri): string {
 <aside class="t-sidebar" id="tSidebar">
     <div class="t-brand">
         <button class="t-close" id="tSidebarClose" aria-label="Close"><i class="fas fa-times"></i></button>
-        <img class="t-logo" src="<?php echo htmlspecialchars($logo); ?>" alt="<?php echo htmlspecialchars($shopName); ?>">
-        <div class="t-shop"><?php echo htmlspecialchars($shopName); ?></div>
+        <?php include __DIR__ . '/../branding/logo_block.php'; ?>
         <div class="t-user">
             <?php echo htmlspecialchars($username); ?>
             <span class="t-role"><?php echo htmlspecialchars($roleLabel); ?></span>
