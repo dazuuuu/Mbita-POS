@@ -4,12 +4,15 @@ require_once __DIR__ . '/../../../app/app.php';
 PageGuard::tenant();
 Schema025Service::ensureApplied(Database::pdo());
 Schema026Service::ensureApplied(Database::pdo());
+Schema029Service::ensureApplied(Database::pdo());
 
 $pdo = Database::pdo();
 $tenantId = TenantContext::tenantId();
 $svc = new StaffService($pdo);
 $__tenant = (new Models\TenantModel($pdo))->find($tenantId);
 $__locations = (new Models\BranchModel($pdo))->listWithCounts();
+$branchFilter = (int) ($_GET['branch'] ?? 0);
+$defaultBranch = $branchFilter ?: (int) ($__locations[0]['id'] ?? 0);
 $modules = TenantModules::effectiveForTenant($__tenant, $__locations);
 $showWholesale = !empty($modules[TenantModules::WHOLESALE]);
 $availableTypes = StaffRoles::availableStaffTypes($modules);
@@ -91,7 +94,7 @@ $formOld = $editRow ? [
     'pin'        => '',
 ] : $old;
 
-$staff = $svc->listForTenant((int) $tenantId);
+$staff = $svc->listForTenant((int) $tenantId, $branchFilter ?: null);
 $typeLabels = StaffRoles::typeLabels();
 $page_title = 'Staff';
 ob_start();
@@ -141,16 +144,17 @@ ob_start();
           </div>
           <?php if ($__locations): ?>
           <div class="mb-3">
-            <label class="form-label">Branch</label>
-            <select name="branch_id" class="form-select">
-              <option value="">All branches</option>
+            <label class="form-label"><?php echo $editRow ? 'Branch / shop (transfer)' : 'Branch / shop'; ?></label>
+            <select name="branch_id" class="form-select" required>
+              <option value="">— Select location —</option>
               <?php foreach ($__locations as $loc): ?>
-              <option value="<?php echo (int)$loc['id']; ?>" <?php echo (string)($formOld['branch_id'] ?? '') === (string)$loc['id'] ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($loc['title']); ?>
+              <option value="<?php echo (int)$loc['id']; ?>" <?php echo (string)($formOld['branch_id'] ?? $defaultBranch) === (string)$loc['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($loc['title']); ?> (<?php echo htmlspecialchars(TenantModules::locationLabel($loc)); ?>)
               </option>
               <?php endforeach; ?>
             </select>
-            <?php if (!empty($errors['branch_id'])): ?><small class="text-danger"><?php echo htmlspecialchars($errors['branch_id']); ?></small><?php endif; ?>
+            <?php if ($editRow): ?><small class="text-muted">Change location to transfer this employee to another branch or shop.</small><?php endif; ?>
+            <?php if (!empty($errors['branch_id'])): ?><small class="text-danger d-block"><?php echo htmlspecialchars($errors['branch_id']); ?></small><?php endif; ?>
           </div>
           <?php endif; ?>
           <button class="btn btn-primary"><?php echo $editRow ? 'Save changes' : 'Create staff &amp; set permissions'; ?></button>
@@ -178,9 +182,24 @@ ob_start();
   <div class="col-12 col-lg-7">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <h2 class="h5 mb-0">Your team <span class="badge bg-light text-dark"><?php echo count($staff); ?></span></h2>
-          <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/staff/authorization.php'); ?>">User Access</a>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <?php if ($__locations): ?>
+            <form method="get" class="d-flex gap-2 align-items-center">
+              <label class="small text-muted mb-0">Location</label>
+              <select name="branch" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                <option value="">All locations</option>
+                <?php foreach ($__locations as $loc): ?>
+                <option value="<?php echo (int)$loc['id']; ?>" <?php echo $branchFilter === (int)$loc['id'] ? 'selected' : ''; ?>>
+                  <?php echo htmlspecialchars($loc['title']); ?>
+                </option>
+                <?php endforeach; ?>
+              </select>
+            </form>
+            <?php endif; ?>
+            <a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('super/staff/authorization.php'); ?>">User Access</a>
+          </div>
         </div>
         <?php if (!$staff): ?>
           <div class="text-muted">No staff yet. Add your first team member on the left.</div>

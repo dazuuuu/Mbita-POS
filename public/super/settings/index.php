@@ -636,13 +636,14 @@ document.querySelectorAll('input[name="owner_login_method"]').forEach(function(r
           </select>
         </div>
         <div class="mb-3">
-          <label class="form-label">Branch</label>
-          <select name="branch_id" class="form-select">
-            <option value="">All branches</option>
+          <label class="form-label">Branch / shop<?php echo $editStaffRow ? ' (transfer)' : ''; ?></label>
+          <select name="branch_id" class="form-select" required>
+            <option value="">— Select location —</option>
             <?php foreach ($locations as $loc): ?>
             <option value="<?php echo (int)$loc['id']; ?>" <?php echo (int)($editStaffRow['branch_id'] ?? 0) === (int)$loc['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($loc['title']); ?></option>
             <?php endforeach; ?>
           </select>
+          <?php if ($editStaffRow): ?><small class="text-muted">Change location to transfer this employee.</small><?php endif; ?>
         </div>
         <div class="mb-3">
           <label class="form-label">New PIN <span class="text-muted">(optional)</span></label>

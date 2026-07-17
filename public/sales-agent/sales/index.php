@@ -12,6 +12,12 @@ $sales = $svc->unpaidSales($tenantId, $userId);
 $total = $svc->unpaidTotal($tenantId, $userId);
 $today = $svc->todayTotal($tenantId, $userId);
 
+$salesByBranch = [];
+foreach ($sales as $s) {
+    $key = ($s['branch_name'] ?? '') !== '' ? $s['branch_name'] : 'No branch';
+    $salesByBranch[$key][] = $s;
+}
+
 $page_title = 'My sales';
 ob_start();
 ?>
@@ -34,15 +40,20 @@ ob_start();
 </div>
 <div class="card border-0 shadow-sm" style="border-radius:12px;">
   <div class="card-body p-4">
-    <h2 class="h6 mb-3">Unpaid sales (awaiting payout)</h2>
+    <h2 class="h6 mb-3">Unpaid sales (awaiting payout) — by branch / shop</h2>
     <?php if (!$sales): ?>
       <p class="text-muted mb-0">No unpaid sales. Record a sale to start earning commission.</p>
     <?php else: ?>
-    <div class="table-responsive">
-      <table class="table align-middle">
+      <?php foreach ($salesByBranch as $branchName => $branchRows): ?>
+      <div class="mb-4">
+        <h3 class="h6 fw-bold mb-2"><i class="fas fa-code-branch me-1 text-primary"></i><?php echo htmlspecialchars($branchName); ?>
+          <span class="badge bg-light text-dark ms-1"><?php echo count($branchRows); ?></span>
+        </h3>
+        <div class="table-responsive">
+          <table class="table align-middle">
             <thead><tr class="text-muted small text-uppercase"><th>Date</th><th>Receipt</th><th>Item</th><th>Charged</th><th>Commission</th><th></th></tr></thead>
             <tbody>
-              <?php foreach ($sales as $s): ?>
+              <?php foreach ($branchRows as $s): ?>
               <tr>
                 <td><?php echo date('j M Y H:i', strtotime($s['created_at'])); ?></td>
                 <td class="small fw-semibold"><?php echo htmlspecialchars($s['receipt_number'] ?? '—'); ?></td>
@@ -50,11 +61,13 @@ ob_start();
                 <td>KES <?php echo number_format((float)$s['charged_amount'], 2); ?></td>
                 <td class="text-success fw-semibold">KES <?php echo number_format((float)$s['total_commission'], 2); ?></td>
                 <td><a class="btn btn-sm btn-outline-secondary" href="<?php echo public_path('commission/receipt.php'); ?>?id=<?php echo (int)$s['id']; ?>">Receipt</a></td>
-          </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
+              </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <?php endforeach; ?>
     <?php endif; ?>
   </div>
 </div>

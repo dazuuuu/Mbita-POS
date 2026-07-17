@@ -474,11 +474,60 @@ class CommissionService
     public function unpaidSales(int $tenantId, int $agentUserId): array
     {
         return $this->rows(
-            'SELECT * FROM commission_sales
-              WHERE tenant_id = ? AND agent_user_id = ? AND payout_id IS NULL
-           ORDER BY created_at DESC',
+            'SELECT cs.*, b.title AS branch_name
+               FROM commission_sales cs
+          LEFT JOIN branches b ON b.id = cs.branch_id
+              WHERE cs.tenant_id = ? AND cs.agent_user_id = ? AND cs.payout_id IS NULL
+           ORDER BY cs.branch_id ASC, cs.created_at DESC',
             [$tenantId, $agentUserId]
         );
+    }
+
+    /** Commission sales for owner view, optionally filtered by branch. */
+    public function commissionSalesForTenant(int $tenantId, string $period = 'all', ?int $branchId = null): array
+    {
+        if (!$this->hasCommissionSales()) {
+            return [];
+        }
+        $periodSql = match ($period) {
+            'today' => 'AND DATE(cs.created_at) = CURDATE()',
+            'week'  => 'AND cs.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)',
+            'month' => 'AND cs.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)',
+            default => '',
+        };
+        $branchSql = '';
+        $params = [$tenantId];
+        if ($branchId !== null && $branchId > 0) {
+            $branchSql = ' AND cs.branch_id = ?';
+            $params[] = $branchId;
+        }
+        return $this->rows(
+            "SELECT cs.*, b.title AS branch_name, u.username AS agent_name
+               FROM commission_sales cs
+          LEFT JOIN branches b ON b.id = cs.branch_id
+          LEFT JOIN users u ON u.id = cs.agent_user_id
+              WHERE cs.tenant_id = ? {$periodSql}{$branchSql}
+           ORDER BY cs.created_at DESC
+              LIMIT 1000",
+            $params
+        );
+    }
+
+    /** Group commission rows by branch title for display. */
+    public static function branchBreakdown(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $r) {
+            $name = ($r['branch_name'] ?? '') !== '' ? $r['branch_name'] : 'No branch';
+            if (!isset($out[$name])) {
+                $out[$name] = ['count' => 0, 'revenue' => 0.0, 'commission' => 0.0];
+            }
+            $out[$name]['count']++;
+            $out[$name]['revenue'] += (float) ($r['charged_amount'] ?? 0);
+            $out[$name]['commission'] += (float) ($r['total_commission'] ?? 0);
+        }
+        uasort($out, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
+        return $out;
     }
 
     /** Summary per agent for owner payout screen. */

@@ -79,12 +79,6 @@ $isOn = function (string $needle) use ($uri): string {
         </a>
         <?php endif; ?>
 
-        <?php if (TenantContext::can(Capabilities::INVENTORY_VIEW)): ?>
-        <a class="t-link <?php echo $isOn('/staff/catalogue'); ?>" href="<?php echo public_path('staff/catalogue/'); ?>">
-            <i class="fas fa-share-nodes"></i><span>Share catalogue</span>
-        </a>
-        <?php endif; ?>
-
         <?php if (TenantContext::can(Capabilities::REPORTS_VIEW)): ?>
         <a class="t-link <?php echo $isOn('/super/reports'); ?>" href="<?php echo public_path('super/reports/'); ?>">
             <i class="fas fa-chart-bar"></i><span>Reports</span>

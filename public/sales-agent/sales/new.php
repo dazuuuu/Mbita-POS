@@ -15,16 +15,9 @@ $stmt = $pdo->prepare('SELECT branch_id FROM users WHERE id = ?');
 $stmt->execute([$userId]);
 $branchId = (int) ($stmt->fetchColumn() ?: 0) ?: null;
 
-$services = $svcSvc->activeForTenant($tenantId);
-try {
-    $stmt = $pdo->prepare("SELECT id, name, selling_price, commission_type, commission_value, credit_allowed FROM products WHERE tenant_id = ? AND status = 'active' ORDER BY name");
-    $stmt->execute([$tenantId]);
-    $products = $stmt->fetchAll();
-} catch (Throwable $e) {
-    $stmt = $pdo->prepare("SELECT id, name, selling_price, commission_type, commission_value FROM products WHERE tenant_id = ? AND status = 'active' ORDER BY name");
-    $stmt->execute([$tenantId]);
-    $products = $stmt->fetchAll();
-}
+$services = $svcSvc->activeForTenant($tenantId, $branchId);
+$P = new Models\ProductModel($pdo);
+$products = $P->sellable($branchId);
 
 $errors = [];
 $preview = null;

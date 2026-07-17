@@ -21,6 +21,7 @@ class GeneralMigrationService
             '026 modules'         => fn () => Schema026Service::ensureApplied($db),
             '027 wholesale'       => fn () => self::ensure027Wholesale($db, $log),
             '028 owner login'     => fn () => Schema028Service::ensureApplied($db),
+            '029 branch scope'    => fn () => Schema029Service::ensureApplied($db),
         ];
 
         foreach ($steps as $label => $fn) {
@@ -61,6 +62,8 @@ class GeneralMigrationService
             ['label' => 'branches.branch_type', 'ok' => !SchemaHelper::tableExists($db, 'branches') || SchemaHelper::columnExists($db, 'branches', 'branch_type')],
             ['label' => 'branches.modules', 'ok' => !SchemaHelper::tableExists($db, 'branches') || SchemaHelper::columnExists($db, 'branches', 'modules')],
             ['label' => 'tenants.owner_login_method', 'ok' => !SchemaHelper::tableExists($db, 'tenants') || SchemaHelper::columnExists($db, 'tenants', 'owner_login_method')],
+            ['label' => 'products.branch_id', 'ok' => !SchemaHelper::tableExists($db, 'products') || SchemaHelper::columnExists($db, 'products', 'branch_id')],
+            ['label' => 'tenant_services.branch_id', 'ok' => !SchemaHelper::tableExists($db, 'tenant_services') || SchemaHelper::columnExists($db, 'tenant_services', 'branch_id')],
         ];
 
         if (SchemaHelper::tableExists($db, 'commission_sales')) {

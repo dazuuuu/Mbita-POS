@@ -39,6 +39,9 @@ class StaffService
         if ($branchId !== null && !$this->branchBelongsToTenant($branchId, $tenantId)) {
             $errors['branch_id'] = 'Choose a valid branch.';
         }
+        if (!$errors && $branchId === null && $this->branchCount($tenantId) > 0) {
+            $errors['branch_id'] = 'Select which branch or shop this staff member works at.';
+        }
         if (!$errors && $this->pinExists($tenantId, $pin)) {
             $errors['pin'] = 'That PIN is already in use by another staff member.';
         }
@@ -147,6 +150,16 @@ class StaffService
         $stmt = $this->db->prepare('SELECT 1 FROM branches WHERE id = ? AND tenant_id = ? LIMIT 1');
         $stmt->execute([$branchId, $tenantId]);
         return (bool) $stmt->fetchColumn();
+    }
+
+    private function branchCount(int $tenantId): int
+    {
+        if (!SchemaHelper::tableExists($this->db, 'branches')) {
+            return 0;
+        }
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM branches WHERE tenant_id = ?');
+        $stmt->execute([$tenantId]);
+        return (int) $stmt->fetchColumn();
     }
 
     private function emailExists(string $email): bool
@@ -280,6 +293,12 @@ class StaffService
         }
         if ($branchId !== null && !$this->branchBelongsToTenant($branchId, $tenantId)) {
             $errors['branch_id'] = 'Choose a valid branch.';
+        }
+        if (!$errors && $branchId === null) {
+            $branchCount = $this->branchCount($tenantId);
+            if ($branchCount > 0) {
+                $errors['branch_id'] = 'Select which branch or shop this staff member works at.';
+            }
         }
         if ($pin !== '' && !preg_match('/^\d{4,5}$/', $pin)) {
             $errors['pin'] = 'PIN must be 4 or 5 digits.';

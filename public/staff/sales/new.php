@@ -16,15 +16,10 @@ $branchId   = !empty($me['branch_id']) ? (int) $me['branch_id'] : null;
 $branchName = $me['title'] ?? '';
 
 $__tenant   = (new Models\TenantModel($pdo))->find($tenantId);
-$tenantSlug = $__tenant['slug'] ?? '';
-$shopName   = $__tenant['name'] ?? 'Our Shop';
-$catalogueUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
-              . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-              . public_path('catalogue.php?shop=') . urlencode($tenantSlug);
 
 $P = new Models\ProductModel($pdo);
-$products = $P->sellable();
-$services = (new OfferedServiceService($pdo))->activeForTenant($tenantId);
+$products = $P->sellable($branchId);
+$services = (new OfferedServiceService($pdo))->activeForTenant($tenantId, $branchId);
 
 $serviceIndex = [];
 foreach ($services as $s) {
@@ -206,13 +201,6 @@ ob_start();
             </h2>
             <?php if ($branchName): ?><span class="badge mt-1" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.85);font-size:.7rem;"><?php echo htmlspecialchars($branchName); ?></span><?php endif; ?>
           </div>
-          <?php if ($hasProducts): ?>
-          <button type="button" class="btn btn-sm fw-semibold"
-                  data-bs-toggle="modal" data-bs-target="#shareCatalogueModal"
-                  style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:9px;font-size:.8rem;">
-            <i class="fas fa-share-nodes me-1" style="color:#a5b4fc;"></i>Share Catalogue
-          </button>
-          <?php endif; ?>
         </div>
         <div class="position-relative">
           <i class="fas fa-search position-absolute" style="left:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.5);font-size:.85rem;"></i>
@@ -582,7 +570,6 @@ document.getElementById('saleForm').addEventListener('submit', function(e){
 render();
 </script>
 
-<?php if ($hasProducts): include __DIR__ . '/../../components/tenants/share_modal.php'; endif; ?>
 <?php endif; ?>
 <?php
 $content = ob_get_clean();

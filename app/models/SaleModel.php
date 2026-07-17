@@ -146,8 +146,10 @@ class SaleModel extends Model
         $tid = \TenantContext::tenantId();
         $dateSql = $date ? "AND DATE(s.created_at) = '" . preg_replace('/[^0-9-]/', '', $date) . "'" : '';
         $stmt = $this->db->prepare(
-            "SELECT s.*, (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
+            "SELECT s.*, b.title AS branch_name,
+                    (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
                FROM sales s
+          LEFT JOIN branches b ON b.id = s.branch_id
               WHERE s.tenant_id = ? AND s.staff_id = ? AND s.status = 'completed' {$dateSql}
            ORDER BY s.created_at DESC, s.id DESC
               LIMIT ?"
@@ -161,7 +163,7 @@ class SaleModel extends Model
 
     /** All sales for the tenant with staff + branch names (admin view).
      *  $period: 'today' | 'week' | 'month' | 'all' (default 'all') */
-    public function forTenant(int $limit = 1000, string $period = 'all'): array
+    public function forTenant(int $limit = 1000, string $period = 'all', ?int $branchId = null): array
     {
         $tid = \TenantContext::tenantId();
         $periodSql = match ($period) {
@@ -170,18 +172,26 @@ class SaleModel extends Model
             'month' => "AND s.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)",
             default => '',
         };
+        $branchSql = '';
+        $params = [$tid];
+        if ($branchId !== null && $branchId > 0) {
+            $branchSql = ' AND s.branch_id = ?';
+            $params[] = $branchId;
+        }
+        $params[] = $limit;
         $stmt = $this->db->prepare(
             "SELECT s.*, u.username AS staff_name, b.title AS branch_name,
                     (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id) AS item_count
                FROM sales s
           LEFT JOIN users u ON u.id = s.staff_id
           LEFT JOIN branches b ON b.id = s.branch_id
-              WHERE s.tenant_id = ? AND s.status = 'completed' {$periodSql}
+              WHERE s.tenant_id = ? AND s.status = 'completed' {$periodSql}{$branchSql}
            ORDER BY s.created_at DESC, s.id DESC
               LIMIT ?"
         );
-        $stmt->bindValue(1, $tid, \PDO::PARAM_INT);
-        $stmt->bindValue(2, $limit, \PDO::PARAM_INT);
+        foreach ($params as $i => $val) {
+            $stmt->bindValue($i + 1, $val, is_int($val) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
+        }
         $stmt->execute();
         return $stmt->fetchAll();
     }
@@ -212,6 +222,9 @@ class SaleModel extends Model
         foreach ($pos as &$row) {
             $row['sale_type'] = 'pos';
             $row['receipt_url'] = public_path('staff/sales/receipt.php') . '?id=' . (int) $row['id'];
+            if (!isset($row['branch_name'])) {
+                $row['branch_name'] = null;
+            }
         }
         unset($row);
 
@@ -226,8 +239,10 @@ class SaleModel extends Model
             $params[] = $limit;
             $stmt = $this->db->prepare(
                 "SELECT cs.id, cs.receipt_number, cs.created_at, cs.charged_amount AS total,
-                        cs.payment_method, cs.customer_name, cs.item_type, cs.item_name, cs.quantity
+                        cs.payment_method, cs.customer_name, cs.item_type, cs.item_name, cs.quantity,
+                        b.title AS branch_name
                    FROM commission_sales cs
+              LEFT JOIN branches b ON b.id = cs.branch_id
                   WHERE cs.tenant_id = ? AND cs.agent_user_id = ? {$dateSql}
                ORDER BY cs.created_at DESC, cs.id DESC
                   LIMIT ?"
@@ -244,6 +259,7 @@ class SaleModel extends Model
                     'item_count'     => 1,
                     'sale_type'      => 'commission',
                     'item_label'     => $row['item_name'] . ' (' . $row['item_type'] . ')',
+                    'branch_name'    => $row['branch_name'] ?? null,
                     'receipt_url'    => public_path('commission/receipt.php') . '?id=' . (int) $row['id'],
                 ];
             }

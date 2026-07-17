@@ -5,6 +5,7 @@ PageGuard::capability(Capabilities::INVENTORY_EDIT);
 
 $pdo = Database::pdo();
 Schema020Service::ensureApplied($pdo);
+Schema029Service::ensureApplied($pdo);
 if (!SchemaHelper::inventoryReady($pdo)) {
     $_SESSION['flash']['error'] = 'Products database needs an update. Open fix-schema-020.php once.';
 }
@@ -91,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'colors'              => array_filter(array_map('trim', explode(',', $_POST['colors'] ?? ''))),
         'sizes'               => array_filter(array_map('trim', explode(',', $_POST['sizes'] ?? ''))),
         'status'              => $action === 'draft' ? 'draft' : 'active',
+        'branch_id'           => (int) ($_POST['branch_id'] ?? 0),
     ];
     $old = $in;
 
@@ -127,9 +129,11 @@ $colorsVal = !empty($old) ? implode(', ', (array) ($old['colors'] ?? [])) : $csv
 $sizesVal  = !empty($old) ? implode(', ', (array) ($old['sizes'] ?? []))  : $csv($editRow['sizes'] ?? null);
 $curImage  = $editRow['image_path'] ?? ($old['image_path'] ?? null);
 
-$products = SchemaHelper::inventoryReady($pdo) ? $P->listWithMeta() : [];
-$__tenant = (new Models\TenantModel($pdo))->find((int) TenantContext::tenantId());
 $__locations = (new Models\BranchModel($pdo))->listWithCounts();
+$__tenant = (new Models\TenantModel($pdo))->find((int) TenantContext::tenantId());
+$branchFilter = (int) ($_GET['branch'] ?? 0);
+$defaultBranch = $branchFilter ?: (int) ($__locations[0]['id'] ?? 0);
+$products = SchemaHelper::inventoryReady($pdo) ? $P->listWithMeta($branchFilter ?: null) : [];
 $showWholesale = !empty(TenantModules::effectiveForTenant($__tenant, $__locations)[TenantModules::WHOLESALE]);
 $page_title = 'Products';
 
@@ -152,7 +156,7 @@ $unitLabels = ['piece' => 'Piece(s)', 'g' => 'Grams (g)', 'kg' => 'Kilograms (kg
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
         <h2 class="h5 mb-1"><?php echo $editRow ? 'Edit product' : 'Add a product'; ?></h2>
-        <p class="text-muted small mb-3">Selling price is what your staff will see at the till.</p>
+        <p class="text-muted small mb-3">Products belong to a specific branch or shop.</p>
 
         <?php if (!empty($errors['_'])): ?><div class="alert alert-danger py-2"><?php echo htmlspecialchars($errors['_']); ?></div><?php endif; ?>
         <?php if (!empty($errors['image'])): ?><div class="alert alert-danger py-2"><?php echo htmlspecialchars($errors['image']); ?></div><?php endif; ?>
@@ -160,6 +164,21 @@ $unitLabels = ['piece' => 'Piece(s)', 'g' => 'Grams (g)', 'kg' => 'Kilograms (kg
         <form method="post" enctype="multipart/form-data" novalidate>
           <input type="hidden" name="action" value="save">
           <?php if ($editRow): ?><input type="hidden" name="id" value="<?php echo (int)$editRow['id']; ?>"><?php endif; ?>
+
+          <?php if ($__locations): ?>
+          <div class="mb-3">
+            <label class="form-label">Branch / shop</label>
+            <select name="branch_id" class="form-select" required>
+              <option value="">— Select location —</option>
+              <?php foreach ($__locations as $loc): ?>
+              <option value="<?php echo (int)$loc['id']; ?>" <?php echo (string)$val('branch_id', $defaultBranch) === (string)$loc['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($loc['title']); ?> (<?php echo htmlspecialchars(TenantModules::locationLabel($loc)); ?>)
+              </option>
+              <?php endforeach; ?>
+            </select>
+            <?php if (!empty($errors['branch_id'])): ?><small class="text-danger"><?php echo htmlspecialchars($errors['branch_id']); ?></small><?php endif; ?>
+          </div>
+          <?php endif; ?>
 
           <div class="row g-2">
             <div class="col-7 mb-3">
@@ -289,13 +308,28 @@ $unitLabels = ['piece' => 'Piece(s)', 'g' => 'Grams (g)', 'kg' => 'Kilograms (kg
   <div class="col-12 col-lg-7">
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
-        <h2 class="h5 mb-3">Your products <span class="badge bg-light text-dark"><?php echo count($products); ?></span></h2>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h2 class="h5 mb-0">Your products <span class="badge bg-light text-dark"><?php echo count($products); ?></span></h2>
+          <?php if ($__locations): ?>
+          <form method="get" class="d-flex gap-2 align-items-center">
+            <label class="small text-muted mb-0">Location</label>
+            <select name="branch" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+              <option value="">All locations</option>
+              <?php foreach ($__locations as $loc): ?>
+              <option value="<?php echo (int)$loc['id']; ?>" <?php echo $branchFilter === (int)$loc['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($loc['title']); ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+          </form>
+          <?php endif; ?>
+        </div>
         <?php if (!$products): ?>
           <div class="text-muted">No products yet. Add your first one on the left.</div>
         <?php else: ?>
           <div class="table-responsive">
             <table class="table align-middle mb-0">
-              <thead><tr class="text-muted small text-uppercase"><th></th><th>Product</th><th class="text-end">Stock</th><th class="text-end">Sell</th><th class="text-end">Profit</th><th>Status</th><th></th></tr></thead>
+              <thead><tr class="text-muted small text-uppercase"><th></th><th>Product</th><th>Location</th><th class="text-end">Stock</th><th class="text-end">Sell</th><th class="text-end">Profit</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 <?php foreach ($products as $p):
                     $pf = Models\ProductModel::profit((float)$p['buying_price'], (float)$p['selling_price']);
@@ -313,6 +347,7 @@ $unitLabels = ['piece' => 'Piece(s)', 'g' => 'Grams (g)', 'kg' => 'Kilograms (kg
                     <div class="fw-semibold"><?php echo htmlspecialchars($p['name']); ?></div>
                     <div class="text-muted small"><?php echo $p['category_name'] ? htmlspecialchars($p['category_name']) : 'Uncategorized'; ?><?php echo $p['subcategory_name'] ? ' · ' . htmlspecialchars($p['subcategory_name']) : ''; ?></div>
                   </td>
+                  <td class="small"><?php echo htmlspecialchars($p['branch_title'] ?? '—'); ?></td>
                   <td class="text-end <?php echo $low ? 'text-danger fw-semibold' : ''; ?>">
                     <?php echo rtrim(rtrim(number_format((float)$p['quantity'], 2), '0'), '.'); ?> <span class="text-muted small"><?php echo htmlspecialchars($p['unit']); ?></span>
                     <?php if ($low): ?><i class="fas fa-triangle-exclamation ms-1" title="Low stock"></i><?php endif; ?>
