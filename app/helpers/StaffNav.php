@@ -113,4 +113,47 @@ class StaffNav
     {
         return TenantContext::can(Capabilities::SALES_VIEW);
     }
+
+    /**
+     * Reception / general staff: record customer + services; stylist assigned when payment is taken.
+     */
+    public static function defersStaffAssignmentAtCheckIn(): bool
+    {
+        return TenantContext::can(Capabilities::CUSTOMERS_CHECKIN)
+            || TenantContext::can(Capabilities::INVOICES_MANAGE);
+    }
+
+    /** Barber/stylist walk-in — commission goes to themselves; no picker shown. */
+    public static function usesSelfAssignmentAtCheckIn(): bool
+    {
+        if (self::defersStaffAssignmentAtCheckIn()) {
+            return false;
+        }
+        if (!TenantContext::can(Capabilities::COMMISSION_RECORD)) {
+            return false;
+        }
+        $type = $_SESSION['staff_type'] ?? '';
+        return $type === 'barber';
+    }
+
+    /** Who receives commission for this check-in (null = assign at till). */
+    public static function resolveCheckInAgentId(int $userId): ?int
+    {
+        if (self::usesSelfAssignmentAtCheckIn()) {
+            return $userId;
+        }
+        if (self::defersStaffAssignmentAtCheckIn()) {
+            return null;
+        }
+        if (TenantContext::can(Capabilities::COMMISSION_RECORD)) {
+            return $userId;
+        }
+        return null;
+    }
+
+    /** Staff types that may be assigned when processing payment. */
+    public static function assignableServiceStaffTypes(): array
+    {
+        return ['barber'];
+    }
 }

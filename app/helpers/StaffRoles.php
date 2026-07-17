@@ -68,7 +68,7 @@ class StaffRoles
                 [Capabilities::APPOINTMENTS_MANAGE, 'Manage appointments', 'Book, reschedule, and cancel appointments'],
                 [Capabilities::INVOICES_MANAGE,   'Generate invoices', 'Check-in customers and create service invoices (payment at till)'],
                 [Capabilities::CUSTOMERS_MANAGE,  'Manage customers', 'Add and edit customer details'],
-                [Capabilities::CUSTOMERS_CHECKIN, 'Customer check-in', 'Check customers in when they arrive'],
+                [Capabilities::CUSTOMERS_CHECKIN, 'Customer check-in', 'Check customers in — no stylist assignment; reception assigns at till when paying'],
             ],
             'Products & inventory' => [
                 [Capabilities::INVENTORY_VIEW, 'View products', 'See the product list and prices'],
@@ -78,7 +78,7 @@ class StaffRoles
                 [Capabilities::CREDITS_MANAGE,   'Manage credits', 'Issue and track customer credit sales'],
             ],
             'Services & commission' => [
-                [Capabilities::COMMISSION_RECORD, 'Check in customers (services)', 'Record customer at reception — payment happens later at till'],
+                [Capabilities::COMMISSION_RECORD, 'Check in customers (services)', 'Barber/stylist walk-in — you are credited when the invoice is paid at till'],
                 [Capabilities::COMMISSION_VIEW,   'View own commission', 'See commission earned and payout history'],
             ],
             'Administration' => [

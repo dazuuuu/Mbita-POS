@@ -21,20 +21,8 @@ $branchId = (int) ($stmt->fetchColumn() ?: 0) ?: null;
 $services = $svcSvc->activeForTenant($tenantId, $branchId);
 $customers = $custSvc->listForTenant($tenantId);
 
-$staffRoles = StaffRoles::employeeRoleNames();
-$placeholders = implode(',', array_fill(0, count($staffRoles), '?'));
-$staffSql = "SELECT u.id, u.username, u.staff_type FROM users u
-              JOIN roles r ON r.id = u.role_id
-             WHERE u.tenant_id = ? AND u.is_active = 1 AND r.role_name IN ({$placeholders})";
-$staffParams = array_merge([$tenantId], $staffRoles);
-if ($branchId) {
-    $staffSql .= ' AND (u.branch_id = ? OR u.branch_id IS NULL)';
-    $staffParams[] = $branchId;
-}
-$staffSql .= ' ORDER BY u.username ASC';
-$st = $pdo->prepare($staffSql);
-$st->execute($staffParams);
-$branchStaff = $st->fetchAll() ?: [];
+$deferStaffAssign = StaffNav::defersStaffAssignmentAtCheckIn();
+$selfAssign = StaffNav::usesSelfAssignmentAtCheckIn();
 
 $checkInDate = date('l, j F Y');
 $checkInTime = date('g:i A');
@@ -67,7 +55,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $common = [
         'customer_name'  => trim($_POST['customer_name'] ?? ''),
         'customer_phone' => trim($_POST['customer_phone'] ?? ''),
-        'agent_user_id'  => (int) ($_POST['agent_user_id'] ?? 0),
+        'agent_user_id'  => StaffNav::resolveCheckInAgentId($userId) ?? 0,
+        'defer_agent'    => $deferStaffAssign,
         'branch_id'      => $branchId,
         'notes'          => trim($_POST['notes'] ?? ''),
     ];
@@ -78,8 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($apptId > 0) {
             (new AppointmentService($pdo))->markCheckedIn($tenantId, $apptId);
         }
-        $_SESSION['flash'] = ['success' => 'Customer checked in. Unpaid receipt sent to till (' . ($res['count'] ?? 1) . ' service(s)).'];
-        header('Location: ' . ReceiptUrl::forCommission((int) $res['id']));
+        $_SESSION['flash'] = ['success' => 'Customer checked in. Unpaid invoice sent to till (' . ($res['count'] ?? 1) . ' service(s)).'];
+        header('Location: ' . public_path('staff/checkin/'));
         exit;
     }
     $errors = $res['errors'];
@@ -115,8 +104,14 @@ ob_start();
           <div>
             <h2 class="h5 fw-bold mb-1">Customer check-in</h2>
             <p class="text-muted small mb-0">
+              <?php if ($deferStaffAssign): ?>
+              <strong>Check in:</strong> record customer and services — no payment yet. Reception assigns the stylist and collects payment at till.
+              <?php elseif ($selfAssign): ?>
+              <strong>Your walk-in:</strong> check in the customer for services you will perform. Payment is collected at till later.
+              <?php else: ?>
               <strong>Step 1 — Check in:</strong> record customer details and services here. No payment yet.<br>
               <strong>Step 2 — Pay at till:</strong> reception/cashier processes payment under Process payments.
+              <?php endif; ?>
             </p>
           </div>
           <span class="checkin-badge"><i class="fas fa-calendar-day me-1"></i><?php echo htmlspecialchars($checkInDate); ?> · <?php echo htmlspecialchars($checkInTime); ?></span>
@@ -124,8 +119,6 @@ ob_start();
 
         <?php if (!$services): ?>
           <div class="alert alert-warning mb-0">No active services. Ask your manager to add services under Super → Services.</div>
-        <?php elseif (!$branchStaff): ?>
-          <div class="alert alert-warning mb-0">No staff to assign. Add staff at this branch first.</div>
         <?php else: ?>
         <form method="post" id="checkinForm">
           <input type="hidden" name="cart_json" id="cartJson" value="[]">
@@ -150,20 +143,6 @@ ob_start();
             <span id="creditAvailableText">—</span>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Assign staff <span class="text-danger">*</span></label>
-            <select name="agent_user_id" class="form-select" required>
-              <option value="">— Stylist / barber for this visit —</option>
-              <?php foreach ($branchStaff as $s): ?>
-              <option value="<?php echo (int)$s['id']; ?>" <?php echo (int)($_POST['agent_user_id'] ?? $prefillAgent) === (int)$s['id'] ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($s['username']); ?>
-                (<?php echo htmlspecialchars(StaffRoles::typeLabels()[$s['staff_type'] ?? 'general'] ?? 'Staff'); ?>)
-              </option>
-              <?php endforeach; ?>
-            </select>
-            <?php if (!empty($errors['agent_user_id'])): ?><div class="text-danger small"><?php echo htmlspecialchars($errors['agent_user_id']); ?></div><?php endif; ?>
-          </div>
-
           <label class="form-label fw-semibold">Services for this visit</label>
           <div class="row g-2 mb-3">
             <?php foreach ($services as $svc): ?>
@@ -184,7 +163,8 @@ ob_start();
           <?php if (!empty($errors['_'])): ?><div class="alert alert-danger py-2"><?php echo htmlspecialchars($errors['_']); ?></div><?php endif; ?>
 
           <button type="submit" class="btn btn-primary btn-lg w-100">
-            <i class="fas fa-user-check me-1"></i> Check in customer (no payment yet)
+            <i class="fas fa-user-check me-1"></i>
+            <?php echo $deferStaffAssign ? 'Check in &amp; send to till' : 'Check in customer (no payment yet)'; ?>
           </button>
         </form>
         <?php endif; ?>
@@ -203,7 +183,11 @@ ob_start();
           <span id="cartTotal">KES 0</span>
         </div>
         <p class="text-muted small mt-3 mb-0">
+          <?php if ($deferStaffAssign): ?>
+          After check-in, reception assigns the stylist and takes payment under <strong>Process payments</strong>.
+          <?php else: ?>
           After check-in, the customer goes to <strong>Process payments</strong> at till — cash, M-Pesa, or credit.
+          <?php endif; ?>
         </p>
         <?php if (TenantContext::can(Capabilities::APPOINTMENTS_MANAGE) && TenantModules::enabled($__tenant, TenantModules::APPOINTMENTS)): ?>
         <a href="<?php echo public_path('staff/appointments/'); ?>" class="btn btn-outline-secondary btn-sm w-100 mt-3">

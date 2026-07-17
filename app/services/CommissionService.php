@@ -18,6 +18,7 @@ class CommissionService
         Schema024Service::ensureApplied($db);
         Schema030Service::ensureApplied($db);
         Schema031Service::ensureApplied($db);
+        Schema032Service::ensureApplied($db);
         return SchemaHelper::migration023Ready($db);
     }
 
@@ -29,13 +30,14 @@ class CommissionService
     /** Reception creates a service invoice — payment collected later at till. */
     public function recordInvoice(int $tenantId, int $recordedBy, array $in): array
     {
+        $deferAgent = !empty($in['defer_agent']);
         $agentId = (int) ($in['agent_user_id'] ?? 0);
-        if ($agentId <= 0) {
+        if (!$deferAgent && $agentId <= 0) {
             return ['ok' => false, 'errors' => ['agent_user_id' => 'Assign the staff member who performed the service.']];
         }
         $in['pending'] = true;
         $in['recorded_by_user_id'] = $recordedBy;
-        return $this->recordSale($tenantId, $agentId, $in);
+        return $this->recordSale($tenantId, $deferAgent ? 0 : $agentId, $in);
     }
 
     /** Reception check-in — multiple pending service invoices for one customer visit. */
@@ -44,8 +46,9 @@ class CommissionService
         if (!$items) {
             return ['ok' => false, 'errors' => ['_' => 'Add at least one service.']];
         }
+        $deferAgent = !empty($common['defer_agent']);
         $agentId = (int) ($common['agent_user_id'] ?? 0);
-        if ($agentId <= 0) {
+        if (!$deferAgent && $agentId <= 0) {
             return ['ok' => false, 'errors' => ['agent_user_id' => 'Assign the staff member for this visit.']];
         }
         $customerName = trim($common['customer_name'] ?? '');
@@ -61,7 +64,8 @@ class CommissionService
                 continue;
             }
             $res = $this->recordInvoice($tenantId, $recordedBy, array_merge($common, $item, [
-                'agent_user_id' => $agentId,
+                'agent_user_id' => $deferAgent ? 0 : $agentId,
+                'defer_agent'   => $deferAgent,
                 'customer_name' => $customerName,
             ]));
             if (!$res['ok']) {
@@ -107,6 +111,16 @@ class CommissionService
             return ['ok' => false, 'error' => 'This invoice is already paid or voided.'];
         }
 
+        $agentId = (int) ($in['agent_user_id'] ?? 0);
+        $existingAgent = (int) ($sale['agent_user_id'] ?? 0);
+        if ($existingAgent <= 0) {
+            if ($agentId <= 0) {
+                return ['ok' => false, 'error' => 'Assign the stylist or barber before collecting payment.'];
+            }
+        } elseif ($agentId > 0 && $agentId !== $existingAgent) {
+            $existingAgent = $agentId;
+        }
+
         $amount = (float) ($sale['charged_amount'] ?? 0);
         $creditDueAt = null;
 
@@ -138,6 +152,12 @@ class CommissionService
             if ($isCredit) {
                 $custSvc = new CustomerService($this->db);
                 $custSvc->addCredit($tenantId, (int) $sale['customer_id'], $amount);
+            }
+
+            if ($existingAgent > 0 && (int) ($sale['agent_user_id'] ?? 0) !== $existingAgent) {
+                $this->db->prepare(
+                    'UPDATE commission_sales SET agent_user_id = ? WHERE id = ? AND tenant_id = ?'
+                )->execute([$existingAgent, $saleId, $tenantId]);
             }
 
             $creditSql = SchemaHelper::columnExists($this->db, 'commission_sales', 'credit_due_at')
@@ -405,7 +425,7 @@ class CommissionService
                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
             );
             $stmt->execute([
-                $tenantId, 'PENDING', $agentUserId, $branchId, $customerId,
+                $tenantId, 'PENDING', $agentUserId > 0 ? $agentUserId : null, $branchId, $customerId,
                 $customerName ?: null, $customerPhone ?: null,
                 $itemType, $serviceId, $productId, $itemName, $quantity,
                 $standardPrice, $lineCharged, $paymentMethod, $isCredit ? 1 : 0, $expenseTotal,
@@ -638,7 +658,7 @@ class CommissionService
              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         );
         $stmt->execute([
-            $tenantId, 'PENDING', $agentUserId, $branchId, $customerId,
+            $tenantId, 'PENDING', $agentUserId > 0 ? $agentUserId : null, $branchId, $customerId,
             $customerName ?: null, $customerPhone ?: null,
             $row['item_type'], $row['service_id'], $row['product_id'], $row['item_name'], $row['quantity'],
             $row['standard_price'], $row['charged'], $row['payment_method'], $row['is_credit'] ? 1 : 0,

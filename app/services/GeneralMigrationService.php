@@ -24,6 +24,7 @@ class GeneralMigrationService
             '029 branch scope'    => fn () => Schema029Service::ensureApplied($db),
             '030 payments'        => fn () => Schema030Service::ensureApplied($db),
             '031 appointments'    => fn () => Schema031Service::ensureApplied($db),
+            '032 checkin agent' => fn () => Schema032Service::ensureApplied($db),
         ];
 
         foreach ($steps as $label => $fn) {
