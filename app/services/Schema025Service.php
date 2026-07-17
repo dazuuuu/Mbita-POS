@@ -8,7 +8,7 @@ class Schema025Service
     {
         $log = [];
 
-        if (!SchemaHelper::tableExists($db, 'tenants')) {
+        if (!SchemaHelper::tenantsTableReady($db)) {
             return ['ok' => false, 'log' => ['tenants table missing']];
         }
 

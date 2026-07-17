@@ -1,14 +1,33 @@
 -- =============================================================================
 -- general_migration.sql — Mbita POS schema (safe to re-run)
 -- =============================================================================
--- HOW TO USE (MySQL Workbench):
---   1. Select your database (e.g. dynamic_db)
---   2. Run this whole file OR section by section
---   3. "Duplicate column name" / "Duplicate key name" = already applied, SKIP
+-- BEST: http://localhost:8000/devs/fix-all-schema.php (checks before each change)
 --
--- EASIER: open http://localhost:8000/devs/fix-all-schema.php in the browser
---         (checks each column before adding — no duplicate errors)
+-- If using Workbench: run section by section. IGNORE duplicate column/table errors.
 -- =============================================================================
+
+-- *** RUN THIS FIRST if customers table is missing ***
+CREATE TABLE IF NOT EXISTS customers (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id      INT NOT NULL,
+    name           VARCHAR(120) NOT NULL,
+    phone          VARCHAR(30) NULL,
+    email          VARCHAR(255) NULL,
+    credit_balance DECIMAL(12,2) NOT NULL DEFAULT 0,
+    notes          TEXT NULL,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_cust_tenant (tenant_id),
+    KEY idx_cust_phone (tenant_id, phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- *** products: add POS columns if old CMS table (ignore duplicates) ***
+ALTER TABLE products ADD COLUMN tenant_id INT NOT NULL DEFAULT 1;
+ALTER TABLE products ADD COLUMN selling_price DECIMAL(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE products ADD COLUMN buying_price DECIMAL(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE products ADD COLUMN quantity DECIMAL(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE products ADD COLUMN unit VARCHAR(20) NOT NULL DEFAULT 'piece';
+UPDATE products SET selling_price = price WHERE selling_price = 0 AND price > 0;
 
 -- -----------------------------------------------------------------------------
 -- 015 — Tenant branding (needed before 024 credits_enabled)

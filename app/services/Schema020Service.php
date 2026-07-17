@@ -26,7 +26,7 @@ class Schema020Service
             return;
         }
         try {
-            $db->exec("CREATE TABLE categories (
+            $db->exec("CREATE TABLE IF NOT EXISTS categories (
                 id         INT AUTO_INCREMENT PRIMARY KEY,
                 tenant_id  INT NOT NULL,
                 name       VARCHAR(120) NOT NULL,
@@ -36,9 +36,15 @@ class Schema020Service
                 UNIQUE KEY uq_cat_tenant_name (tenant_id, name),
                 KEY idx_cat_tenant (tenant_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            $log[] = 'Created categories table';
+            $log[] = 'Created categories table (if not exists)';
+            SchemaHelper::clearCache();
         } catch (Throwable $e) {
-            $log[] = 'Failed categories: ' . $e->getMessage();
+            if (SchemaHelper::isDuplicateSchemaError($e)) {
+                $log[] = 'categories table already exists';
+                SchemaHelper::clearCache();
+            } else {
+                $log[] = 'Failed categories: ' . $e->getMessage();
+            }
         }
     }
 
@@ -48,7 +54,7 @@ class Schema020Service
             return;
         }
         try {
-            $db->exec("CREATE TABLE subcategories (
+            $db->exec("CREATE TABLE IF NOT EXISTS subcategories (
                 id          INT AUTO_INCREMENT PRIMARY KEY,
                 tenant_id   INT NOT NULL,
                 category_id INT NOT NULL,
@@ -60,9 +66,15 @@ class Schema020Service
                 KEY idx_subcat_tenant (tenant_id),
                 KEY idx_subcat_cat (category_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            $log[] = 'Created subcategories table';
+            $log[] = 'Created subcategories table (if not exists)';
+            SchemaHelper::clearCache();
         } catch (Throwable $e) {
-            $log[] = 'Failed subcategories: ' . $e->getMessage();
+            if (SchemaHelper::isDuplicateSchemaError($e)) {
+                $log[] = 'subcategories table already exists';
+                SchemaHelper::clearCache();
+            } else {
+                $log[] = 'Failed subcategories: ' . $e->getMessage();
+            }
         }
     }
 
@@ -111,7 +123,7 @@ class Schema020Service
     private static function createInventoryProductsTable(PDO $db, array &$log): void
     {
         try {
-            $db->exec("CREATE TABLE products (
+            $db->exec("CREATE TABLE IF NOT EXISTS products (
                 id                    INT AUTO_INCREMENT PRIMARY KEY,
                 tenant_id             INT NOT NULL,
                 category_id           INT NULL,
@@ -139,10 +151,15 @@ class Schema020Service
                 KEY idx_prod_status (status),
                 KEY idx_prod_lowstock (tenant_id, quantity)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            $log[] = 'Created inventory products table';
+            $log[] = 'Created inventory products table (if not exists)';
             SchemaHelper::clearCache();
         } catch (Throwable $e) {
-            $log[] = 'Failed create products: ' . $e->getMessage();
+            if (SchemaHelper::isDuplicateSchemaError($e)) {
+                $log[] = 'products table already exists';
+                SchemaHelper::clearCache();
+            } else {
+                $log[] = 'Failed create products: ' . $e->getMessage();
+            }
         }
     }
 
@@ -158,7 +175,8 @@ class Schema020Service
             'low_stock_threshold' => 'ALTER TABLE products ADD COLUMN low_stock_threshold INT NOT NULL DEFAULT 10',
             'unit'             => "ALTER TABLE products ADD COLUMN unit VARCHAR(20) NOT NULL DEFAULT 'piece'",
             'buying_price'     => 'ALTER TABLE products ADD COLUMN buying_price DECIMAL(12,2) NOT NULL DEFAULT 0',
-            'wholesale_price'     => 'ALTER TABLE products ADD COLUMN wholesale_price DECIMAL(12,2) NULL AFTER selling_price',
+            'selling_price'    => 'ALTER TABLE products ADD COLUMN selling_price DECIMAL(12,2) NOT NULL DEFAULT 0',
+            'wholesale_price'  => 'ALTER TABLE products ADD COLUMN wholesale_price DECIMAL(12,2) NULL',
             'quantity'         => 'ALTER TABLE products ADD COLUMN quantity DECIMAL(12,2) NOT NULL DEFAULT 0',
         ];
         foreach ($cols as $col => $sql) {
@@ -175,6 +193,15 @@ class Schema020Service
         if (SchemaHelper::columnExists($db, 'products', 'category_id')) {
             try {
                 $db->exec('ALTER TABLE products MODIFY category_id INT NULL');
+            } catch (Throwable $e) {
+                // optional
+            }
+        }
+        if (SchemaHelper::columnExists($db, 'products', 'price')
+            && SchemaHelper::columnExists($db, 'products', 'selling_price')) {
+            try {
+                $db->exec('UPDATE products SET selling_price = price WHERE selling_price = 0 AND price > 0');
+                $log[] = 'Copied legacy price → selling_price where needed';
             } catch (Throwable $e) {
                 // optional
             }

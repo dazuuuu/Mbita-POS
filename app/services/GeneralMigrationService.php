@@ -12,6 +12,7 @@ class GeneralMigrationService
 
         $steps = [
             '015 tenant branding' => fn () => self::ensure015TenantBranding($db, $log),
+            '024 customers'       => fn () => self::ensureCustomers($db, $log),
             '020 inventory'       => fn () => Schema020Service::ensureApplied($db),
             '022 sales'           => fn () => self::ensure022Sales($db, $log),
             '023 commissions'   => fn () => Schema023Service::ensureApplied($db),
@@ -51,8 +52,8 @@ class GeneralMigrationService
             ['label' => 'tenants.credits_enabled', 'ok' => SchemaHelper::columnExists($db, 'tenants', 'credits_enabled')],
             ['label' => 'tenants.business_type', 'ok' => SchemaHelper::columnExists($db, 'tenants', 'business_type')],
             ['label' => 'tenants.modules', 'ok' => SchemaHelper::columnExists($db, 'tenants', 'modules')],
-            ['label' => 'table customers', 'ok' => SchemaHelper::tableExists($db, 'customers')],
-            ['label' => 'table categories', 'ok' => SchemaHelper::tableExists($db, 'categories')],
+            ['label' => 'table customers', 'ok' => SchemaHelper::tableExists($db, 'customers') || SchemaHelper::columnExists($db, 'customers', 'id')],
+            ['label' => 'table categories', 'ok' => SchemaHelper::tableExists($db, 'categories') || SchemaHelper::columnExists($db, 'categories', 'id')],
             ['label' => 'products.tenant_id', 'ok' => SchemaHelper::columnExists($db, 'products', 'tenant_id')],
             ['label' => 'products.selling_price', 'ok' => SchemaHelper::columnExists($db, 'products', 'selling_price')],
             ['label' => 'users.login_pin_hash', 'ok' => SchemaHelper::columnExists($db, 'users', 'login_pin_hash')],
@@ -74,9 +75,40 @@ class GeneralMigrationService
         return ['all_ok' => $allOk, 'checks' => $checks];
     }
 
+    private static function ensureCustomers(PDO $db, array &$log): void
+    {
+        if (SchemaHelper::tableExists($db, 'customers')) {
+            return;
+        }
+        try {
+            $db->exec("CREATE TABLE IF NOT EXISTS customers (
+                id             INT AUTO_INCREMENT PRIMARY KEY,
+                tenant_id      INT NOT NULL,
+                name           VARCHAR(120) NOT NULL,
+                phone          VARCHAR(30) NULL,
+                email          VARCHAR(255) NULL,
+                credit_balance DECIMAL(12,2) NOT NULL DEFAULT 0,
+                notes          TEXT NULL,
+                created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                KEY idx_cust_tenant (tenant_id),
+                KEY idx_cust_phone (tenant_id, phone)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $log[] = 'Created customers table';
+            SchemaHelper::clearCache();
+        } catch (Throwable $e) {
+            if (SchemaHelper::isDuplicateSchemaError($e)) {
+                $log[] = 'customers table already exists';
+                SchemaHelper::clearCache();
+            } else {
+                $log[] = 'Failed customers: ' . $e->getMessage();
+            }
+        }
+    }
+
     private static function ensure015TenantBranding(PDO $db, array &$log): void
     {
-        if (!SchemaHelper::tableExists($db, 'tenants')) {
+        if (!SchemaHelper::tenantsTableReady($db)) {
             $log[] = 'tenants table missing — run migration 013 first';
             return;
         }
