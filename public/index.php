@@ -6,7 +6,7 @@ $LOGIN    = public_path('auth/login.php');
 $loggedIn = !empty($_SESSION['logged_in']) && !empty($_SESSION['otp_verified']);
 $role     = $_SESSION['role'] ?? '';
 if ($role === 'tenant_owner') {
-    $dashUrl = public_path('super/dashboard/');
+    $dashUrl = public_path('super/settings/?tab=locations');
 } elseif ($role === 'sales_agent') {
     $dashUrl = public_path('sales-agent/dashboard/');
 } elseif (StaffRoles::isEmployeeRole($role)) {
