@@ -61,7 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($res['ok']) {
         $_SESSION['flash']['success'] = $editId ? 'Service updated.' : 'Service created.';
-        header('Location: ' . $base); exit;
+        $redirect = $base;
+        if (!empty($in['branch_id'])) {
+            $redirect .= '?branch=' . (int) $in['branch_id'];
+        }
+        header('Location: ' . $redirect);
+        exit;
     }
     $errors = $res['errors'];
 }
@@ -145,7 +150,7 @@ ob_start();
     <div class="card border-0 shadow-sm" style="border-radius:12px;">
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <h2 class="h5 mb-0">Your services</h2>
+          <h2 class="h5 mb-0">Your services <span class="badge bg-light text-dark"><?php echo count($services); ?></span></h2>
           <?php if ($__locations): ?>
           <form method="get" class="d-flex gap-2 align-items-center">
             <label class="small text-muted mb-0">Location</label>
